@@ -1,0 +1,338 @@
+[
+  {
+    "question": "¿Por qué Países Bajos es un destino popular para estudiar una carrera?",
+    "answer": "Países Bajos combina una educación de alta calidad reconocida internacionalmente, un enorme número de grados impartidos en inglés, un nivel de inglés altísimo entre la población local, cercanía geográfica con España (vuelos de 2-3 horas), y un entorno seguro y muy internacional en sus principales ciudades universitarias.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 1
+  },
+  {
+    "question": "¿Cuántos grados se imparten en inglés en Países Bajos?",
+    "answer": "Países Bajos es el país de la Europa continental con mayor oferta de programas universitarios en inglés, con cientos de grados y másteres impartidos completamente en este idioma, tanto en universidades de investigación como en universities of applied sciences.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 2
+  },
+  {
+    "question": "¿Las universidades neerlandesas tienen buen prestigio internacional?",
+    "answer": "Sí, varias universidades neerlandesas aparecen de forma constante entre las mejores del mundo en rankings internacionales (como el QS World University Rankings o el Times Higher Education), especialmente en áreas como economía, ingeniería, ciencias sociales y tecnología.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 3
+  },
+  {
+    "question": "¿Cuáles son las ciudades universitarias más conocidas en Países Bajos?",
+    "answer": "Entre las más populares para estudiantes internacionales están Ámsterdam, Róterdam, Utrecht, La Haya, Delft, Groninga, Maastricht, Eindhoven, Leiden y Tilburgo, cada una con su propio carácter, oferta académica y coste de vida.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 4
+  },
+  {
+    "question": "¿Es muy distinto el sistema educativo neerlandés al español?",
+    "answer": "Sí. El sistema neerlandés suele ser más práctico, participativo y basado en el trabajo en grupo y proyectos, con menos clases magistrales que en España, y con una relación más cercana y horizontal entre profesores y estudiantes.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 5
+  },
+  {
+    "question": "¿Qué diferencia hay entre \"university\" (WO) y \"university of applied sciences\" (HBO)?",
+    "answer": "Las \"research universities\" (universiteiten, WO) tienen un enfoque más teórico, académico y orientado a la investigación. Las \"universities of applied sciences\" (hogescholen, HBO) tienen un enfoque más práctico, con más prácticas profesionales y orientación directa al mercado laboral. Ambas rutas son válidas y reconocidas, la elección depende del perfil e intereses del estudiante.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 6
+  },
+  {
+    "question": "¿Cuánto dura un grado universitario (bachelor) en Países Bajos?",
+    "answer": "La mayoría de los bachelors en universidades de investigación (WO) duran 3 años, mientras que en universities of applied sciences (HBO) suelen durar 4 años, ya que incluyen más prácticas profesionales.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 7
+  },
+  {
+    "question": "¿Cómo se organiza el curso académico en Países Bajos?",
+    "answer": "El curso empieza normalmente en septiembre (aunque algunos programas también tienen entrada en febrero) y se divide en dos semestres, cada uno organizado en bloques o \"periods\" más cortos, con exámenes al final de cada bloque en lugar de concentrarse todos al final del semestre.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 8
+  },
+  {
+    "question": "¿Cómo funciona el sistema de calificaciones neerlandés?",
+    "answer": "Se usa una escala del 1 al 10, donde un 10 es prácticamente inalcanzable, un 8 ya se considera una nota muy alta, y un 6 es un aprobado sólido. Es distinto al sistema español y muchos estudiantes internacionales necesitan un tiempo para acostumbrarse a esta forma de puntuar.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 9
+  },
+  {
+    "question": "¿Qué es el \"Binding Study Advice\" (BSA)?",
+    "answer": "Es un sistema propio de las universidades neerlandesas por el cual, al final del primer curso, el estudiante debe haber aprobado un número mínimo de créditos (ECTS) para poder continuar el programa en esa universidad. Si no se alcanza ese mínimo, la universidad puede no permitir continuar esos estudios en ese centro.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 10
+  },
+  {
+    "question": "¿Qué son los créditos ECTS?",
+    "answer": "Son la unidad de medida del volumen de trabajo académico, común a toda Europa dentro del Espacio Europeo de Educación Superior. Un curso completo de un bachelor neerlandés suele equivaler a 60 ECTS por año.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 11
+  },
+  {
+    "question": "¿Se pueden convalidar los estudios cursados en Países Bajos si vuelvo a España?",
+    "answer": "En general sí, gracias al sistema europeo de créditos ECTS, aunque cada convalidación de asignaturas o grado se evalúa caso por caso por la universidad receptora en España.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 12
+  },
+  {
+    "question": "¿Existen dobles grados o programas conjuntos con otras universidades europeas?",
+    "answer": "Sí, cada vez es más habitual encontrar programas conjuntos entre universidades neerlandesas y otras europeas, especialmente a nivel de máster, aunque también existen algunas opciones a nivel de grado.",
+    "category": "Universidades y sistema educativo",
+    "sort_order": 13
+  },
+  {
+    "question": "¿Qué es el \"numerus fixus\"?",
+    "answer": "Es un sistema de plazas limitadas que aplican algunos grados con mucha demanda (como Medicina, Psicología o Fisioterapia) en algunas universidades. En estos casos, la admisión no depende solo de cumplir los requisitos mínimos, sino de un proceso de selección adicional (test, ranking de notas, entrevista, etc.).",
+    "category": "Admisión y requisitos",
+    "sort_order": 14
+  },
+  {
+    "question": "¿Qué requisitos académicos piden las universidades neerlandesas a estudiantes españoles?",
+    "answer": "Generalmente se exige haber completado el Bachillerato español y disponer de la nota de acceso a la universidad, además de cumplir requisitos específicos de cada programa (asignaturas cursadas, nota mínima, nivel de idioma, etc.).",
+    "category": "Admisión y requisitos",
+    "sort_order": 15
+  },
+  {
+    "question": "¿Qué nivel de inglés se necesita para estudiar un grado en inglés en Países Bajos?",
+    "answer": "La mayoría de programas piden un nivel equivalente a B2 o C1, acreditado mediante exámenes oficiales como IELTS o TOEFL, aunque algunas universidades aceptan otras formas de acreditación (como haber cursado el Bachillerato en un programa bilingüe).",
+    "category": "Admisión y requisitos",
+    "sort_order": 16
+  },
+  {
+    "question": "¿Es obligatorio presentar un IELTS o TOEFL siempre?",
+    "answer": "No siempre. Algunas universidades aceptan certificados alternativos o exenciones si el estudiante ha cursado su educación previa parcialmente en inglés, pero cada universidad establece sus propios criterios.",
+    "category": "Admisión y requisitos",
+    "sort_order": 17
+  },
+  {
+    "question": "¿Qué es Studielink?",
+    "answer": "Studielink es el portal oficial del gobierno neerlandés a través del cual se realiza la inscripción (matrícula) en cualquier universidad de Países Bajos. Es un paso obligatorio para todos los estudiantes que quieran cursar un grado o máster en el país, sea cual sea su nacionalidad.",
+    "category": "Admisión y requisitos",
+    "sort_order": 18
+  },
+  {
+    "question": "¿Cuándo empieza y termina el plazo de admisión para empezar en septiembre?",
+    "answer": "Los plazos varían según la universidad y el programa, pero en general las solicitudes se abren a partir de octubre-noviembre del año anterior y el plazo principal suele cerrarse el 1 de mayo (o antes, en programas con numerus fixus). Es recomendable confirmar las fechas exactas de cada programa cada curso.",
+    "category": "Admisión y requisitos",
+    "sort_order": 19
+  },
+  {
+    "question": "¿Necesito escribir una carta de motivación o hacer una entrevista?",
+    "answer": "Depende del programa. Muchos grados con alta demanda o numerus fixus piden carta de motivación, CV, y en ocasiones una entrevista o prueba de selección adicional, mientras que otros programas admiten solo con cumplir los requisitos académicos y de idioma.",
+    "category": "Admisión y requisitos",
+    "sort_order": 20
+  },
+  {
+    "question": "¿Cuánto tiempo antes debería empezar a preparar mi candidatura?",
+    "answer": "Se recomienda empezar entre 6 y 12 meses antes del inicio del curso, ya que hay plazos administrativos estrictos (inscripción, exámenes de idioma, documentación) y algunos trámites, como encontrar alojamiento, requieren también bastante antelación.",
+    "category": "Admisión y requisitos",
+    "sort_order": 21
+  },
+  {
+    "question": "Si repito curso o tengo asignaturas pendientes en Bachillerato, ¿puedo aplicar igualmente?",
+    "answer": "En muchos casos sí es posible, aunque puede afectar a los plazos y documentación necesaria en cada momento del proceso de admisión.",
+    "category": "Admisión y requisitos",
+    "sort_order": 22
+  },
+  {
+    "question": "¿Cuánto cuesta la matrícula universitaria en Países Bajos para un estudiante de la UE?",
+    "answer": "Los estudiantes de la Unión Europea pagan la tasa estatutaria (statutory fee), que suele rondar los 2.700€ anuales aproximadamente, aunque la cifra exacta la fija el gobierno neerlandés cada curso y puede variar ligeramente.",
+    "category": "Costes y financiación",
+    "sort_order": 23
+  },
+  {
+    "question": "¿Las tasas son más altas para estudiantes de fuera de la UE?",
+    "answer": "Sí, los estudiantes de fuera de la Unión Europea pagan la tasa \"institutional fee\", que es considerablemente más alta que la de estudiantes de la UE y varía mucho según la universidad y el programa (puede ir desde varios miles hasta más de 15.000€ anuales).",
+    "category": "Costes y financiación",
+    "sort_order": 24
+  },
+  {
+    "question": "¿Hay diferencia de precio entre universities of applied sciences y research universities?",
+    "answer": "La tasa estatutaria para estudiantes de la UE suele ser similar en ambos tipos de institución, aunque puede haber pequeñas diferencias según la universidad concreta.",
+    "category": "Costes y financiación",
+    "sort_order": 25
+  },
+  {
+    "question": "¿Cuál es el coste de vida aproximado de un estudiante en Países Bajos?",
+    "answer": "Varía mucho según la ciudad (Ámsterdam es notablemente más cara que ciudades como Groninga o Tilburgo), pero en general hay que contar con alojamiento, seguro médico obligatorio, alimentación, transporte y ocio como las partidas principales del presupuesto mensual. Suele rondar los 1500 - 1700€ mensuales",
+    "category": "Costes y financiación",
+    "sort_order": 26
+  },
+  {
+    "question": "¿Cuál es la ciudad más cara para vivir como estudiante en Países Bajos?",
+    "answer": "Ámsterdam es, con diferencia, la ciudad más cara, especialmente en alojamiento. Ciudades como Róterdam, Utrecht, Groninga, Tilburgo o Maastricht suelen ofrecer un coste de vida más asequible.",
+    "category": "Costes y financiación",
+    "sort_order": 27
+  },
+  {
+    "question": "¿Qué es DUO?",
+    "answer": "DUO (Dienst Uitvoering Onderwijs) es el organismo público neerlandés responsable de gestionar la financiación de los estudios en Países Bajos, incluyendo préstamos para tasas universitarias, manutención y transporte.",
+    "category": "Costes y financiación",
+    "sort_order": 28
+  },
+  {
+    "question": "¿Un estudiante español puede acceder a la financiación de DUO?",
+    "answer": "En determinadas condiciones sí, principalmente si el estudiante también trabaja un número mínimo de horas semanales en Países Bajos mientras estudia, ya que esto le da la consideración de \"trabajador migrante de la UE\" a efectos de acceso a ciertas ayudas. Los requisitos concretos (horas mínimas, tipo de contrato) pueden cambiar, conviene verificarlos en el momento de aplicar.",
+    "category": "Costes y financiación",
+    "sort_order": 29
+  },
+  {
+    "question": "¿Qué cubre la financiación de DUO?",
+    "answer": "Puede incluir un préstamo para cubrir las tasas universitarias (collegegeldkrediet), un préstamo o ayuda para manutención (aanvullende beurs/lening), y una tarjeta de transporte público (OV-vergoeding) con condiciones especiales para estudiantes.",
+    "category": "Costes y financiación",
+    "sort_order": 30
+  },
+  {
+    "question": "¿Necesito visado para estudiar en Países Bajos siendo ciudadano español?",
+    "answer": "No. Al ser España parte de la Unión Europea, los ciudadanos españoles no necesitan visado ni permiso de residencia para estudiar en Países Bajos, solo deben registrarse como residentes en el ayuntamiento (gemeente) del municipio donde vayan a vivir.",
+    "category": "Visados y trámites",
+    "sort_order": 31
+  },
+  {
+    "question": "¿Y si soy de un país fuera de la Unión Europea?",
+    "answer": "En ese caso, normalmente sí es necesario un permiso de residencia y, dependiendo del país de origen, un visado de entrada (MVV). Habitualmente es la propia universidad quien gestiona o ayuda a tramitar este proceso junto con el estudiante.",
+    "category": "Visados y trámites",
+    "sort_order": 32
+  },
+  {
+    "question": "¿Qué es el BSN y por qué es tan importante?",
+    "answer": "El BSN (Burgerservicenummer) es el número de identificación personal en Países Bajos, equivalente a un DNI/NIE para trámites administrativos. Es necesario para casi todo: abrir cuenta bancaria, firmar contrato de alquiler, contratar seguro médico, trabajar de forma legal o inscribirse completamente en la universidad.",
+    "category": "Visados y trámites",
+    "sort_order": 33
+  },
+  {
+    "question": "¿Cómo se obtiene el BSN?",
+    "answer": "Se obtiene al registrarte como residente en el ayuntamiento (gemeente) de la ciudad donde vayas a vivir, normalmente pidiendo cita previa poco después de llegar al país (o incluso antes, en algunos municipios que permiten reservarla con antelación).",
+    "category": "Visados y trámites",
+    "sort_order": 34
+  },
+  {
+    "question": "¿Es obligatorio registrarse en el ayuntamiento aunque vaya a vivir poco tiempo?",
+    "answer": "Si tu estancia va a superar los 4 meses, sí es obligatorio registrarte como residente (inschrijving) en el municipio correspondiente, incluso siendo ciudadano de la UE.",
+    "category": "Visados y trámites",
+    "sort_order": 35
+  },
+  {
+    "question": "¿Es difícil encontrar alojamiento como estudiante en Países Bajos?",
+    "answer": "Sí, la vivienda estudiantil es uno de los mayores retos logísticos: hay mucha demanda y poca oferta en las principales ciudades universitarias, especialmente en Ámsterdam, Utrecht y Róterdam.",
+    "category": "Alojamiento",
+    "sort_order": 36
+  },
+  {
+    "question": "¿Qué tipos de alojamiento existen para estudiantes?",
+    "answer": "Principalmente: residencias de estudiantes (studentenhuisvesting) gestionadas por organismos municipales o universitarios, pisos compartidos con otros estudiantes, y en menor medida estudios individuales, generalmente más caros y escasos.",
+    "category": "Alojamiento",
+    "sort_order": 37
+  },
+  {
+    "question": "¿Cuándo debería empezar a buscar alojamiento?",
+    "answer": "Cuanto antes, idealmente varios meses antes del inicio del curso, ya que las plazas en residencias suelen agotarse con mucha antelación, sobre todo en las ciudades más demandadas.",
+    "category": "Alojamiento",
+    "sort_order": 38
+  },
+  {
+    "question": "¿Las universidades garantizan alojamiento a los estudiantes internacionales?",
+    "answer": "Algunas universidades ofrecen garantía de alojamiento para el primer año a estudiantes internacionales que se inscriben dentro de ciertos plazos, pero no es algo universal ni automático: depende de cada universidad y ciudad, y conviene confirmarlo directamente con cada institución.",
+    "category": "Alojamiento",
+    "sort_order": 39
+  },
+  {
+    "question": "¿Es habitual el \"housing scam\" (estafas de alojamiento) en Países Bajos?",
+    "answer": "Sí, lamentablemente es un problema conocido dada la alta demanda de vivienda. Se recomienda no pagar nunca depósitos ni fianzas antes de haber podido verificar la propiedad y el arrendador, y utilizar plataformas y canales oficiales o recomendados por la universidad siempre que sea posible.",
+    "category": "Alojamiento",
+    "sort_order": 40
+  },
+  {
+    "question": "¿Es obligatorio tener seguro médico en Países Bajos?",
+    "answer": "Sí, es obligatorio por ley para cualquier residente, incluidos los estudiantes internacionales, aunque el tipo exacto de seguro necesario depende de si el estudiante también trabaja mientras estudia o no. Si eres parte de la UE, la tarjeta sanitaria europea lo cubre.",
+    "category": "Salud y vida práctica",
+    "sort_order": 41
+  },
+  {
+    "question": "¿Qué pasa si no contrato seguro médico estando obligado a ello?",
+    "answer": "Se pueden aplicar multas por parte de las autoridades neerlandesas, además del riesgo evidente de no estar cubierto ante una necesidad médica.",
+    "category": "Salud y vida práctica",
+    "sort_order": 42
+  },
+  {
+    "question": "¿Es necesario abrir una cuenta bancaria neerlandesa?",
+    "answer": "Es muy recomendable, ya que facilita el pago de alojamiento, seguro médico y gastos del día a día, dado que en Países Bajos se usa mucho el pago con tarjeta y las domiciliaciones bancarias (incompatibles con muchas cuentas extranjeras). Normalmente se necesita el BSN para poder abrirla.",
+    "category": "Salud y vida práctica",
+    "sort_order": 43
+  },
+  {
+    "question": "¿Cómo es el sistema sanitario en Países Bajos?",
+    "answer": "Es un sistema de alta calidad basado en seguros médicos obligatorios, con un médico de cabecera (huisarts) como primer punto de contacto para casi cualquier consulta médica, incluidas las urgencias no graves.",
+    "category": "Salud y vida práctica",
+    "sort_order": 44
+  },
+  {
+    "question": "¿Puedo trabajar mientras estudio en Países Bajos?",
+    "answer": "Sí, es muy habitual entre estudiantes, tanto por ingresos extra como por acceso a ciertos beneficios (como parte de la financiación DUO). Las condiciones exactas (horas permitidas, tipo de contrato) dependen de la nacionalidad y situación migratoria del estudiante.",
+    "category": "Vida estudiantil",
+    "sort_order": 45
+  },
+  {
+    "question": "¿Se habla mucho inglés en la vida diaria en Países Bajos?",
+    "answer": "Sí, Países Bajos tiene uno de los niveles de inglés más altos de Europa como segunda lengua, lo que facilita mucho la vida diaria de estudiantes internacionales incluso sin hablar neerlandés.",
+    "category": "Vida estudiantil",
+    "sort_order": 46
+  },
+  {
+    "question": "¿Merece la pena aprender neerlandés si voy a estudiar en inglés?",
+    "answer": "No es obligatorio, pero facilita la integración social y sentirse más parte del día a día del país. Muchas universidades ofrecen cursos de neerlandés gratuitos o con descuento para estudiantes internacionales.",
+    "category": "Vida estudiantil",
+    "sort_order": 47
+  },
+  {
+    "question": "¿Cómo es el clima en Países Bajos?",
+    "answer": "El clima es templado-oceánico: inviernos fríos (aunque no extremos) con poca luz solar, veranos suaves, y lluvia frecuente durante buena parte del año. Es recomendable contar con ropa de abrigo e impermeable.",
+    "category": "Vida estudiantil",
+    "sort_order": 48
+  },
+  {
+    "question": "¿Es Países Bajos un país seguro para vivir siendo estudiante?",
+    "answer": "Sí, está considerado uno de los países más seguros de Europa, con un sistema social y de servicios públicos muy desarrollado, lo que lo convierte en un destino habitual y valorado entre estudiantes internacionales.",
+    "category": "Vida estudiantil",
+    "sort_order": 49
+  },
+  {
+    "question": "¿Cómo es el transporte en Países Bajos?",
+    "answer": "El transporte público es muy eficiente (trenes, tranvías, autobuses), y la bicicleta es el medio de transporte más habitual entre estudiantes durante todo el año, incluso en invierno. Muchas ciudades universitarias son perfectamente recorribles en bici.",
+    "category": "Vida estudiantil",
+    "sort_order": 50
+  },
+  {
+    "question": "¿Cómo son las \"introduction weeks\" o semanas de bienvenida?",
+    "answer": "La mayoría de universidades organizan semanas de bienvenida muy activas al inicio del curso, con actividades sociales, deportivas y culturales pensadas para que los nuevos estudiantes, especialmente los internacionales, hagan amigos y se familiaricen con la ciudad desde el primer día.",
+    "category": "Vida estudiantil",
+    "sort_order": 51
+  },
+  {
+    "question": "¿Existen asociaciones de estudiantes españoles o hispanohablantes en las ciudades universitarias?",
+    "answer": "En la mayoría de ciudades universitarias con presencia internacional significativa suelen existir asociaciones de estudiantes españoles o hispanohablantes, además de asociaciones internacionales generales organizadas por las propias universidades.",
+    "category": "Vida estudiantil",
+    "sort_order": 52
+  },
+  {
+    "question": "¿Es fácil volver a España durante el curso (vacaciones, fines de semana)?",
+    "answer": "Sí, Países Bajos está muy bien conectado con España por vuelos directos desde varias ciudades, lo que facilita volver en vacaciones o incluso en algún fin de semana largo.",
+    "category": "Vida estudiantil",
+    "sort_order": 53
+  },
+  {
+    "question": "¿Puedo quedarme a trabajar en Países Bajos después de graduarme?",
+    "answer": "Los ciudadanos de la Unión Europea pueden trabajar libremente en Países Bajos tras graduarse, sin necesidad de trámites adicionales de residencia o trabajo, al igual que durante los estudios.",
+    "category": "Trabajo y futuro profesional",
+    "sort_order": 54
+  },
+  {
+    "question": "¿Y si soy de fuera de la Unión Europea?",
+    "answer": "Países Bajos ofrece un permiso especial llamado \"orientation year\" (zoekjaar), que permite a graduados de fuera de la UE permanecer en el país durante un año para buscar empleo o iniciar un negocio tras finalizar sus estudios.",
+    "category": "Trabajo y futuro profesional",
+    "sort_order": 55
+  },
+  {
+    "question": "¿Es fácil encontrar trabajo en Países Bajos tras graduarse en un grado internacional?",
+    "answer": "Países Bajos tiene un mercado laboral dinámico y muchas empresas internacionales con sede allí, especialmente en sectores como tecnología, finanzas, ingeniería y logística, lo que facilita la empleabilidad de graduados con perfil internacional y buen nivel de inglés.",
+    "category": "Trabajo y futuro profesional",
+    "sort_order": 56
+  }
+]

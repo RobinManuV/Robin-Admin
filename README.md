@@ -1,12 +1,13 @@
-# Robin Admin — Frontend only
+# Robin Admin
 
-Copia frontend independiente para prototipado y revisión visual.
+Panel administrativo de Robin. El acceso usa la sesión de `robin-platform` y la
+sección `/alumnos` integra su workspace administrativo completo.
 
 ## Ejecutar
 
 ```bash
 npm install
-npm run dev
+npx netlify dev
 ```
 
 ## Contenido
@@ -18,24 +19,8 @@ npm run dev
 - Campañas de Meta Ads
 - Configuración de administradores e integraciones
 
-## Importante
+## Configuración
 
-Este proyecto es exclusivamente frontend.
-
-No incluye:
-- Supabase real
-- Stripe real
-- WhatsApp API
-- Meta
-- Holded
-- Netlify Functions
-- webhooks
-- secretos
-- autenticación real
-- llamadas de backend
-
-Los datos están en `src/data/mockData.js`.
-
-No existe ninguna pantalla intermedia tipo **"Conectando con Robin"**, ni una
-pantalla de login. La aplicación abre directamente el panel y todas las
-integraciones se simulan en el navegador.
+Copia `.env.example` a `.env` y completa al menos `JWT_SECRET`, `SUPABASE_URL` y
+`SUPABASE_SERVICE_ROLE_KEY`. Las claves privadas solo las leen las Netlify
+Functions; nunca deben llevar el prefijo `VITE_`.

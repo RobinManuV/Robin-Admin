@@ -1,7 +1,26 @@
-export type PortalAdmin = { id: string; email: string; username?: string; nombre?: string; apellidos?: string };
-export type PortalClient = { id: string; email?: string; nombre?: string; apellidos?: string; tipo?: string; assigned_to?: string; application_phase?: number; requires_onboarding?: boolean; pago_completed?: boolean; created_at?: string; country?: string; is_latam?: boolean; contracted_amount?: number };
-export type PortalPayment = { id: string; user_id: string; installment: number; amount: number; currency: string; status: string; invoice_number?: string; concept?: string; created_at?: string; paid_at?: string };
+export type PortalAdmin = { id: string; email: string; username?: string; nombre?: string; apellidos?: string; avatar_url?: string | null };
+export type PortalAccessUser = { id: string; email?: string; username?: string; nombre?: string; apellidos?: string; role?: string; avatar_url?: string | null };
+export type PortalClient = { id: string; email?: string; username?: string; nombre?: string; apellidos?: string; tipo?: string; origin?: string; assigned_to?: string; application_phase?: number; application_level?: string; requires_onboarding?: boolean; dni_completed?: boolean; profile_completed?: boolean; contract_signed?: boolean; pago_completed?: boolean; pais?: string; telefono_alumno?: string; intereses?: string[]; created_at?: string; updated_at?: string };
+export type PortalPayment = { id: string; user_id: string; installment: number; amount: number; currency: string; status: string; invoice_number?: string; concept?: string };
 export type PortalSnapshot = { admin: PortalAdmin; clients: PortalClient[]; payments: PortalPayment[]; connections: { stripe: boolean; holded: boolean; email: boolean }; portalUrl: string };
 
-const unavailable = async (): Promise<never> => { throw new Error("Función no disponible en la copia frontend"); };
-export const portalClient = { login: unavailable, me: unavailable, logout: unavailable, snapshot: unavailable };
+import { api, login, logout, me } from "@/robin-platform/portal-source/src/api.js";
+
+export const portalClient = {
+  login,
+  me: me as () => Promise<PortalAdmin>,
+  logout,
+  snapshot: () => api.get("/api/admin/integration-snapshot") as Promise<PortalSnapshot>,
+  adminUsers: () => api.get("/api/admin/users") as Promise<{ users: PortalAccessUser[] }>,
+  createAdmin: (payload: { name: string; email: string; password: string }) => api.post("/api/admin/users", { action: "create", ...payload }) as Promise<{ user: PortalAccessUser }>,
+  deleteAdmin: (id: string) => api.post("/api/admin/users", { action: "delete", id }) as Promise<{ ok: boolean }>,
+  changePassword: (currentPassword: string, newPassword: string) => api.post("/api/auth/change-password", { current_password: currentPassword, new_password: newPassword }) as Promise<{ ok: boolean }>,
+  async uploadAvatar(file: File) {
+    const ticket = await api.post("/api/profile/avatar", { action: "upload_ticket", file_filename: file.name, file_mime: file.type, file_size: file.size });
+    const upload = ticket?.upload;
+    if (!upload?.signed_url || !upload?.path) throw new Error("No se pudo preparar la subida de la foto");
+    const response = await fetch(upload.signed_url, { method: "PUT", headers: { "Content-Type": file.type, "cache-control": "no-store", "x-upsert": "false" }, body: file });
+    if (!response.ok) throw new Error("No se pudo subir la foto");
+    return api.post("/api/profile/avatar", { action: "commit", file_path: upload.path, file_filename: file.name, file_mime: file.type, file_size: file.size }) as Promise<{ ok: boolean; avatar_url: string }>;
+  },
+};

@@ -1,0 +1,372 @@
+# Project Robin · Netlify configuration
+# Plataforma de alumnos y administracion (funciones serverless + Supabase)
+
+[build]
+  publish = "dist"
+  functions = "netlify/functions"
+  # Publica solo el frontend generado; el código fuente queda fuera del directorio público.
+  command = "npm run build"
+
+[dev]
+  framework = "#custom"
+  command = "vite --host 127.0.0.1 --port 5173"
+  targetPort = 5173
+  port = 8888
+  autoLaunch = false
+
+# ---------- API del portal -> Netlify Functions ----------
+[[redirects]]
+  from = "/api/auth/login"
+  to = "/.netlify/functions/auth-login"
+  status = 200
+[[redirects]]
+  from = "/api/auth/logout"
+  to = "/.netlify/functions/auth-logout"
+  status = 200
+[[redirects]]
+  from = "/api/auth/change-password"
+  to = "/.netlify/functions/auth-change-password"
+  status = 200
+[[redirects]]
+  from = "/api/notion/webhook"
+  to = "/.netlify/functions/notion-webhook"
+  status = 200
+[[redirects]]
+  from = "/api/internal/crm/convert"
+  to = "/.netlify/functions/crm-convert"
+  status = 200
+[[redirects]]
+  from = "/api/admin/crm/leads"
+  to = "/.netlify/functions/admin-crm-leads"
+  status = 200
+[[redirects]]
+  from = "/api/leads/website"
+  to = "/.netlify/functions/website-lead"
+  status = 200
+[[redirects]]
+  from = "/api/meta/lead-webhook"
+  to = "/.netlify/functions/meta-lead-webhook"
+  status = 200
+[[redirects]]
+  from = "/api/admin/meta/insights"
+  to = "/.netlify/functions/admin-meta-insights"
+  status = 200
+[[redirects]]
+  from = "/api/admin/holded/snapshot"
+  to = "/.netlify/functions/admin-holded-snapshot"
+  status = 200
+[[redirects]]
+  from = "/api/admin/finance/dashboard"
+  to = "/.netlify/functions/admin-finance-dashboard"
+  status = 200
+[[redirects]]
+  from = "/api/admin/payment-analytics"
+  to = "/.netlify/functions/admin-payment-analytics"
+  status = 200
+[[redirects]]
+  from = "/api/robin-plan/admin/data"
+  to = "/.netlify/functions/robin-plan-admin-data"
+  status = 200
+[[redirects]]
+  from = "/api/robin-plan/admin/mutate"
+  to = "/.netlify/functions/robin-plan-admin-mutate"
+  status = 200
+[[redirects]]
+  from = "/api/robin-plan/admin/partner-logo"
+  to = "/.netlify/functions/robin-plan-admin-partner-logo"
+  status = 200
+[[redirects]]
+  from = "/api/robin-plan/admin/faqs"
+  to = "/.netlify/functions/robin-plan-admin-faqs"
+  status = 200
+[[redirects]]
+  from = "/api/me"
+  to = "/.netlify/functions/me"
+  status = 200
+[[redirects]]
+  from = "/api/faqs"
+  to = "/.netlify/functions/faqs"
+  status = 200
+
+[[redirects]]
+  from = "/api/profile/lived-abroad"
+  to = "/.netlify/functions/profile-lived-abroad"
+  status = 200
+
+[[redirects]]
+  from = "/api/profile/avatar"
+  to = "/.netlify/functions/profile-avatar"
+  status = 200
+
+[[redirects]]
+  from = "/api/onboarding/state"
+  to = "/.netlify/functions/onboarding-state"
+  status = 200
+[[redirects]]
+  from = "/api/onboarding/origin"
+  to = "/.netlify/functions/onboarding-origin"
+  status = 200
+[[redirects]]
+  from = "/api/onboarding/dni/extract"
+  to = "/.netlify/functions/onboarding-dni-extract"
+  status = 200
+[[redirects]]
+  from = "/api/onboarding/dni/save"
+  to = "/.netlify/functions/onboarding-dni-save"
+  status = 200
+[[redirects]]
+  from = "/api/onboarding/profile"
+  to = "/.netlify/functions/onboarding-profile"
+  status = 200
+[[redirects]]
+  from = "/api/onboarding/contract"
+  to = "/.netlify/functions/onboarding-contract"
+  status = 200
+[[redirects]]
+  from = "/api/onboarding/checkout"
+  to = "/.netlify/functions/onboarding-checkout"
+  status = 200
+[[redirects]]
+  from = "/api/payments/checkout"
+  to = "/.netlify/functions/payments-checkout"
+  status = 200
+[[redirects]]
+  from = "/api/payments/verify"
+  to = "/.netlify/functions/payments-verify"
+  status = 200
+[[redirects]]
+  from = "/api/payments"
+  to = "/.netlify/functions/payments-list"
+  status = 200
+[[redirects]]
+  from = "/api/invoice-pdf"
+  to = "/.netlify/functions/invoice-pdf"
+  status = 200
+[[redirects]]
+  from = "/api/admin/payments/set-amount"
+  to = "/.netlify/functions/admin-payments-set-amount"
+  status = 200
+[[redirects]]
+  from = "/api/admin/payments/unlock"
+  to = "/.netlify/functions/admin-payments-unlock"
+  status = 200
+[[redirects]]
+  from = "/api/admin/payments/add"
+  to = "/.netlify/functions/admin-payments-add"
+  status = 200
+[[redirects]]
+  from = "/api/admin/payments/delete"
+  to = "/.netlify/functions/admin-payments-delete"
+  status = 200
+[[redirects]]
+  from = "/api/admin/payments/set-carreras"
+  to = "/.netlify/functions/admin-payments-set-carreras"
+  status = 200
+[[redirects]]
+  from = "/api/admin/payments"
+  to = "/.netlify/functions/admin-payments-list"
+  status = 200
+[[redirects]]
+  from = "/api/admin/career-suggestions"
+  to = "/.netlify/functions/admin-career-suggestions"
+  status = 200
+[[redirects]]
+  from = "/api/admin/careers/assign"
+  to = "/.netlify/functions/admin-careers-assign"
+  status = 200
+[[redirects]]
+  from = "/api/admin/careers/delete"
+  to = "/.netlify/functions/admin-careers-delete"
+  status = 200
+[[redirects]]
+  from = "/api/admin/careers"
+  to = "/.netlify/functions/admin-careers-create"
+  status = 200
+[[redirects]]
+  from = "/api/careers"
+  to = "/.netlify/functions/careers-list"
+  status = 200
+[[redirects]]
+  from = "/api/documents/upload-ticket"
+  to = "/.netlify/functions/documents-upload-ticket"
+  status = 200
+[[redirects]]
+  from = "/api/documents/upload"
+  to = "/.netlify/functions/documents-upload"
+  status = 200
+[[redirects]]
+  from = "/api/documents/get"
+  to = "/.netlify/functions/documents-get"
+  status = 200
+[[redirects]]
+  from = "/api/documents"
+  to = "/.netlify/functions/documents-list"
+  status = 200
+[[redirects]]
+  from = "/api/admin/documents/review"
+  to = "/.netlify/functions/admin-documents-review"
+  status = 200
+[[redirects]]
+  from = "/api/admin/documents/add"
+  to = "/.netlify/functions/admin-documents-add"
+  status = 200
+[[redirects]]
+  from = "/api/admin/documents/delete"
+  to = "/.netlify/functions/admin-documents-delete"
+  status = 200
+[[redirects]]
+  from = "/api/admin/documents"
+  to = "/.netlify/functions/documents-list"
+  status = 200
+[[redirects]]
+  from = "/api/admin/phase"
+  to = "/.netlify/functions/admin-phase-set"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/dashboard"
+  to = "/.netlify/functions/admin-dashboard"
+  status = 200
+[[redirects]]
+  from = "/api/admin/integration-snapshot"
+  to = "/.netlify/functions/admin-integration-snapshot"
+  status = 200
+[[redirects]]
+  from = "/api/admin/users"
+  to = "/.netlify/functions/admin-users"
+  status = 200
+[[redirects]]
+  from = "/api/admin/tasks"
+  to = "/.netlify/functions/admin-tasks"
+  status = 200
+[[redirects]]
+  from = "/api/admin/assistant"
+  to = "/.netlify/functions/admin-assistant"
+  status = 200
+[[redirects]]
+  from = "/api/admin/historial/add"
+  to = "/.netlify/functions/admin-historial-add"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/notifications"
+  to = "/.netlify/functions/admin-notifications"
+  status = 200
+[[redirects]]
+  from = "/api/notifications/ack"
+  to = "/.netlify/functions/notifications-ack"
+  status = 200
+[[redirects]]
+  from = "/api/notifications"
+  to = "/.netlify/functions/notifications-list"
+  status = 200
+[[redirects]]
+  from = "/api/meet/webhook"
+  to = "/.netlify/functions/meet-webhook"
+  status = 200
+[[redirects]]
+  from = "/api/meet/health"
+  to = "/.netlify/functions/meet-health"
+  status = 200
+[[redirects]]
+  from = "/api/bookings/availability"
+  to = "/.netlify/functions/bookings-availability"
+  status = 200
+[[redirects]]
+  from = "/api/bookings/create"
+  to = "/.netlify/functions/bookings-create"
+  status = 200
+[[redirects]]
+  from = "/api/bookings"
+  to = "/.netlify/functions/bookings-list"
+  status = 200
+[[redirects]]
+  from = "/api/admin/clients/all"
+  to = "/.netlify/functions/admin-clients-all"
+  status = 200
+[[redirects]]
+  from = "/api/admin/clients/assign"
+  to = "/.netlify/functions/admin-client-assign"
+  status = 200
+[[redirects]]
+  from = "/api/admin/clients"
+  to = "/.netlify/functions/admin-clients-list"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/drive-health"
+  to = "/.netlify/functions/admin-drive-health"
+  status = 200
+[[redirects]]
+  from = "/api/admin/drive-sync"
+  to = "/.netlify/functions/admin-drive-sync"
+  status = 200
+[[redirects]]
+  from = "/api/admin/drive-rename"
+  to = "/.netlify/functions/admin-drive-rename"
+  status = 200
+
+[[redirects]]
+  from = "/api/stripe/webhook"
+  to = "/.netlify/functions/stripe-webhook"
+  status = 200
+
+# ---------- Chat con IA (portal de aplicación) ----------
+[[redirects]]
+  from = "/api/chat"
+  to = "/.netlify/functions/chat-ai"
+  status = 200
+[[redirects]]
+  from = "/api/admin/chat"
+  to = "/.netlify/functions/admin-chat"
+  status = 200
+
+# ---------- Fallback SPA del gestor ----------
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# ---------- Headers de seguridad ----------
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()"
+    X-Permitted-Cross-Domain-Policies = "none"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'nonce-robin-vite'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; frame-src 'none'; form-action 'self'; upgrade-insecure-requests"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Las funciones nunca se cachean
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Cache-Control = "no-store"
+
+# ---------- Función programada: recoge transcripciones de Meet desde Drive ----------
+[functions."meet-transcript-poll"]
+  schedule = "*/15 * * * *"
+
+# ---------- Función programada: borrado semanal (rolling >7 días) del chat con IA ----------
+[functions."chat-cleanup"]
+  schedule = "0 3 * * *"
+
+# ---------- Reintentos idempotentes de integraciones empresariales ----------
+[functions."integration-retry"]
+  schedule = "*/10 * * * *"
+
+# ---------- Histórico diario de Tesorería (23:59 Europe/Madrid, CET/CEST) ----------
+[functions."finance-treasury-snapshot"]
+  schedule = "59 * * * *"

@@ -1,19 +1,39 @@
 import { useEffect, useState } from "react";
 import { AdminApp } from "./components/admin-app";
-import { isSupabaseConfigured, supabase } from "./services/supabase";
+import { portalClient } from "./services/portal";
+import robinLogo from "./robin-platform/portal-source/src/assets/robin-wordmark.png";
 
 export default function App() {
-  const [session, setSession] = useState(null);
-  const [ready, setReady] = useState(!isSupabaseConfigured);
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
+  const [user, setUser] = useState(null);
+  const [ready, setReady] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
   useEffect(() => {
-    if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); });
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
-    return () => data.subscription.unsubscribe();
+    let active = true;
+    portalClient.me().then((sessionUser) => { if (active) setUser(sessionUser); }).catch(() => undefined).finally(() => { if (active) setReady(true); });
+    return () => { active = false; };
   }, []);
-  if (!ready) return <div className="auth-shell"><div className="auth-card"><span className="auth-mark">R</span><h1>Robin Admin</h1><p>Preparando el CRM…</p></div></div>;
-  if (supabase && !session) return <div className="auth-shell"><form className="auth-card" onSubmit={async (event) => { event.preventDefault(); setMessage("Enviando enlace…"); const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } }); setMessage(error ? error.message : "Revisa tu correo para acceder al CRM."); }}><span className="auth-mark">R</span><small>ROBIN ADMIN PLATFORM</small><h1>Acceso al CRM</h1><p>Recibirás un enlace seguro de acceso por email.</p><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label><button className="ui-button" type="submit">Enviar enlace</button>{message && <p>{message}</p>}</form></div>;
-  return <AdminApp />;
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await portalClient.login(username, password);
+      setUser(await portalClient.me());
+    } catch (loginError) {
+      setError(loginError?.message || "No se pudo iniciar sesión.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // La comprobación de sesión es silenciosa para evitar un flash intermedio.
+  if (!ready) return null;
+  if (!user) return <div className="auth-shell"><form className="auth-card" onSubmit={submit}><span className="auth-mark"><img src={robinLogo} alt="Robin" /></span><small>ROBIN ADMIN PLATFORM</small><h1>Acceso administrativo</h1><p>Usa tus credenciales de administrador de Robin Platform.</p><label>Usuario o email<input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} required /></label><label>Contraseña<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>{error && <div className="auth-error">{error}</div>}<button className="ui-button" type="submit" disabled={busy}>{busy ? "Entrando…" : "Entrar"}</button></form></div>;
+
+  return <AdminApp authUser={user} onLogout={async () => { await portalClient.logout(); setUser(null); }} />;
 }

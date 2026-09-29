@@ -2,22 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
   AlertTriangle,
   ArrowRight,
   BarChart3,
   Check,
+  Camera,
   ChevronDown,
   ChevronRight,
   CircleDollarSign,
+  Download,
   ExternalLink,
   FileText,
   Filter,
@@ -26,11 +19,12 @@ import {
   Landmark,
   Megaphone,
   MessageCircle,
-  MoreHorizontal,
+  KeyRound,
   Plus,
   Search,
   ShieldCheck,
   TrendingUp,
+  Trash2,
   UserCheck,
   UserPlus,
   WalletCards,
@@ -40,8 +34,27 @@ import { Button } from "@/components/ui/button";
 import type { Contact, CrmStage, LeadCategory } from "@/types/domain";
 import { integrationClient } from "@/services/integrations";
 import { adminDataClient } from "@/services/admin-data";
-import type { FinanceSnapshot, IntegrationStatus, MetaSnapshot } from "@/services/integrations";
-import type { PortalSnapshot } from "@/services/portal";
+import type { FinanceSnapshot, MetaSnapshot, PaymentAnalytics } from "@/services/integrations";
+import { portalClient } from "@/services/portal";
+import type { PortalAccessUser, PortalAdmin, PortalClient, PortalSnapshot } from "@/services/portal";
+import { RobinStudentsAdmin } from "@/components/robin-students-admin";
+import { RobinSubscriptionsAdmin } from "@/components/robin-subscriptions-admin";
+import { DashboardLoader } from "@/components/dashboard-loader";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import type { FinanceDashboard, FinancePeriod } from "@/services/integrations";
 
 type FeatureModuleProps = {
   path: string;
@@ -51,6 +64,10 @@ type FeatureModuleProps = {
   contacts: Contact[];
   leadOwners: Record<string, string>;
   onAssignLead: (id: string, owner: string) => void;
+  onSetLeadSource: (id: string, source: string) => void;
+  onDeleteLead: (id: string) => Promise<void>;
+  onDeleteLeads: (ids: string[]) => Promise<void>;
+  onAddLead: (input: { name: string; email?: string; phone?: string; notes?: string; owner?: string }) => Promise<void>;
   leadStages: Record<string, CrmStage>;
   onMoveLead: (id: string, stage: CrmStage) => void;
   leadCategories: Record<string, LeadCategory | "">;
@@ -61,24 +78,24 @@ type FeatureModuleProps = {
   onSetLeadNotes: (id: string, notes: string) => void;
   leadLostDates: Record<string, string>;
   portalSnapshot: PortalSnapshot | null;
+  portalAdmin: PortalAdmin;
   portalConnected: boolean;
   onPortalRefresh: () => Promise<void>;
   onAddAdmin: (name: string) => void;
+  onRemoveAdmin: (name: string) => void;
 };
 
 export function FeatureModule(props: FeatureModuleProps) {
   const { path } = props;
   if (path === "/bandeja-leads") return <LeadInbox {...props} />;
-  if (path === "/alumnos-global") return <GlobalStudents snapshot={props.portalSnapshot} connected={props.portalConnected} contacts={props.contacts} />;
-  if (path === "/analitica-global") return <GlobalAnalytics />;
-  if (path === "/pagos") return <GlobalPayments snapshot={props.portalSnapshot} connected={props.portalConnected} />;
+  if (path === "/alumnos-global" || path.startsWith("/alumnos-global/")) return <GlobalStudents path={path} snapshot={props.portalSnapshot} connected={props.portalConnected} contacts={props.contacts} />;
+  if (path === "/analitica-global" || path === "/pagos") return <GlobalAnalytics contacts={props.contacts} leadStages={props.leadStages} snapshot={props.portalSnapshot} connected={props.portalConnected} />;
   if (path === "/configuracion") return <Configuration {...props} />;
-  if (path.startsWith("/alumnos/")) return <StudentProfile id={path.slice("/alumnos/".length)} contacts={props.contacts} snapshot={props.portalSnapshot} />;
-  if (path === "/alumnos") return <StudentPortal currentUser={props.currentUser} snapshot={props.portalSnapshot} />;
+  if (path === "/alumnos" || path.startsWith("/alumnos/")) return <RobinStudentsAdmin user={props.portalAdmin} />;
+  if (path === "/the-robin-plan" || path.startsWith("/the-robin-plan/")) return <RobinSubscriptionsAdmin user={props.portalAdmin} />;
   if (path.startsWith("/crm")) return <Crm {...props} />;
-  if (path.startsWith("/analiticas")) return <PersonalAnalytics path={path} currentUser={props.currentUser} />;
+  if (path.startsWith("/analiticas")) return <PersonalAnalytics path={path} currentUser={props.currentUser} contacts={props.contacts} leadStages={props.leadStages} snapshot={props.portalSnapshot} />;
   if (path.startsWith("/campanas")) return <Campaigns currentUser={props.currentUser} notify={props.notify} />;
-  if (path === "/suscripcion") return <SubscriptionAdmin />;
   return <div className="page"><div className="empty"><AlertTriangle /><h2>Vista no disponible</h2><p>Esta sección ya no forma parte de la nueva navegación.</p></div></div>;
 }
 
@@ -86,28 +103,43 @@ function Title({ name, sub, eyebrow = "ROBIN ADMIN PLATFORM", children }: { name
   return <div className="title"><div><span>{eyebrow}</span><h1>{name}</h1><p>{sub}</p></div><div>{children}</div></div>;
 }
 
-function portalProfileHref(portalUrl: string, clientId: string) {
-  return `${portalUrl}/portal/alumnos/${encodeURIComponent(clientId)}`;
-}
-
-function SubscriptionAdmin() {
-  return (
-    <div className="page">
-      <Title name="Suscripción" sub="Gestión centralizada de planes, renovaciones y accesos." eyebrow="ROBIN ADMIN PLATFORM" />
-      <section className="portal-placeholder">
-        <i><WalletCards /></i>
-        <Badge variant="outline">PRÓXIMAMENTE</Badge>
-        <h2>Administración de suscripciones</h2>
-        <p>Esta sección se conectará con el menú de administración de suscripciones para gestionar planes, estados de pago, renovaciones y clientes.</p>
-        <Button disabled><WalletCards />Conexión pendiente de configurar</Button>
-      </section>
-    </div>
-  );
-}
-
-function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, notify }: FeatureModuleProps) {
+function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onSetLeadSource, onDeleteLead, onDeleteLeads, onAddLead, onSetLeadHeat, onSetLeadNotes, notify }: FeatureModuleProps) {
   const [query, setQuery] = useState("");
-  const list = useMemo(() => contacts.filter((contact) => `${contact.name} ${contact.email} ${contact.source}`.toLowerCase().includes(query.toLowerCase())), [contacts, query]);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Contact | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [assignment, setAssignment] = useState<"all" | "assigned" | "unassigned">("all");
+  const [stageFilter, setStageFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [campaignFilter, setCampaignFilter] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [addingLead, setAddingLead] = useState(false);
+  const [manualLead, setManualLead] = useState({ name: "", email: "", phone: "", notes: "", owner: "" });
+  const [savingLead, setSavingLead] = useState(false);
+  const list = useMemo(() => contacts.filter((contact) => {
+    const stage = leadStages[contact.id] || contact.stage || "Por contactar";
+    if (stage === "Cliente") return false;
+    if (!`${contact.name} ${contact.email} ${contact.phone} ${contact.source}`.toLowerCase().includes(query.trim().toLowerCase())) return false;
+    if (assignment === "assigned" && !leadOwners[contact.id]) return false;
+    if (assignment === "unassigned" && leadOwners[contact.id]) return false;
+    if (stageFilter !== "all" && stage !== stageFilter) return false;
+    if (sourceFilter !== "all" && contact.source !== sourceFilter) return false;
+    return campaignFilter === "all" || contact.campaign === campaignFilter;
+  }), [contacts, leadOwners, leadStages, query, assignment, stageFilter, sourceFilter, campaignFilter]);
+  const sources = useMemo(() => [...new Set(contacts.map((contact) => contact.source).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [contacts]);
+  const campaigns = useMemo(() => [...new Set(contacts.map((contact) => contact.campaign).filter((campaign) => campaign && campaign !== "Pendiente de identificar"))].sort((a, b) => a.localeCompare(b, "es")), [contacts]);
+  function exportLeads() {
+    const rows = contacts.filter((contact) => (leadStages[contact.id] || contact.stage || "Por contactar") !== "Cliente");
+    const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const headers = ["Nombre", "Email", "Teléfono", "Origen", "Campaña", "Estado", "Responsable", "Heat", "Notas", "Fecha de alta"];
+    const body = rows.map((contact) => [contact.name, contact.email, contact.phone, contact.source, contact.campaign, leadStages[contact.id] || contact.stage || "Por contactar", leadOwners[contact.id] || "Sin asignar", contact.heat ?? "", contact.notes || "", contact.createdAt || ""].map(csvCell).join(","));
+    const blob = new Blob([`\uFEFF${headers.map(csvCell).join(",")}\n${body.join("\n")}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = `leads-robin-${new Date().toISOString().slice(0, 10)}.csv`; link.click();
+    URL.revokeObjectURL(url);
+    notify(`${rows.length} leads exportados a CSV`);
+  }
   return (
     <div className="page">
       <Title name="Bandeja de entrada de leads" sub="Asigna cada nuevo lead al administrador que lo gestionará." eyebrow="INICIO · VISTA GLOBAL">
@@ -115,24 +147,29 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, not
       </Title>
       <div className="module-toolbar">
         <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre, email o canal…" /></label>
-        <Button variant="outline"><Filter />Filtros</Button>
+        <Button variant="outline" onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{(assignment !== "all" || stageFilter !== "all" || sourceFilter !== "all" || campaignFilter !== "all") && <span className="filter-count">{Number(assignment !== "all") + Number(stageFilter !== "all") + Number(sourceFilter !== "all") + Number(campaignFilter !== "all")}</span>}</Button>
+        <Button variant="outline" onClick={exportLeads}><Download />Exportar CSV</Button>
+        {selectedIds.size > 0 && <Button variant="outline" className="bulk-delete" disabled={deleting === "bulk"} onClick={async () => { if (!window.confirm(`¿Eliminar definitivamente ${selectedIds.size} leads seleccionados?`)) return; setDeleting("bulk"); try { await onDeleteLeads([...selectedIds]); notify(`${selectedIds.size} leads eliminados correctamente`); setSelectedIds(new Set()); } catch (error) { notify(error instanceof Error ? error.message : "No se pudieron eliminar los leads"); } finally { setDeleting(null); } }}><Trash2 />{deleting === "bulk" ? "Eliminando…" : `Eliminar (${selectedIds.size})`}</Button>}
+        <Button onClick={() => setAddingLead(true)}><Plus />Añadir lead</Button>
       </div>
+      {filtersOpen && <section className="lead-filters panel"><label>Asignación<select value={assignment} onChange={(event) => setAssignment(event.target.value as typeof assignment)}><option value="all">Todos</option><option value="unassigned">Sin asignar</option><option value="assigned">Asignados</option></select></label><label>Estado<select value={stageFilter} onChange={(event) => setStageFilter(event.target.value)}><option value="all">Todos los estados</option>{["Por contactar", "Contactado", "Llamada programada", "Llamada tenida", "Propuesta enviada", "En espera", "Lost"].map((stage) => <option key={stage}>{stage}</option>)}</select></label><label>Origen<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="all">Todos los orígenes</option>{sources.map((source) => <option key={source} value={source}>{source}</option>)}</select></label><label>Campaña<select value={campaignFilter} onChange={(event) => setCampaignFilter(event.target.value)}><option value="all">Todas las campañas</option>{campaigns.map((campaign) => <option key={campaign} value={campaign}>{campaign}</option>)}</select></label><button type="button" onClick={() => { setAssignment("all"); setStageFilter("all"); setSourceFilter("all"); setCampaignFilter("all"); }}>Limpiar filtros</button></section>}
       <section className="panel inbox-panel">
         <div className="data-table">
           <table>
-            <thead><tr><th>Lead</th><th>Origen</th><th>Estado</th><th>Valor</th><th>Asignar a</th></tr></thead>
+            <thead><tr><th className="select-column"><input type="checkbox" aria-label="Seleccionar todos los leads visibles" checked={list.length > 0 && list.every((contact) => selectedIds.has(contact.id))} onChange={(event) => setSelectedIds(event.target.checked ? new Set(list.map((contact) => contact.id)) : new Set())} /></th><th>Lead</th><th>Origen</th><th>Estado</th><th>Asignar a</th><th>Acciones</th></tr></thead>
             <tbody>
               {list.map((contact) => (
-                <tr key={contact.id}>
-                  <td><b>{contact.name}</b><small>{contact.email}</small></td>
-                  <td>{contact.source}</td>
+                <tr key={contact.id} className={!leadOwners[contact.id] ? "unassigned-lead" : ""} onClick={() => setSelected(contact)}>
+                  <td className="select-column"><input type="checkbox" aria-label={`Seleccionar ${contact.name}`} checked={selectedIds.has(contact.id)} onClick={(event) => event.stopPropagation()} onChange={(event) => setSelectedIds((current) => { const next = new Set(current); if (event.target.checked) next.add(contact.id); else next.delete(contact.id); return next; })} /></td>
+                  <td><button type="button" className="lead-name-button" onClick={() => setSelected(contact)}><b>{contact.name}</b><small>{contact.email}</small>{contact.notes && <small className="lead-form-note">{contact.notes}</small>}</button></td>
+                  <td><select className="source-select" value={contact.source === "Meta Ads" ? "meta" : contact.source === "Página web" ? "website" : contact.source === "Manual" ? "manual" : "other"} onClick={(event) => event.stopPropagation()} onChange={(event) => { event.stopPropagation(); onSetLeadSource(contact.id, event.target.value); notify(`Origen de ${contact.name} actualizado`); }}><option value="meta">Meta Ads</option><option value="website">Página web</option><option value="manual">Manual</option><option value="other">Otro</option></select></td>
                   <td><Badge variant="outline">{leadStages[contact.id]}</Badge></td>
-                  <td>{contact.value.toLocaleString("es-ES")} €</td>
                   <td>
                     <select
                       className="owner-select"
                       value={leadOwners[contact.id] || ""}
                       onChange={(event) => {
+                        event.stopPropagation();
                         onAssignLead(contact.id, event.target.value);
                         notify(`${contact.name} asignado a ${event.target.value}`);
                       }}
@@ -141,6 +178,14 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, not
                       {admins.map((admin) => <option key={admin}>{admin}</option>)}
                     </select>
                   </td>
+                  <td><button className="delete-lead" type="button" disabled={deleting === contact.id} onClick={async (event) => {
+                    event.stopPropagation();
+                    if (!window.confirm(`¿Eliminar definitivamente a ${contact.name} de la bandeja y del CRM?`)) return;
+                    setDeleting(contact.id);
+                    try { await onDeleteLead(contact.id); notify(`${contact.name} eliminado correctamente`); }
+                    catch (error) { notify(error instanceof Error ? error.message : "No se pudo eliminar el lead"); }
+                    finally { setDeleting(null); }
+                  }}><Trash2 />{deleting === contact.id ? "Eliminando…" : "Eliminar"}</button></td>
                 </tr>
               ))}
             </tbody>
@@ -148,13 +193,29 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, not
         </div>
       </section>
       <p className="assignment-note"><UserCheck /> Al asignar un lead, aparecerá inmediatamente en el CRM personal del usuario seleccionado.</p>
+      {addingLead && <div className="drawer-wrap" onMouseDown={(event) => { if (event.target === event.currentTarget) setAddingLead(false); }}><form className="manual-lead-card" onSubmit={async (event) => { event.preventDefault(); setSavingLead(true); try { await onAddLead(manualLead); notify(`${manualLead.name} añadido correctamente`); setManualLead({ name: "", email: "", phone: "", notes: "", owner: "" }); setAddingLead(false); } catch (error) { notify(error instanceof Error ? error.message : "No se pudo crear el lead"); } finally { setSavingLead(false); } }}><button className="drawer-close" type="button" onClick={() => setAddingLead(false)}>×</button><span>NUEVO LEAD</span><h2>Añadir manualmente</h2><p>El lead quedará en Por contactar.</p><label>Nombre<input required value={manualLead.name} onChange={(event) => setManualLead((lead) => ({ ...lead, name: event.target.value }))} /></label><div className="manual-lead-row"><label>Email<input type="email" value={manualLead.email} onChange={(event) => setManualLead((lead) => ({ ...lead, email: event.target.value }))} /></label><label>Teléfono<input value={manualLead.phone} onChange={(event) => setManualLead((lead) => ({ ...lead, phone: event.target.value }))} /></label></div><label>Asignar a<select value={manualLead.owner} onChange={(event) => setManualLead((lead) => ({ ...lead, owner: event.target.value }))}><option value="">Sin asignar</option>{admins.map((admin) => <option key={admin}>{admin}</option>)}</select></label><label>Notas<textarea value={manualLead.notes} onChange={(event) => setManualLead((lead) => ({ ...lead, notes: event.target.value }))} /></label><div className="manual-lead-actions"><Button type="button" variant="outline" onClick={() => setAddingLead(false)}>Cancelar</Button><Button type="submit" disabled={savingLead}>{savingLead ? "Guardando…" : "Crear lead"}</Button></div></form></div>}
+      {selected && <ContactDrawer contact={{ ...selected, owner: leadOwners[selected.id] || "Sin asignar", stage: leadStages[selected.id] }} heat={selected.heat || 50} notes={selected.notes || ""} onHeatChange={(value) => onSetLeadHeat(selected.id, value)} onNotesChange={(value) => onSetLeadNotes(selected.id, value)} onClose={() => setSelected(null)} leadMode />}
     </div>
   );
 }
 
-function GlobalStudents({ snapshot, connected, contacts }: { snapshot: PortalSnapshot | null; connected: boolean; contacts: Contact[] }) {
+function GlobalStudents({ path, snapshot, connected, contacts }: { path: string; snapshot: PortalSnapshot | null; connected: boolean; contacts: Contact[] }) {
+  const [selected, setSelected] = useState<Contact | null>(null);
+  const [personFilter, setPersonFilter] = useState("all");
+  const [studentQuery, setStudentQuery] = useState("");
   if (connected && !snapshot) return <div className="page"><Title name="Alumnos" sub="Sincronizando con el portal de aplicación." eyebrow="INICIO · VISTA GLOBAL" /><div className="empty compact"><GraduationCap /><h2>Cargando alumnos…</h2></div></div>;
-  if (snapshot) return <div className="page"><Title name="Alumnos" sub="Clientes sincronizados con el portal de aplicación." eyebrow="INICIO · VISTA GLOBAL"><Badge variant="outline">{snapshot.clients.length} ALUMNOS</Badge></Title><div className="student-grid">{snapshot.clients.map((client) => <a key={client.id} className="student-card" href={`/alumnos/${client.id}`}><i>{`${client.nombre?.[0] || ""}${client.apellidos?.[0] || ""}` || "R"}</i><div><h3>{[client.nombre, client.apellidos].filter(Boolean).join(" ") || client.email}</h3><p>{client.email || "Sin email"}</p><span>{client.tipo || "general"} · Fase {client.application_phase || 1}</span></div><Badge variant="outline">{client.requires_onboarding ? "Onboarding" : "Activo"}</Badge><ChevronRight /></a>)}</div></div>;
+  if (snapshot) {
+    const detailId = path.startsWith("/alumnos-global/") ? decodeURIComponent(path.slice("/alumnos-global/".length)) : "";
+    const detail = snapshot.clients.find((client) => client.id === detailId);
+    if (detailId) return <StudentProfile client={detail} portalUrl={snapshot.portalUrl} />;
+    const normalizedPerson = (value?: string) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const visibleClients = snapshot.clients.filter((client) => {
+      const matchesPerson = personFilter === "all" || (personFilter === "unassigned" ? !client.assigned_to : normalizedPerson(client.assigned_to).includes(personFilter));
+      const haystack = [client.nombre, client.apellidos, client.email, client.telefono_alumno].filter(Boolean).join(" ").toLowerCase();
+      return matchesPerson && haystack.includes(studentQuery.trim().toLowerCase());
+    });
+    return <div className="page"><Title name="Alumnos" sub="Clientes sincronizados con el portal de aplicación." eyebrow="INICIO · VISTA GLOBAL"><div className="student-filter"><label>Persona<select value={personFilter} onChange={(event) => setPersonFilter(event.target.value)}><option value="all">Todas</option><option value="noel">Noel</option><option value="manuel">Manuel</option><option value="maria">María</option><option value="unassigned">Sin asignar</option></select></label></div><div className="owner-legend"><span className="owner-tone-noel">Noel</span><span className="owner-tone-manuel">Manuel</span><span className="owner-tone-maria">María</span></div><Badge variant="outline">{visibleClients.length} ALUMNOS</Badge></Title><div className="module-toolbar student-search"><label><Search /><input value={studentQuery} onChange={(event) => setStudentQuery(event.target.value)} placeholder="Buscar por nombre, email o teléfono…" /></label></div><div className="student-grid">{visibleClients.map((client) => <a key={client.id} className={`student-card ${ownerTone(client.assigned_to)}`} href={`/alumnos-global/${encodeURIComponent(client.id)}`} target="_blank" rel="noreferrer"><i>{`${client.nombre?.[0] || ""}${client.apellidos?.[0] || ""}` || "R"}</i><div><h3>{[client.nombre, client.apellidos].filter(Boolean).join(" ") || client.email}</h3><p>{client.email || "Sin email"}</p><span>{client.tipo || "general"} · Fase {client.application_phase || 1} · {client.assigned_to || "Sin asignar"}</span></div><Badge variant="outline">{client.requires_onboarding ? "Onboarding" : "Activo"}</Badge><ChevronRight /></a>)}</div></div>;
+  }
   return (
     <div className="page">
       <Title name="Alumnos" sub="Vista global de alumnos y acceso a su perfil." eyebrow="INICIO · VISTA GLOBAL">
@@ -162,23 +223,33 @@ function GlobalStudents({ snapshot, connected, contacts }: { snapshot: PortalSna
       </Title>
       <div className="student-grid">
         {contacts.map((contact) => (
-          <a key={contact.id} className="student-card" href={`/alumnos/${contact.portalUserId || contact.id}`}>
+          <button key={contact.id} className="student-card" onClick={() => setSelected(contact)}>
             <i>{contact.initials}</i>
             <div><h3>{contact.name}</h3><p>{contact.university}</p><span>{contact.course}</span></div>
             <Badge variant="outline">{contact.status}</Badge>
             <ChevronRight />
-          </a>
+          </button>
         ))}
       </div>
+      {selected && <ContactDrawer contact={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }
 
-function StudentProfile({ id, contacts, snapshot }: { id: string; contacts: Contact[]; snapshot: PortalSnapshot | null }) {
-  const client = snapshot?.clients.find((item) => item.id === id);
-  const contact = contacts.find((item) => item.portalUserId === id || item.id === id);
-  const name = client ? [client.nombre, client.apellidos].filter(Boolean).join(" ") || client.email : contact?.name || "Alumno";
-  return <div className="page"><Title name={name} sub="Ficha individual del alumno." eyebrow="ALUMNOS · PERFIL" /><section className="portal-placeholder"><i><GraduationCap /></i><Badge variant="outline">CONEXIÓN PENDIENTE</Badge><h2>Perfil de alumno</h2><p>Esta ficha se conectará al perfil del alumno dentro del portal de aplicación. No corresponde a la ficha de un lead del CRM.</p>{client && snapshot ? <a className="portal-link-button" href={portalProfileHref(snapshot.portalUrl, client.id)} target="_blank" rel="noreferrer"><ExternalLink />Abrir perfil en el portal</a> : <Button disabled><ExternalLink />Perfil pendiente de conectar</Button>}</section></div>;
+function ownerTone(owner?: string) {
+  if (!owner) return "owner-tone-neutral";
+  const value = owner.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (value.includes("noel")) return "owner-tone-noel";
+  if (value.includes("manuel")) return "owner-tone-manuel";
+  if (value.includes("maria")) return "owner-tone-maria";
+  return "owner-tone-neutral";
+}
+
+function StudentProfile({ client, portalUrl }: { client?: PortalClient; portalUrl: string }) {
+  if (!client) return <div className="page"><div className="empty"><AlertTriangle /><h2>Alumno no encontrado</h2></div></div>;
+  const name = [client.nombre, client.apellidos].filter(Boolean).join(" ") || client.email || "Alumno";
+  const rows = [["Email", client.email], ["Teléfono", client.telefono_alumno], ["País", client.pais], ["Origen", client.origin], ["Tipo de servicio", client.tipo], ["Nivel de aplicación", client.application_level], ["Asesor asignado", client.assigned_to], ["Fecha de alta", client.created_at ? new Date(client.created_at).toLocaleDateString("es-ES") : "—"]];
+  return <div className="page student-profile-page"><Title name={name} sub="Ficha sincronizada del alumno y estado del onboarding." eyebrow="ALUMNOS · FICHA INDIVIDUAL"><a className="portal-link-button" href={`${portalUrl}/portal/`} target="_blank" rel="noreferrer"><ExternalLink />Abrir portal</a></Title><section className="panel student-profile-hero"><i>{`${client.nombre?.[0] || ""}${client.apellidos?.[0] || ""}` || "R"}</i><div><h2>{name}</h2><p>{client.email}</p></div><Badge variant="outline">Fase {client.application_phase || 1}</Badge></section><section className="student-profile-status"><article><small>Onboarding</small><strong>{client.requires_onboarding ? "Pendiente" : "Completado"}</strong></article><article><small>Identidad</small><strong>{client.dni_completed ? "Verificada" : "Pendiente"}</strong></article><article><small>Perfil</small><strong>{client.profile_completed ? "Completado" : "Pendiente"}</strong></article><article><small>Contrato</small><strong>{client.contract_signed ? "Firmado" : "Pendiente"}</strong></article><article><small>Pago</small><strong>{client.pago_completed ? "Completado" : "Pendiente"}</strong></article></section><section className="panel student-profile-info"><h2>Información del alumno</h2><dl>{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "—"}</dd></div>)}</dl>{Boolean(client.intereses?.length) && <div className="student-interests"><strong>Intereses</strong><p>{client.intereses?.join(" · ")}</p></div>}</section></div>;
 }
 
 function ContactDrawer({ contact, onClose, heat = contact.heat || 50, notes = contact.notes || "", onHeatChange, onNotesChange, leadMode = false }: { contact: Contact; onClose: () => void; heat?: number; notes?: string; onHeatChange?: (value: number) => void; onNotesChange?: (value: string) => void; leadMode?: boolean }) {
@@ -205,7 +276,8 @@ function ContactDrawer({ contact, onClose, heat = contact.heat || 50, notes = co
         <button className="drawer-close" onClick={onClose}>×</button>
         <span>{leadMode ? "FICHA DEL LEAD" : "PERFIL DEL ALUMNO"}</span><h2>{contact.name}</h2><p>{contact.email} · {contact.phone}</p>
         <div className="detail-kpis"><article><small>{leadMode ? "Tipo" : "Progreso"}</small><strong>{leadMode ? contact.category || "—" : `${contact.probability}%`}</strong></article><article><small>Responsable</small><strong>{contact.owner}</strong></article></div>
-        <section className="whatsapp-detail"><h3><MessageCircle /> WhatsApp</h3><p>{contact.phone}</p><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Escribe un mensaje…" /><Button variant="outline" onClick={sendMessage} disabled={sending || !message.trim()}>{sending ? "Enviando…" : "Enviar por WhatsApp"}</Button>{messageStatus && <small>{messageStatus}</small>}</section>
+        {!leadMode && <section className="whatsapp-detail"><h3><MessageCircle /> WhatsApp</h3><p>{contact.phone}</p><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Escribe un mensaje…" /><Button variant="outline" onClick={sendMessage} disabled={sending || !message.trim()}>{sending ? "Enviando…" : "Enviar por WhatsApp"}</Button>{messageStatus && <small>{messageStatus}</small>}</section>}
+        {leadMode && <section className="lead-information"><h3>Información del lead</h3><dl><div><dt>Teléfono</dt><dd>{contact.phone || "—"}</dd></div><div><dt>Origen</dt><dd>{contact.source || "—"}</dd></div><div><dt>Campaña</dt><dd>{contact.campaign && contact.campaign !== "Pendiente de identificar" ? contact.campaign : "Sin identificar"}</dd></div><div><dt>Estado</dt><dd>{contact.stage || "Por contactar"}</dd></div><div><dt>Responsable</dt><dd>{contact.owner || "Sin asignar"}</dd></div><div><dt>Fecha de alta</dt><dd>{contact.createdAt ? new Date(contact.createdAt).toLocaleDateString("es-ES") : "—"}</dd></div></dl></section>}
         <section className="heat-control"><h3><Flame /> Heat del lead <b>{localHeat}</b></h3><input type="range" min="0" max="100" value={localHeat} onChange={(event) => { const value = Number(event.target.value); setLocalHeat(value); onHeatChange?.(value); }} /><div><span>Frío</span><span>Caliente</span></div></section>
         <section className="lead-notes"><h3>Notas del equipo</h3><textarea value={localNotes} onChange={(event) => { setLocalNotes(event.target.value); onNotesChange?.(event.target.value); }} placeholder="Añade contexto, objeciones y próximos pasos…" /><small>Guardado automáticamente en este espacio de trabajo.</small></section>
         {!leadMode && <><section><h3>Información académica</h3><dl><div><dt>Universidad</dt><dd>{contact.university}</dd></div><div><dt>Curso</dt><dd>{contact.course}</dd></div><div><dt>País</dt><dd>{contact.country}</dd></div></dl></section><section><h3>Próxima acción</h3><p>{contact.nextAction}</p></section></>}
@@ -214,81 +286,254 @@ function ContactDrawer({ contact, onClose, heat = contact.heat || 50, notes = co
   );
 }
 
-const globalStats = [
-  ["Ingresos acumulados", "142.680 €", "+18,6% interanual", CircleDollarSign],
-  ["Conversión total", "12,8%", "+2,4 puntos", TrendingUp],
-  ["Alumnos activos", "128", "+19 este mes", GraduationCap],
-  ["Coste por lead", "27,94 €", "-9,6%", BarChart3],
-] as const;
-
-function GlobalAnalytics() {
+function GlobalAnalytics({ contacts, leadStages, snapshot, connected }: { contacts: Contact[]; leadStages: Record<string, CrmStage>; snapshot: PortalSnapshot | null; connected: boolean }) {
+  const [activeTab, setActiveTab] = useState<"finance" | "sales">("finance");
   return (
     <div className="page">
-      <Title name="Analíticas generales" sub="Rendimiento consolidado de Robin." eyebrow="INICIO · VISTA GLOBAL" />
-      <section className="stats">{globalStats.map(([label, value, detail, Icon], index) => <article key={label}><i className={index === 1 ? "green" : index === 3 ? "gold" : ""}><Icon /></i><div><span>{label}</span><strong>{value}</strong><small>{detail}</small></div></article>)}</section>
-      <div className="analytics-grid">
-        <section className="panel metric-panel"><h2>Crecimiento mensual</h2><div className="metric-bars">{[["Abr", 54], ["May", 62], ["Jun", 58], ["Jul", 76], ["Ago", 84], ["Sep", 92]].map(([month, value]) => <div key={month}><span style={{ height: `${value}%` }} /><small>{month}</small></div>)}</div></section>
-        <section className="panel performance-list"><h2>Rendimiento por área</h2>{[["Ventas", "94%", "green"], ["Operaciones", "86%", "blue"], ["Finanzas", "78%", "gold"], ["Campañas", "71%", "gray"]].map(([label, value, tone]) => <div key={label}><span>{label}</span><div><i className={tone} style={{ width: value }} /></div><strong>{value}</strong></div>)}</section>
-      </div>
+      <Title name="Analíticas generales" sub="Rendimiento consolidado de Robin." eyebrow="INICIO · VISTA GLOBAL">
+        <div className="analytics-tabs" role="tablist" aria-label="Secciones de analíticas generales">
+          <button type="button" role="tab" aria-selected={activeTab === "finance"} className={activeTab === "finance" ? "active" : ""} onClick={() => setActiveTab("finance")}>Finance</button>
+          <button type="button" role="tab" aria-selected={activeTab === "sales"} className={activeTab === "sales" ? "active" : ""} onClick={() => setActiveTab("sales")}>Ventas</button>
+        </div>
+      </Title>
+      {activeTab === "finance" ? <FinanceOverview /> : <section className="analytics-wip" role="tabpanel" aria-label="Ventas en desarrollo"><Badge variant="outline">WIP</Badge></section>}
     </div>
   );
 }
 
-function GlobalPayments({ snapshot, connected }: { snapshot: PortalSnapshot | null; connected: boolean }) {
-  if (connected && !snapshot) return <div className="page"><Title name="Pagos y facturación" sub="Sincronizando pagos con el portal." eyebrow="INICIO · VISTA GLOBAL" /><div className="empty compact"><WalletCards /><h2>Cargando pagos…</h2></div></div>;
-  if (snapshot) {
-    const byId = new Map(snapshot.clients.map((client) => [client.id, client]));
-    const billed = snapshot.clients.reduce((total, client) => {
-      const contracted = Number(client.contracted_amount || snapshot.payments.filter((payment) => payment.user_id === client.id).reduce((sum, payment) => sum + Number(payment.amount || 0), 0));
-      return total + (client.is_latam ? contracted : contracted / 1.21);
-    }, 0);
-    const collected = snapshot.payments.filter((payment) => payment.status === "paid").reduce((total, payment) => total + Number(payment.amount || 0), 0);
-    const pendingPayments = snapshot.payments.filter((payment) => !["paid", "failed"].includes(payment.status));
-    const pending = pendingPayments.reduce((total, payment) => total + Number(payment.amount || 0), 0);
-    const months = Array.from({ length: 6 }, (_, index) => {
-      const date = new Date(); date.setMonth(date.getMonth() - (5 - index));
-      const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
-      const sameMonth = (value?: string) => { const dateValue = value ? new Date(value) : null; return dateValue ? `${dateValue.getFullYear()}-${dateValue.getMonth()}` === monthKey : false; };
-      return { month: date.toLocaleDateString("es-ES", { month: "short" }).replace(".", ""), contratado: snapshot.clients.filter((client) => sameMonth(client.created_at)).reduce((sum, client) => sum + (client.is_latam ? Number(client.contracted_amount || 0) : Number(client.contracted_amount || 0) / 1.21), 0), cobrado: snapshot.payments.filter((payment) => payment.status === "paid" && sameMonth(payment.paid_at || payment.created_at)).reduce((sum, payment) => sum + Number(payment.amount || 0), 0) };
-    });
-    return <div className="page"><Title name="Pagos y facturación" sub="Contratado desde el portal de aplicación; cobros y pendientes desde Holded o el portal." eyebrow="INICIO · VISTA GLOBAL" /><section className="stats mini"><article><i><WalletCards /></i><div><span>Contratado</span><strong>{billed.toLocaleString("es-ES", { maximumFractionDigits: 0 })} €</strong><small>Sin IVA · excepto LATAM</small></div></article><article><i className="green"><Check /></i><div><span>Cobrado</span><strong>{collected.toLocaleString("es-ES", { maximumFractionDigits: 0 })} €</strong><small>{snapshot.connections.holded ? "Holded" : "Portal de aplicación"}</small></div></article><article className="pending-stat"><i className="red"><CircleDollarSign /></i><div><span>Pendiente</span><strong>{pending.toLocaleString("es-ES", { maximumFractionDigits: 0 })} €</strong><small>{pendingPayments.length} cuotas pendientes</small></div></article></section><section className="panel payment-chart"><div className="panel-heading"><div><h2>Facturado y cobrado por mes</h2><p>Contratado sin IVA frente a cobros registrados</p></div></div><ResponsiveContainer width="100%" height={280}><BarChart data={months} margin={{ left: -12, right: 10 }}><CartesianGrid vertical={false} stroke="#e8edf3" /><XAxis dataKey="month" axisLine={false} tickLine={false} /><YAxis axisLine={false} tickLine={false} /><Tooltip formatter={(value) => `${Number(value).toLocaleString("es-ES")} €`} /><Bar dataKey="contratado" name="Contratado" fill="#1f416f" radius={[4, 4, 0, 0]} /><Bar dataKey="cobrado" name="Cobrado" fill="#4a8a72" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></section><section className="panel pending-payments"><div className="panel-heading"><div><h2>Pendientes de cobro</h2><p>Abre el perfil del alumno para revisar su situación.</p></div></div>{pendingPayments.length ? <div>{pendingPayments.map((payment) => { const client = byId.get(payment.user_id); return <a key={payment.id} href={client ? portalProfileHref(snapshot.portalUrl, client.id) : `${snapshot.portalUrl}/portal/`} target="_blank" rel="noreferrer"><div><strong>{[client?.nombre, client?.apellidos].filter(Boolean).join(" ") || client?.email || payment.user_id}</strong><small>{payment.concept || `Cuota ${payment.installment}`}</small></div><b>{Number(payment.amount).toLocaleString("es-ES")} {payment.currency || "EUR"}</b><ChevronRight /></a>; })}</div> : <p className="empty-copy">No hay pagos pendientes.</p>}</section></div>;
+const FINANCE_PERIODS: Array<{ value: FinancePeriod; label: string }> = [
+  { value: "30d", label: "Últimos 30 días" },
+  { value: "month", label: "Mes actual" },
+  { value: "3m", label: "Últimos 3 meses" },
+  { value: "365d", label: "Últimos 365 días" },
+  { value: "ytd", label: "Year to date" },
+];
+
+const GRANULARITY_LABEL = { day: "Por día", week: "Por semana", month: "Por mes" } as const;
+
+function money(value: number | null | undefined, currency = "EUR") {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+}
+
+function plainNumber(value: number | null | undefined) {
+  return value == null || !Number.isFinite(value) ? "—" : value.toLocaleString("es-ES");
+}
+
+function SourceTag({ children, source }: { children: React.ReactNode; source: "holded" | "portal" | "both" }) {
+  return <span className={`finance-source ${source}`}>{children}</span>;
+}
+
+function ChartHeading({ title, sub, source, granularity, aside }: { title: string; sub: string; source?: "holded" | "portal" | "both"; granularity?: FinanceDashboard["granularity"]; aside?: React.ReactNode }) {
+  return <div className="finance-chart-heading"><div><div className="finance-chart-title"><h2>{title}</h2>{source === "both" ? <><SourceTag source="holded">Holded</SourceTag><SourceTag source="portal">Portal</SourceTag></> : source ? <SourceTag source={source}>{source === "holded" ? "Holded" : "Portal"}</SourceTag> : null}{granularity && <span className="finance-granularity">{GRANULARITY_LABEL[granularity]}</span>}</div><p>{sub}</p></div>{aside}</div>;
+}
+
+function FinanceTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return <div className="finance-tooltip"><strong>{label}</strong>{payload.map((item: any) => <span key={item.dataKey} style={{ color: item.color }}>{item.name}: {typeof item.value === "number" ? money(item.value) : item.value}</span>)}</div>;
+}
+
+function FinanceOverview() {
+  const [period, setPeriod] = useState<FinancePeriod>("ytd");
+  const [data, setData] = useState<FinanceDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [invoiceLimit, setInvoiceLimit] = useState(5);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    setInvoiceLimit(5);
+    integrationClient.financeDashboard(period)
+      .then((result) => { if (active) setData(result); })
+      .catch((reason) => { if (active) { setData(null); setError(reason instanceof Error ? reason.message : "No se pudieron cargar las finanzas"); } })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [period]);
+
+  if (loading && !data) return <DashboardLoader />;
+  if (error && !data) return <div className="finance-error"><AlertTriangle /><div><strong>No se pudieron cargar las finanzas</strong><span>{error}</span></div></div>;
+  if (!data) return null;
+  const hasAccounting = data.sources?.holdedAccounting !== false;
+  const kpis = [
+    { label: "Ventas", source: "holded" as const, value: money(data.kpis.sales), detail: data.kpis.invoices == null ? "—" : `${data.kpis.invoices} facturas emitidas`, icon: CircleDollarSign },
+    { label: "Contratado", source: "portal" as const, value: money(data.kpis.contracted), detail: "Todas las cuotas previstas del plan", icon: FileText, alert: data.kpis.anomaly },
+    { label: "Alumnos", source: "portal" as const, value: plainNumber(data.kpis.students), detail: "Contratos firmados en el periodo", icon: GraduationCap },
+    { label: "CAC", source: "both" as const, value: hasAccounting ? money(data.kpis.cac) : "—", detail: "Marketing ÷ nuevos alumnos", icon: BarChart3 },
+  ];
+  const cashPoints = data.cash.points.map((point) => ({ ...point, label: new Date(`${point.date}T12:00:00`).toLocaleDateString("es-ES", { month: "short", year: "2-digit" }) }));
+  const currentCash = cashPoints.at(-1)?.balance ?? null;
+  const cutoffPoint = (months: number) => {
+    const target = new Date(); target.setMonth(target.getMonth() - months);
+    return [...cashPoints].reverse().find((point) => new Date(`${point.date}T12:00:00`) <= target) || null;
+  };
+  const startYearPoint = cashPoints.find((point) => point.date >= `${new Date().getFullYear()}-01-01`) || null;
+  const cashCards = [
+    { tag: "−365d", name: "Hace 365 días", point: cashPoints[0] || null },
+    { tag: "YTD", name: "Inicio de año", point: startYearPoint },
+    { tag: "−3m", name: "Hace 3 meses", point: cutoffPoint(3) },
+    { tag: "−1m", name: "Hace 1 mes", point: cutoffPoint(1) },
+    { tag: "Hoy", name: "Hoy", point: cashPoints.at(-1) || null, current: true },
+  ];
+  const cashMarkers = Array.from(new Map(cashCards.filter((card) => card.point).map((card) => [card.point!.date, card])).values());
+  const statusLabels: Record<string, string> = { paid: "Pagada", partial: "Pago parcial", pending: "Pendiente", overdue: "Vencida", draft: "Borrador" };
+
+  return <div className="finance-dashboard" role="tabpanel" aria-label="Finance">
+    <header className="finance-dashboard-header">
+      <div><span>INICIO · FINANZAS</span><h2>Finanzas</h2><p>Ventas, cobros y pagos de Robin · {data.rangeLabel}</p></div>
+      <div className="finance-period"><label htmlFor="finance-period">Periodo</label><select id="finance-period" value={period} onChange={(event) => setPeriod(event.target.value as FinancePeriod)}>{FINANCE_PERIODS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><small>Gráficos {GRANULARITY_LABEL[data.granularity].toLowerCase()} · el filtro aplica a todo salvo Caja</small></div>
+    </header>
+
+    {data.kpis.anomaly && <div className="finance-anomaly"><AlertTriangle /><span><strong>Inconsistencia de datos:</strong> Contratado es inferior a Ventas en este periodo. Revisa el cruce entre Portal y Holded.</span></div>}
+    {data.warnings?.length ? <div className="finance-source-warning"><AlertTriangle /><span>Hay fuentes temporalmente no disponibles. Sus importes se muestran como “—”.</span></div> : null}
+
+    <section className="finance-kpis">{kpis.map(({ label, source, value, detail, icon: Icon, alert }) => <article key={label} className={alert ? "is-alert" : ""}><i><Icon /></i><div><span>{label}<SourceTag source={source}>{source === "both" ? "Holded + Portal" : source === "holded" ? "Holded" : "Portal"}</SourceTag></span><strong>{value}</strong><small>{detail}</small></div></article>)}</section>
+
+    <div className="finance-two-columns">
+      <section className="panel finance-chart"><ChartHeading title="Ventas" sub="Facturas emitidas, con IVA" source="holded" granularity={data.granularity} /><ResponsiveContainer width="100%" height={245}><BarChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="tick" axisLine={false} tickLine={false} fontSize={10} /><YAxis hide /><Tooltip content={<FinanceTooltip />} /><Bar dataKey="sales" name="Ventas" fill="#2f5a8a" radius={[4,4,0,0]} /></BarChart></ResponsiveContainer></section>
+      <section className="panel finance-chart"><ChartHeading title="Contratado vs cobrado" sub="Acumulado dentro del periodo" source="both" granularity={data.granularity} /><ResponsiveContainer width="100%" height={245}><LineChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="tick" axisLine={false} tickLine={false} fontSize={10} /><YAxis hide /><Tooltip content={<FinanceTooltip />} /><Line type="monotone" dataKey="cumulativeContracted" name="Contratado" stroke="#c8742a" strokeWidth={2.5} dot={false} /><Line type="monotone" dataKey="cumulativeCollected" name="Cobrado" stroke="#2f5a8a" strokeWidth={2.5} dot={false} /></LineChart></ResponsiveContainer></section>
+    </div>
+
+    <div className="finance-two-columns">
+      <section className="panel finance-chart"><ChartHeading title="Pagos: cobrado / pendiente" sub="Facturas emitidas según estado de cobro" source="holded" granularity={data.granularity} aside={<div className="finance-chart-totals"><span>Cobrado<strong>{money(data.collections.collected)}</strong></span><span>Pendiente<strong>{money(data.collections.pending)}</strong></span></div>} /><ResponsiveContainer width="100%" height={230}><BarChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="tick" axisLine={false} tickLine={false} fontSize={10} /><YAxis hide /><Tooltip content={<FinanceTooltip />} /><Bar dataKey="collected" name="Cobrado" stackId="payments" fill="#4a8a6a" /><Bar dataKey="pending" name="Pendiente" stackId="payments" fill="#e0a15c" radius={[4,4,0,0]} /></BarChart></ResponsiveContainer></section>
+      <section className="panel finance-chart"><ChartHeading title="Clientes nuevos" sub="Contratos firmados" source="portal" granularity={data.granularity} aside={<div className="finance-chart-total"><span>En el periodo</span><strong>{plainNumber(data.kpis.students)}</strong></div>} /><ResponsiveContainer width="100%" height={230}><BarChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="tick" axisLine={false} tickLine={false} fontSize={10} /><YAxis hide /><Tooltip /><Bar dataKey="newClients" name="Alumnos" fill="#c8742a" radius={[4,4,0,0]} /></BarChart></ResponsiveContainer></section>
+    </div>
+
+    <section className="panel finance-summary">
+      <div><h2>Cobros</h2><div className="finance-summary-grid">{[
+        ["Ventas", "Holded", money(data.collections.sales)], ["Cobrado", "Holded", money(data.collections.collected)], ["Emitido (con IVA)", "Holded", money(data.collections.emitted)], ["Contratado", "Portal", money(data.collections.contracted)], ["Nº facturas emitidas", "Holded", plainNumber(data.collections.invoices)], ["Pendiente", "Holded", money(data.collections.pending)], ["Factura media", "Holded", money(data.collections.averageInvoice)], ["Ticket medio", "Portal", money(data.collections.averageTicket)],
+      ].map(([label, source, value]) => <div key={label}><span>{label}<SourceTag source={source === "Holded" ? "holded" : "portal"}>{source}</SourceTag></span><strong>{value}</strong></div>)}</div></div>
+      <i />
+      <div><h2>Pagos <SourceTag source="holded">Holded</SourceTag></h2><div className="finance-expenses">{[
+        ["Operativos", data.expenses.operational], ["Marketing", data.expenses.marketing], ["Impuestos", data.expenses.taxes], ["Otros", data.expenses.other], ["CAPEX", data.expenses.capex], ["Total pagos", data.expenses.total],
+      ].map(([label, value], index) => <div key={String(label)} className={index === 5 ? "total" : ""}><span>{label}</span><strong>{hasAccounting || label === "Impuestos" ? money(value as number | null) : "—"}</strong></div>)}</div></div>
+    </section>
+
+    <section className="panel finance-chart finance-wide-chart"><ChartHeading title="Cobros vs gastos" sub="Entradas y salidas de dinero" source="holded" granularity={data.granularity} />{hasAccounting ? <ResponsiveContainer width="100%" height={260}><LineChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="tick" axisLine={false} tickLine={false} fontSize={10} /><YAxis hide /><Tooltip content={<FinanceTooltip />} /><Line type="monotone" dataKey="collected" name="Cobros" stroke="#2f5a8a" strokeWidth={2.5} dot={false} /><Line type="monotone" dataKey="expenses" name="Gastos" stroke="#c8742a" strokeWidth={2.5} dot={false} /></LineChart></ResponsiveContainer> : <div className="finance-chart-unavailable">— · Contabilidad de Holded no disponible</div>}</section>
+
+    <div className="finance-reports"><article><div><strong>P&amp;L</strong><span>Pérdidas y ganancias · Holded</span></div><Badge variant="outline">WIP</Badge></article><article><div><strong>Balance</strong><span>Balance de situación · Holded</span></div><Badge variant="outline">WIP</Badge></article></div>
+
+    <section className="panel finance-chart finance-wide-chart"><ChartHeading title="Ventas vs año anterior" sub={`Cada ${data.granularity === "day" ? "día" : data.granularity === "week" ? "semana" : "mes"} frente al mismo periodo del año anterior`} source="holded" granularity={data.granularity} /><ResponsiveContainer width="100%" height={280}><BarChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="tick" axisLine={false} tickLine={false} fontSize={10} /><YAxis hide /><Tooltip content={<FinanceTooltip />} /><Bar dataKey="previousSales" name="Año anterior" fill="#d5dce6" radius={[3,3,0,0]} /><Bar dataKey="sales" name="Actual" fill="#2f5a8a" radius={[3,3,0,0]} /></BarChart></ResponsiveContainer></section>
+
+    <section className="panel finance-invoices"><ChartHeading title="Últimas facturas" sub="Tipo de cliente y cuota cruzados con el Portal" source="both" /><div className="data-table"><table><thead><tr><th>Factura</th><th>Cliente</th><th>Tipo de cliente</th><th>Pago</th><th>Fecha</th><th>Base</th><th>IVA</th><th>Total</th><th>Estado</th></tr></thead><tbody>{data.invoices.slice(0, invoiceLimit).map((invoice) => <tr key={invoice.id}><td><b>{invoice.number}</b></td><td>{invoice.customer}</td><td>{invoice.clientType || "—"}</td><td>{invoice.installment || "—"}</td><td>{invoice.date ? new Date(`${invoice.date}T12:00:00`).toLocaleDateString("es-ES") : "—"}</td><td>{money(invoice.base, invoice.currency)}</td><td>{money(invoice.tax, invoice.currency)}</td><td><b>{money(invoice.total, invoice.currency)}</b></td><td><Badge variant="outline">{statusLabels[invoice.status] || invoice.status}</Badge></td></tr>)}</tbody></table>{!data.invoices.length && <p className="finance-empty-row">No hay facturas en el periodo seleccionado.</p>}</div>{invoiceLimit < data.invoices.length && <button className="finance-load-more" type="button" onClick={() => setInvoiceLimit((limit) => limit + 5)}>Cargar 5 más</button>}</section>
+
+    <section className="panel finance-cash"><ChartHeading title="Caja" sub="Saldo conjunto de todas las cuentas de Tesorería, convertido a EUR con el cambio diario del BCE" source="holded" /><div className="finance-cash-cards">{cashCards.map((card) => { const delta = card.point && currentCash != null ? currentCash - card.point.balance : null; return <article key={card.tag} className={card.current ? "current" : ""}><span><b>{card.tag}</b>{card.name}</span><strong>{card.point ? money(card.point.balance) : "—"}</strong><small>{card.point ? `${new Date(`${card.point.date}T12:00:00`).toLocaleDateString("es-ES")} · ${card.current ? "saldo actual" : `${delta != null && delta >= 0 ? "+" : "−"}${money(Math.abs(delta || 0))} hasta hoy`}` : "Sin histórico disponible"}</small></article>; })}</div>{data.cash.available && cashPoints.length ? <ResponsiveContainer width="100%" height={270}><AreaChart data={cashPoints}><defs><linearGradient id="cash-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2f5a8a" stopOpacity={0.18} /><stop offset="100%" stopColor="#2f5a8a" stopOpacity={0.02} /></linearGradient></defs><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="date" tickFormatter={(value) => new Date(`${value}T12:00:00`).toLocaleDateString("es-ES", { month: "short", year: "2-digit" })} axisLine={false} tickLine={false} fontSize={10} /><YAxis tickFormatter={(value) => `${Math.round(value / 1000)}k €`} axisLine={false} tickLine={false} width={55} fontSize={10} domain={["auto", "auto"]} /><Tooltip content={<FinanceTooltip />} />{cashMarkers.map((marker) => <ReferenceLine key={marker.point!.date} x={marker.point!.date} stroke="#9ca9b8" strokeDasharray="3 4" label={{ value: marker.tag, position: "insideTopRight", fill: "#708096", fontSize: 9 }} />)}<Area type="monotone" dataKey="balance" name="Saldo" stroke="#2f5a8a" strokeWidth={2.5} fill="url(#cash-fill)" activeDot={{ r: 4 }} /></AreaChart></ResponsiveContainer> : <div className="finance-cash-empty"><Landmark /><strong>El histórico comienza hoy</strong><span>Las capturas diarias y los cierres mensuales aparecerán aquí.</span></div>}</section>
+  </div>;
+}
+
+function PaymentStatusChart({ title, sub, data, unavailable = "" }: { title: string; sub: string; data: { paid: number; pending: number } | null; unavailable?: string }) {
+  const paid = data?.paid || 0;
+  const pending = data?.pending || 0;
+  const max = Math.max(paid, pending, 1);
+  const euro = (value: number) => `${value.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+  const unavailableText = unavailable === "invalid_robin_plan_key" ? "La clave de acceso de Robin Plan configurada en Netlify no es válida." : "No se pudo conectar con esta base de datos.";
+  return <section className={`panel payment-status-chart ${pending > 0 ? "has-pending" : ""}`}><div className="panel-heading"><div><h2>{title}</h2><p>{sub}</p></div>{pending > 0 && <Badge variant="outline">PENDIENTE</Badge>}</div>{unavailable ? <p className="chart-unavailable">{unavailableText}</p> : <div className="payment-bars"><div><span>Pagado</span><i><b className="paid" style={{ width: `${paid / max * 100}%` }} /></i><strong>{euro(paid)}</strong><small>status = paid</small></div><div className={pending > 0 ? "pending-alert" : ""}><span>Pendiente</span><i><b className="pending" style={{ width: `${pending / max * 100}%` }} /></i><strong>{euro(pending)}</strong><small>status = unlocked</small></div></div>}</section>;
+}
+
+function GlobalPayments({ snapshot, connected, embedded = false }: { snapshot: PortalSnapshot | null; connected: boolean; embedded?: boolean }) {
+  const [holded, setHolded] = useState<FinanceSnapshot | null>(null);
+  const [holdedLoading, setHoldedLoading] = useState(true);
+  const [holdedMessage, setHoldedMessage] = useState("Conectando con Holded…");
+  async function loadHolded() {
+    setHoldedLoading(true);
+    try {
+      const data = await integrationClient.holded();
+      setHolded(data);
+      setHoldedMessage(`Sincronizado con Holded · ${new Date(data.syncedAt).toLocaleString("es-ES")}`);
+    } catch (error) {
+      setHoldedMessage(error instanceof Error ? error.message : "No se pudo conectar con Holded");
+    } finally { setHoldedLoading(false); }
   }
-  return (
-    <div className="page">
-      <Title name="Pagos y facturación" sub="Conecta el portal de aplicación y Holded para ver datos financieros reales." eyebrow="INICIO · VISTA GLOBAL" />
-      <div className="empty compact"><WalletCards /><h2>Datos financieros pendientes de sincronizar</h2><p>El apartado mostrará contratado, cobrado, pendientes y el gráfico mensual al conectar el portal de aplicación.</p></div>
-    </div>
-  );
+  useEffect(() => { void loadHolded(); }, []);
+
+  const euro = (value: number, currency = holded?.currency || "EUR") => `${value.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency === "EUR" ? "€" : currency}`;
+  const statusLabel: Record<string, string> = { paid: "Pagada", pending: "Pendiente", partial: "Pago parcial", overdue: "Vencida", draft: "Borrador" };
+  const month = holded?.currentMonth;
+  const year = holded?.currentYear;
+  const maxMonthly = Math.max(...(holded?.last12Months.flatMap((item) => [item.sales, item.previousYearSales]) || [0]), 1);
+  const byId = new Map((snapshot?.clients || []).map((client) => [client.id, client]));
+  const portalBilled = (snapshot?.payments || []).reduce((total, payment) => total + Number(payment.amount || 0), 0);
+  const portalCollected = (snapshot?.payments || []).filter((payment) => payment.status === "paid").reduce((total, payment) => total + Number(payment.amount || 0), 0);
+  const portalPending = (snapshot?.payments || []).filter((payment) => payment.status !== "paid").reduce((total, payment) => total + Number(payment.amount || 0), 0);
+
+  return <div className={embedded ? "embedded-finance" : "page"}>
+    {embedded ? <div className="finance-group-title merged-section-title"><div><h2>Pagos y facturación</h2><p>Detalle fiscal de Holded y cobros operativos del portal.</p></div><Button variant="outline" onClick={loadHolded} disabled={holdedLoading}><Landmark />{holdedLoading ? "Sincronizando…" : "Actualizar Holded"}</Button></div> : <Title name="Pagos y facturación" sub="Facturación fiscal de Holded y cobros operativos del portal." eyebrow="INICIO · VISTA GLOBAL"><Button variant="outline" onClick={loadHolded} disabled={holdedLoading}><Landmark />{holdedLoading ? "Sincronizando…" : "Actualizar Holded"}</Button></Title>}
+    <div className="sync-status"><ShieldCheck /><span>{holdedMessage}</span><Badge variant="outline">HOLDED REAL</Badge></div>
+
+    <div className="finance-group-title"><h2>Mes actual</h2><p>Facturas emitidas y cobros registrados en Holded.</p></div>
+    <section className="stats mini">
+      <article><i><FileText /></i><div><span>Ventas</span><strong>{euro(month?.sales || 0)}</strong><small>{month?.invoices || 0} facturas · sin impuestos</small></div></article>
+      <article><i className="green"><Check /></i><div><span>Cobrado</span><strong>{euro(month?.collected || 0)}</strong><small>{(month?.collectionRate || 0).toFixed(1)}% del total emitido</small></div></article>
+      <article className={(month?.pending || 0) > 0 ? "pending-money-card" : ""}><i className="red"><CircleDollarSign /></i><div><span>Pendiente vencido</span><strong>{euro(month?.pending || 0)}</strong><small>{month?.pendingInvoices || 0} facturas vencidas</small></div></article>
+      <article><i className="red"><AlertTriangle /></i><div><span>Vencido</span><strong>{euro(month?.overdue || 0)}</strong><small>{month?.overdueInvoices || 0} facturas vencidas</small></div></article>
+    </section>
+
+    <section className="ads-kpi-grid">
+      <article><span>Total emitido · mes</span><strong>{euro(month?.billed || 0)}</strong><small>Ventas más impuestos</small></article>
+      <article><span>Impuestos · mes</span><strong>{euro(month?.tax || 0)}</strong><small>IVA facturado</small></article>
+      <article><span>Ticket medio · mes</span><strong>{euro(month?.averageTicket || 0)}</strong><small>Por factura</small></article>
+      <article><span>Facturas pagadas · mes</span><strong>{month?.paidInvoices || 0}</strong><small>De {month?.invoices || 0} emitidas</small></article>
+      <article><span>Ventas · año</span><strong>{euro(year?.sales || 0)}</strong><small>{year?.invoices || 0} facturas · sin impuestos</small></article>
+      <article><span>Cobrado · año</span><strong>{euro(year?.collected || 0)}</strong><small>{(year?.collectionRate || 0).toFixed(1)}% del total emitido</small></article>
+      <article className={(year?.pending || 0) > 0 ? "pending-money-card" : ""}><span>Pendiente vencido · año</span><strong>{euro(year?.pending || 0)}</strong><small>{year?.pendingInvoices || 0} facturas vencidas</small></article>
+      <article><span>Vencido · año</span><strong>{euro(year?.overdue || 0)}</strong><small>{year?.overdueInvoices || 0} vencidas</small></article>
+    </section>
+
+    <section className="panel clean-chart"><div className="panel-heading"><div><h2>Ventas de los últimos 12 meses</h2><p>Comparativa con el mismo mes del año anterior</p></div><div className="comparison-legend"><span className="current">Actual</span><span className="previous">Anterior</span></div></div><div className="metric-bars comparison">{holded?.last12Months.map((item) => <div key={item.month} title={`${item.month}: ${euro(item.sales)} · año anterior: ${euro(item.previousYearSales)}`}><i className="comparison-bars"><span className="previous-year" style={{ height: `${Math.max(2, item.previousYearSales / maxMonthly * 100)}%` }} /><span className="current-year" style={{ height: `${Math.max(2, item.sales / maxMonthly * 100)}%` }} /></i><small>{item.label}</small></div>)}</div></section>
+
+    <section className="panel campaign-panel"><div className="panel-heading"><div><h2>Últimas facturas de Holded</h2><p>Desglose fiscal y estado de cobro</p></div></div><div className="data-table"><table><thead><tr><th>Factura</th><th>Cliente</th><th>Fecha</th><th>Base</th><th>IVA</th><th>Total</th><th>Cobrado</th><th>Pendiente</th><th>Estado</th></tr></thead><tbody>{holded?.recentInvoices.map((invoice) => <tr key={invoice.id}><td><b>{invoice.number}</b></td><td>{invoice.customer}</td><td>{invoice.date ? new Date(`${invoice.date}T12:00:00`).toLocaleDateString("es-ES") : "—"}</td><td>{euro(invoice.subtotal, invoice.currency)}</td><td>{euro(invoice.tax, invoice.currency)}</td><td>{euro(invoice.total, invoice.currency)}</td><td>{euro(invoice.paid, invoice.currency)}</td><td>{euro(invoice.pending, invoice.currency)}</td><td><Badge variant="outline">{statusLabel[invoice.status] || invoice.status}</Badge></td></tr>)}</tbody></table></div></section>
+
+    <div className="finance-group-title"><h2>Pagos del portal</h2><p>Cuotas previstas y cobros registrados en Supabase/Stripe.</p></div>
+    {connected && !snapshot ? <div className="empty compact"><WalletCards /><h2>Cargando pagos del portal…</h2></div> : <>
+      <section className="stats mini"><article><i><WalletCards /></i><div><span>Planificado</span><strong>{euro(portalBilled)}</strong><small>{snapshot?.payments.length || 0} cuotas</small></div></article><article><i className="green"><Check /></i><div><span>Cobrado</span><strong>{euro(portalCollected)}</strong><small>Stripe y transferencias</small></div></article><article><i className="gold"><CircleDollarSign /></i><div><span>Pendiente</span><strong>{euro(portalPending)}</strong><small>Cuotas abiertas o bloqueadas</small></div></article><article><i className="red"><AlertTriangle /></i><div><span>Fallidos</span><strong>{snapshot?.payments.filter((payment) => payment.status === "failed").length || 0}</strong><small>Requieren atención</small></div></article></section>
+      <section className="panel"><div className="panel-heading"><div><h2>Cuotas del portal</h2><p>Estado financiero operativo</p></div></div><div className="data-table"><table><thead><tr><th>Cliente</th><th>Concepto</th><th>Importe</th><th>Estado</th><th>Factura</th></tr></thead><tbody>{snapshot?.payments.map((payment) => { const client = byId.get(payment.user_id); return <tr key={payment.id}><td><b>{[client?.nombre, client?.apellidos].filter(Boolean).join(" ") || client?.email || payment.user_id}</b></td><td>{payment.concept || `Cuota ${payment.installment}`}</td><td>{Number(payment.amount).toLocaleString("es-ES")} {payment.currency || "EUR"}</td><td><Badge variant="outline">{payment.status}</Badge></td><td>{payment.invoice_number || "—"}</td></tr>; })}</tbody></table></div></section>
+    </>}
+  </div>;
 }
 
-function Configuration({ admins, onAddAdmin, currentUser }: FeatureModuleProps) {
+function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, notify }: FeatureModuleProps) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
-  const [integrationStatus, setIntegrationStatus] = useState<IntegrationStatus | null>(null);
-  useEffect(() => { integrationClient.status().then(setIntegrationStatus).catch(() => setIntegrationStatus(null)); }, []);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [users, setUsers] = useState<PortalAccessUser[]>([]);
+  const [avatarUrl, setAvatarUrl] = useState(portalAdmin.avatar_url || "");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { portalClient.adminUsers().then((result) => setUsers(result.users)).catch(() => setUsers([])); }, []);
+
+  async function createUser(event: React.FormEvent) {
+    event.preventDefault(); setBusy(true);
+    try { const result = await portalClient.createAdmin({ name, email, password }); setUsers((items) => [...items, result.user]); onAddAdmin(name); setName(""); setEmail(""); setPassword(""); setAdding(false); notify("Usuario administrador creado"); }
+    catch (error) { notify(error instanceof Error ? error.message : "No se pudo crear el usuario"); }
+    finally { setBusy(false); }
+  }
+
+  async function removeUser(user: PortalAccessUser) {
+    if (!window.confirm(`¿Eliminar el acceso de ${user.nombre || user.email}?`)) return;
+    try { await portalClient.deleteAdmin(user.id); setUsers((items) => items.filter((item) => item.id !== user.id)); onRemoveAdmin(user.nombre || user.email || ""); notify("Acceso eliminado"); }
+    catch (error) { notify(error instanceof Error ? error.message : "No se pudo eliminar el usuario"); }
+  }
   return (
     <div className="page">
       <Title name="Configuración" sub="Gestiona los usuarios con acceso al portal." eyebrow="INICIO · VISTA GLOBAL"><Button onClick={() => setAdding(true)}><UserPlus />Añadir usuario</Button></Title>
       {adding && (
-        <form className="panel add-user-form" onSubmit={(event) => { event.preventDefault(); onAddAdmin(name); setName(""); setAdding(false); }}>
-          <div><h2>Nuevo usuario administrador</h2><p>Esta acción solo se guardará en la demo local.</p></div>
-          <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nombre del usuario" autoFocus />
-          <Button type="submit">Añadir</Button><Button type="button" variant="outline" onClick={() => setAdding(false)}>Cancelar</Button>
+        <form className="panel add-user-form" onSubmit={createUser}>
+          <div><h2>Nuevo usuario administrador</h2><p>Añade un usuario con acceso al panel.</p></div>
+          <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nombre" autoFocus required />
+          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" required />
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Contraseña inicial" minLength={10} required />
+          <Button type="submit" disabled={busy}>{busy ? "Creando…" : "Añadir"}</Button><Button type="button" variant="outline" onClick={() => setAdding(false)}>Cancelar</Button>
         </form>
       )}
-      <section className="admin-grid">
-        {admins.map((admin) => <article className="panel" key={admin}><i>{admin.slice(0, 2).toUpperCase()}</i><div><h3>{admin}</h3><p>Administrador{admin === currentUser ? " · Usuario actual" : ""}</p></div><Badge variant="outline">Activo</Badge><button><MoreHorizontal /></button></article>)}
+      <section className="settings-security-grid">
+        <form className="panel profile-photo-card" onSubmit={(event) => event.preventDefault()}><div className="settings-avatar">{avatarUrl ? <img src={avatarUrl} alt="Foto de perfil" /> : currentUser.slice(0, 2).toUpperCase()}</div><div><h2>Foto de perfil</h2><p>JPG, PNG o WEBP de hasta 5 MB.</p><label className="ui-button outline"><Camera />Cambiar foto<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; try { const result = await portalClient.uploadAvatar(file); setAvatarUrl(result.avatar_url); notify("Foto de perfil actualizada"); } catch (error) { notify(error instanceof Error ? error.message : "No se pudo subir la foto"); } }} /></label></div></form>
+        <form className="panel password-card" onSubmit={async (event) => { event.preventDefault(); setBusy(true); try { await portalClient.changePassword(currentPassword, newPassword); setCurrentPassword(""); setNewPassword(""); notify("Contraseña actualizada"); } catch (error) { notify(error instanceof Error ? error.message : "No se pudo cambiar la contraseña"); } finally { setBusy(false); } }}><div><h2><KeyRound /> Cambiar mi contraseña</h2><p>Usa al menos 10 caracteres.</p></div><input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} placeholder="Contraseña actual" required /><input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Nueva contraseña" minLength={10} required /><Button type="submit" disabled={busy}>Actualizar</Button></form>
       </section>
-      <div className="integration-heading"><div><h2>Conexiones de producción</h2><p>Las credenciales se leen exclusivamente desde las variables de entorno de Netlify.</p></div><ShieldCheck /></div>
-      <section className="connection-grid">
-        {[
-          ["Holded", integrationStatus?.holded, "HOLDED_API_KEY en este gestor · HOLDED_API_PAT en el portal de aplicación"],
-          ["Meta Marketing API", integrationStatus?.meta, "META_ACCESS_TOKEN · META_AD_ACCOUNT_ID · META_API_VERSION"],
-          ["Stripe", integrationStatus?.stripe, "STRIPE_SECRET_KEY · STRIPE_WEBHOOK_SECRET en el portal de aplicación"],
-          ["Email de alta", integrationStatus?.email, "RESEND_API_KEY · RESEND_FROM en el portal de aplicación"],
-          ["Portal de aplicación", integrationStatus?.applicationPortal, "APPLICATION_PORTAL_URL · APPLICATION_PORTAL_SYNC_SECRET"],
-          ["Base de datos del gestor", integrationStatus?.adminDatabase, "ADMIN_SUPABASE_URL · ADMIN_SUPABASE_SECRET_KEY"],
-        ].map(([label, connected, variables]) => <article className="panel connection-card" key={String(label)}><div><i className={connected ? "connected" : ""} /><h3>{label}</h3><Badge variant="outline">{connected ? "Conectado" : "Pendiente"}</Badge></div><p>{variables}</p></article>)}
+      <section className="admin-grid">
+        {users.map((user) => { const label = user.nombre || user.email || user.username || "Administrador"; const current = user.id === portalAdmin.id; return <article className="panel" key={user.id}><i className={user.avatar_url ? "has-photo" : ""}>{user.avatar_url ? <img src={user.avatar_url} alt="" /> : label.slice(0, 2).toUpperCase()}</i><div><h3>{label}</h3><p>{user.email || "Administrador"}{current ? " · Usuario actual" : ""}</p></div><Badge variant="outline">Activo</Badge>{current ? <span /> : <button type="button" className="remove-admin" aria-label={`Eliminar ${label}`} onClick={() => void removeUser(user)}><Trash2 /></button>}</article>; })}
       </section>
     </div>
   );
@@ -352,12 +597,6 @@ function Crm({ path, currentUser, contacts, leadOwners, leadStages, onMoveLead, 
     }
     setConvertingId(leadId);
     notify(`Creando la cuenta de ${contact.name} en el portal…`);
-    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-      onMoveLead(leadId, "Cliente");
-      setConvertingId(null);
-      notify(`Vista previa: ${contact.name} ha pasado a Clientes`);
-      return;
-    }
     try {
       const result = await integrationClient.convertLead({ leadId, name: contact.name, email: contact.email, advisor: currentUser, clientType });
       onMoveLead(leadId, "Cliente");
@@ -414,7 +653,7 @@ function Crm({ path, currentUser, contacts, leadOwners, leadStages, onMoveLead, 
         </div>
       )}
 
-      {path === "/crm/clientes" && <div className="personal-leads">{portalConnected && !portalSnapshot ? <div className="empty compact"><GraduationCap /><h2>Cargando clientes…</h2></div> : portalSnapshot ? portalSnapshot.clients.filter((client) => client.assigned_to === portalSnapshot.admin.email).map((client) => <a className="lead-card" key={client.id} href={portalProfileHref(portalSnapshot.portalUrl, client.id)} target="_blank" rel="noreferrer"><small>{client.tipo || "general"}</small><h3>{[client.nombre, client.apellidos].filter(Boolean).join(" ") || client.email}</h3><p>{client.email}</p><div><span>Fase {client.application_phase || 1}</span><strong>{client.pago_completed ? "Al corriente" : "Onboarding"}</strong></div><footer>Abrir en portal<ChevronRight /></footer></a>) : owned.filter((contact) => leadStages[contact.id] === "Cliente").map((contact) => <button className="lead-card" key={contact.id} onClick={() => openContact(contact)}><small>{categories[contact.id]}</small><h3>{contact.name}</h3><p>{contact.email}</p><div><span>Agente de venta: {currentUser}</span><strong>{contact.value.toLocaleString("es-ES")} €</strong></div><footer>Ver portal del cliente<ChevronRight /></footer></button>)}</div>}
+      {path === "/crm/clientes" && <div className="personal-leads">{portalConnected && !portalSnapshot ? <div className="empty compact"><GraduationCap /><h2>Cargando clientes…</h2></div> : portalSnapshot ? portalSnapshot.clients.filter((client) => client.assigned_to === portalSnapshot.admin.email).map((client) => <a className="lead-card" key={client.id} href={`${portalSnapshot.portalUrl}/portal/`} target="_blank" rel="noreferrer"><small>{client.tipo || "general"}</small><h3>{[client.nombre, client.apellidos].filter(Boolean).join(" ") || client.email}</h3><p>{client.email}</p><div><span>Fase {client.application_phase || 1}</span><strong>{client.pago_completed ? "Al corriente" : "Onboarding"}</strong></div><footer>Abrir en portal<ChevronRight /></footer></a>) : owned.filter((contact) => leadStages[contact.id] === "Cliente").map((contact) => <button className="lead-card" key={contact.id} onClick={() => openContact(contact)}><small>{categories[contact.id]}</small><h3>{contact.name}</h3><p>{contact.email}</p><div><span>Agente de venta: {currentUser}</span><strong>{contact.value.toLocaleString("es-ES")} €</strong></div><footer>Ver portal del cliente<ChevronRight /></footer></button>)}</div>}
 
       {path === "/crm/lost" && <><div className="lost-filters"><label>Desde<input type="date" value={lostFrom} onChange={(event) => setLostFrom(event.target.value)} /></label><label>Hasta<input type="date" value={lostTo} onChange={(event) => setLostTo(event.target.value)} /></label><label>Categoría<select value={lostCategory} onChange={(event) => setLostCategory(event.target.value)}><option value="">Todas</option>{leadCategories.map((category) => <option key={category}>{category}</option>)}</select></label><label>Heat mínimo<input type="number" min="0" max="100" value={lostHeat} onChange={(event) => setLostHeat(event.target.value)} /></label></div><div className="data-table panel"><table><thead><tr><th>Lead</th><th>Categoría</th><th>Heat final</th><th>Origen</th><th>Fecha Lost</th></tr></thead><tbody>{owned.filter((contact) => { const lostDate = leadLostDates[contact.id] || ""; return leadStages[contact.id] === "Lost" && (!lostCategory || categories[contact.id] === lostCategory) && leadHeat[contact.id] >= Number(lostHeat || 0) && (!lostFrom || lostDate >= lostFrom) && (!lostTo || lostDate <= lostTo); }).map((contact) => <tr key={contact.id} onClick={() => openContact(contact)}><td><b>{contact.name}</b><small>{contact.email}</small></td><td>{categories[contact.id]}</td><td>{leadHeat[contact.id]}</td><td>{contact.source}</td><td>{leadLostDates[contact.id] || "—"}</td></tr>)}</tbody></table></div></>}
 
@@ -423,163 +662,95 @@ function Crm({ path, currentUser, contacts, leadOwners, leadStages, onMoveLead, 
   );
 }
 
-type EditableMetric = { id: string; label: string; value: string; detail: string; group?: string };
-
-function useEditableMetrics(storageKey: string, defaults: EditableMetric[]) {
-  const [metrics, setMetrics] = useState(defaults);
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
-    let active = true;
-    adminDataClient.listMetrics(storageKey).then((saved) => {
-      if (!active) return;
-      if (saved.length) setMetrics(saved);
-      setLoaded(true);
-    }).catch(() => {
-      if (!active) return;
-      const saved = window.localStorage.getItem(storageKey);
-      if (saved) {
-        try { setMetrics(JSON.parse(saved)); }
-        catch { window.localStorage.removeItem(storageKey); }
-      }
-      setLoaded(true);
-    });
-    return () => { active = false; };
-  }, [storageKey]);
-  useEffect(() => {
-    if (!loaded) return;
-    window.localStorage.setItem(storageKey, JSON.stringify(metrics));
-    const timer = window.setTimeout(() => { void adminDataClient.replaceMetrics(storageKey, metrics).catch(() => undefined); }, 600);
-    return () => window.clearTimeout(timer);
-  }, [loaded, metrics, storageKey]);
-  const update = (id: string, patch: Partial<EditableMetric>) => setMetrics((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
-  return { metrics, setMetrics, update };
+function PersonalAnalytics({ path, currentUser, contacts, leadStages, snapshot }: { path: string; currentUser: string; contacts: Contact[]; leadStages: Record<string, CrmStage>; snapshot: PortalSnapshot | null }) {
+  const key = path.split("/").filter(Boolean)[1] || "pagos";
+  if (key === "finanzas" || key === "pagos") return <FinanceAnalytics currentUser={currentUser} />;
+  if (key === "ventas") return <SalesAnalytics currentUser={currentUser} contacts={contacts} leadStages={leadStages} />;
+  const owned = contacts.filter((lead) => lead.owner === currentUser);
+  const metrics = [
+    { label: "Alumnos del portal", value: String(snapshot?.clients.length || 0), detail: "Datos del portal" },
+    { label: "Leads asignados", value: String(owned.length), detail: currentUser },
+    { label: "Clientes cerrados", value: String(owned.filter((lead) => (leadStages[lead.id] || lead.stage) === "Cliente").length), detail: "CRM" },
+    { label: "En onboarding", value: String(snapshot?.clients.filter((client) => client.requires_onboarding).length || 0), detail: "Requieren seguimiento" },
+  ];
+  return <div className="page"><Title name="Analíticas personales" sub={`Carga operativa real · ${currentUser}`} eyebrow="OPERACIONES" /><ReadonlyMetricGrid metrics={metrics} /></div>;
 }
 
-function EditableMetricGrid({ metrics, onChange }: { metrics: EditableMetric[]; onChange: (id: string, patch: Partial<EditableMetric>) => void }) {
-  return <div className="editable-metrics">{metrics.map((metric) => <article key={metric.id}><span>{metric.label}</span><input value={metric.value} onChange={(event) => onChange(metric.id, { value: event.target.value })} aria-label={`Valor de ${metric.label}`} /><input className="metric-detail-input" value={metric.detail} onChange={(event) => onChange(metric.id, { detail: event.target.value })} aria-label={`Detalle de ${metric.label}`} /><small>Editable</small></article>)}</div>;
+function ReadonlyMetricGrid({ metrics }: { metrics: { label: string; value: string; detail: string }[] }) {
+  return <section className="ads-kpi-grid">{metrics.map((metric) => <article key={metric.label}><span>{metric.label}</span><strong>{metric.value}</strong><small>{metric.detail}</small></article>)}</section>;
 }
-
-const simpleAnalytics: Record<string, { title: string; subtitle: string; metrics: EditableMetric[] }> = {
-  pagos: { title: "Pagos y facturación", subtitle: "Cobros asociados a tu cartera", metrics: [{ id: "billed", label: "Facturado", value: "8.420 €", detail: "+14%" }, { id: "collected", label: "Cobrado", value: "6.780 €", detail: "80,5%" }, { id: "pending", label: "Pendiente", value: "1.640 €", detail: "3 facturas" }, { id: "avg", label: "Ticket medio", value: "2.106 €", detail: "+8%" }] },
-  operaciones: { title: "Operaciones", subtitle: "Eficiencia y carga de trabajo", metrics: [{ id: "students", label: "Alumnos activos", value: "18", detail: "+3" }, { id: "tasks", label: "Tareas abiertas", value: "12", detail: "4 urgentes" }, { id: "response", label: "Tiempo de respuesta", value: "21 min", detail: "-8 min" }, { id: "csat", label: "Satisfacción", value: "4,8/5", detail: "+0,2" }] },
-};
-
-function PersonalAnalytics({ path, currentUser }: { path: string; currentUser: string }) {
-  const key = path.split("/").filter(Boolean)[1] || "general";
-  if (key === "general") return <FinanceGeneral />;
-  if (key === "pnl") return <HoldedPlaceholder title="P&L" description="La cuenta de pérdidas y ganancias se mostrará exactamente con la estructura de Holded cuando se complete la conexión." icon={<Landmark />} />;
-  if (key === "facturacion-cobros-gastos") return <HoldedPlaceholder title="Facturación, cobros y gastos" description="Aquí se consolidarán facturas emitidas, cobros realizados y gastos desde Holded." icon={<WalletCards />} />;
-  if (key === "ventas") return <SalesAnalytics currentUser={currentUser} />;
-  if (key === "tax") return <TaxOverview />;
-  if (key === "ajustes") return <FinanceSettings />;
-  return <FinanceGeneral />;
-}
-
-function FinanceGeneral() {
-  const clientMargins = ["Delft", "General", "Llegada", "Mentoría", "LATAM", "Especial"].map((type) => ({ type, margin: 0 }));
-  return <div className="page"><Title name="General" sub="Resumen financiero operativo de Robin." eyebrow="FINANZAS · GENERAL" /><section className="stats mini"><article><i><WalletCards /></i><div><span>Cash disponible</span><strong>—</strong><small>Pendiente de conectar Holded</small></div></article><article><i className="gold"><CircleDollarSign /></i><div><span>Upcoming cash</span><strong>—</strong><small>Cobros pendientes</small></div></article><article><i className="red"><Landmark /></i><div><span>Upcoming pagos</span><strong>—</strong><small>IVA, gastos fijos y pagos pendientes</small></div></article></section><div className="finance-general-grid"><HoldedPlaceholder title="Facturación y cobros" description="Se mostrarán facturado, cobrado y pendiente con los datos de Holded y del portal de aplicación." icon={<WalletCards />} compact /><section className="panel"><div className="panel-heading"><div><h2>Margen por cliente y CAC</h2><p>Configurado desde Ajustes</p></div></div><div className="holded-summary"><article><span>Margen por cliente</span><strong>—</strong><small>Cobrado neto − coste variable</small></article><article><span>CAC</span><strong>—</strong><small>Marketing y ventas ÷ clientes nuevos</small></article></div></section><section className="panel finance-margin-chart"><div className="panel-heading"><div><h2>Tipos de cliente por margen</h2><p>Delft, General y otros tipos</p></div></div><ResponsiveContainer width="100%" height={260}><BarChart data={clientMargins} layout="vertical" margin={{ left: 15, right: 20 }}><CartesianGrid horizontal={false} stroke="#e8edf3" /><XAxis type="number" axisLine={false} tickLine={false} /><YAxis type="category" dataKey="type" width={65} axisLine={false} tickLine={false} /><Tooltip formatter={() => "Pendiente de conexión"} /><Bar dataKey="margin" name="Margen" fill="#1f416f" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer><p className="empty-copy">Los márgenes se clasificarán cuando Holded y el portal estén conectados.</p></section></div></div>;
-}
-
-function HoldedPlaceholder({ title, description, icon, compact = false }: { title: string; description: string; icon: React.ReactNode; compact?: boolean }) {
-  return <section className={`panel finance-placeholder${compact ? " compact" : ""}`}><i>{icon}</i><Badge variant="outline">PENDIENTE DE CONEXIÓN</Badge><h2>{title}</h2><p>{description}</p></section>;
-}
-
-function TaxOverview() {
-  return <div className="page"><Title name="Tax" sub="Sociedades y retenciones desde Holded." eyebrow="FINANZAS · TAX" /><HoldedPlaceholder title="Sociedades y retenciones" description="Esta vista será informativa y reunirá los importes, vencimientos y obligaciones fiscales procedentes de Holded. La configuración se gestiona desde Ajustes." icon={<FileText />} /><a className="portal-link-button" href="/analiticas/ajustes">Abrir ajustes de fórmulas y tax<ChevronRight /></a></div>;
-}
-
-const financeFormulaDefaults: EditableMetric[] = [
-  { id: "margin", label: "Fórmula de margen por cliente", value: "Cobrado neto − coste variable", detail: "El IVA se excluye del cobrado neto" },
-  { id: "variable-cost", label: "Coste variable por defecto", value: "0 €", detail: "Se restará al margen de cada cliente" },
-  { id: "cac", label: "Fórmula de CAC", value: "Marketing + ventas ÷ clientes nuevos", detail: "Gastos obtenidos de Holded" },
-  { id: "tax", label: "Fuente de sociedades y retenciones", value: "Holded", detail: "Vista informativa en Tax" },
-];
-
-function FinanceSettings() {
-  const { metrics, update } = useEditableMetrics("robin-finance-formulas", financeFormulaDefaults);
-  return <div className="page"><Title name="Ajustes" sub="Personaliza los cálculos que se usarán en Finanzas." eyebrow="FINANZAS · AJUSTES" /><section className="panel finance-settings-note"><h2>Cómo se calcularán las métricas</h2><p>El margen por cliente partirá del cobrado sin IVA y restará el coste variable definido. El CAC dividirá los gastos de marketing y ventas de Holded entre los clientes nuevos del periodo seleccionado.</p></section><EditableMetricGrid metrics={metrics} onChange={update} /></div>;
-}
-
-function SimpleEditableAnalytics({ data, currentUser, storageKey }: { data: { title: string; subtitle: string; metrics: EditableMetric[] }; currentUser: string; storageKey: string }) {
-  const { metrics, update } = useEditableMetrics(storageKey, data.metrics);
-  return <div className="page"><Title name={data.title} sub={`${data.subtitle} · ${currentUser}`} eyebrow="ANALÍTICAS PERSONALES"><Badge variant="outline">DATOS EDITABLES</Badge></Title><EditableMetricGrid metrics={metrics} onChange={update} /><section className="panel clean-chart"><h2>Evolución mensual</h2><div className="metric-bars">{[["Abr", 38], ["May", 54], ["Jun", 49], ["Jul", 68], ["Ago", 77], ["Sep", 88]].map(([month, value]) => <div key={month}><span style={{ height: `${value}%` }} /><small>{month}</small></div>)}</div></section></div>;
-}
-
-const financeDefaults: EditableMetric[] = [
-  { id: "mrr", group: "Ingresos recurrentes", label: "MRR", value: "12.680 €", detail: "Ingreso recurrente mensual" },
-  { id: "arr", group: "Ingresos recurrentes", label: "ARR", value: "152.160 €", detail: "MRR × 12" },
-  { id: "nrr", group: "Ingresos recurrentes", label: "Net revenue retention", value: "108%", detail: "Expansión neta de churn" },
-  { id: "churn", group: "Ingresos recurrentes", label: "Churn de suscripciones", value: "3,2%", detail: "Este mes" },
-  { id: "gmv", group: "Marketplace y comisiones", label: "GMV", value: "84.200 €", detail: "Volumen bruto" },
-  { id: "take-rate", group: "Marketplace y comisiones", label: "Take rate", value: "14,8%", detail: "Comisión / GMV" },
-  { id: "commission", group: "Marketplace y comisiones", label: "Comisión efectiva", value: "12.461 €", detail: "Ingreso neto por comisiones" },
-  { id: "payouts", group: "Marketplace y comisiones", label: "Payouts pendientes", value: "8.940 €", detail: "Pasarela pendiente de definir" },
-  { id: "retention", group: "Retención y segmentos", label: "Retención cohorte M3", value: "82%", detail: "Suscripciones activas" },
-  { id: "sellers", group: "Retención y segmentos", label: "Sellers activos", value: "46", detail: "Segmento profesional" },
-  { id: "buyers", group: "Retención y segmentos", label: "Buyers activos", value: "128", detail: "Segmento estudiantes" },
-  { id: "aov", group: "Transacciones", label: "AOV", value: "186 €", detail: "Valor medio del pedido" },
-  { id: "frequency", group: "Transacciones", label: "Frecuencia", value: "1,8", detail: "Transacciones por buyer" },
-  { id: "ticket", group: "Transacciones", label: "Ticket medio", value: "174 €", detail: "Por transacción" },
-];
 
 function FinanceAnalytics({ currentUser }: { currentUser: string }) {
-  const { metrics, setMetrics, update } = useEditableMetrics(`robin-finance-${currentUser}`, financeDefaults);
-  const [syncing, setSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState("Datos manuales editables");
-  const groups = [...new Set(metrics.map((metric) => metric.group))];
+  const [snapshot, setSnapshot] = useState<FinanceSnapshot | null>(null);
+  const [syncing, setSyncing] = useState(true);
+  const [syncMessage, setSyncMessage] = useState("Conectando con Holded…");
   const euro = (value: number) => `${Math.round(value).toLocaleString("es-ES")} €`;
   async function syncHolded() {
     setSyncing(true);
     try {
       const snapshot: FinanceSnapshot = await integrationClient.holded();
-      const values: Record<string, string> = { mrr: euro(snapshot.mrr), arr: euro(snapshot.arr), nrr: `${snapshot.nrr.toFixed(1)}%`, churn: `${snapshot.churnRate.toFixed(1)}%`, gmv: euro(snapshot.gmv), "take-rate": `${snapshot.takeRate.toFixed(1)}%`, commission: euro(snapshot.effectiveCommission), aov: euro(snapshot.aov), frequency: snapshot.transactionFrequency.toFixed(1), ticket: euro(snapshot.aov) };
-      setMetrics((items) => items.map((item) => values[item.id] ? { ...item, value: values[item.id] } : item));
-      setSyncMessage(`Sincronizado con Holded · ${snapshot.invoices} facturas · ${snapshot.payments} pagos`);
+      setSnapshot(snapshot);
+      setSyncMessage(`Sincronizado con Holded · ${snapshot.currentYear.invoices} facturas este año`);
     } catch (error) {
       setSyncMessage(error instanceof Error ? error.message : "No se pudo conectar con Holded");
     } finally { setSyncing(false); }
   }
-  return <div className="page"><Title name="Finanzas" sub={`Métricas financieras y unit economics · ${currentUser}`} eyebrow="ANALÍTICAS PERSONALES"><Button variant="outline" onClick={syncHolded} disabled={syncing}><Landmark />{syncing ? "Sincronizando…" : "Sincronizar Holded"}</Button></Title><div className="sync-status"><ShieldCheck /><span>{syncMessage}</span><Badge variant="outline">EDITABLE</Badge></div>{groups.map((group) => <section className="finance-group" key={group}><div className="finance-group-title"><h2>{group}</h2><p>Edita cualquier valor o detalle sin cambiar el código.</p></div><EditableMetricGrid metrics={metrics.filter((metric) => metric.group === group)} onChange={update} /></section>)}<section className="panel cohort-panel"><div><h2>Cohortes de retención</h2><p>Seguimiento de suscripciones por mes de alta.</p></div><div className="cohort-grid"><span>Cohorte</span><span>M0</span><span>M1</span><span>M2</span><span>M3</span>{[["Jun", "100%", "91%", "86%", "82%"], ["Jul", "100%", "93%", "87%", "—"], ["Ago", "100%", "89%", "—", "—"], ["Sep", "100%", "—", "—", "—"]].flat().map((cell, index) => <b key={`${cell}-${index}`}>{cell}</b>)}</div></section></div>;
+  useEffect(() => { void syncHolded(); }, []);
+  if (syncing) return <div className="page"><DashboardLoader /></div>;
+  if (!snapshot) return <div className="page"><Title name="Analíticas personales" sub="No se pudieron cargar los datos de Holded." eyebrow="FINANZAS" /><div className="empty compact"><Landmark /><h2>{syncMessage}</h2></div></div>;
+  const m = snapshot.currentMonth, y = snapshot.currentYear;
+  const monthMetrics = [{ label: "Ventas", value: euro(m.sales), detail: `${m.invoices} facturas · sin impuestos` }, { label: "Total emitido", value: euro(m.billed), detail: "Ventas más impuestos" }, { label: "Impuestos", value: euro(m.tax), detail: "Registrados en Holded" }, { label: "Cobrado", value: euro(m.collected), detail: `${m.collectionRate.toFixed(1)}% del total emitido` }, { label: "Pendiente", value: euro(m.pending), detail: `${m.pendingInvoices + m.partialInvoices} facturas` }, { label: "Vencido", value: euro(m.overdue), detail: `${m.overdueInvoices} facturas` }, { label: "Ticket medio", value: euro(m.averageTicket), detail: "Por factura" }];
+  const yearMetrics = [{ label: "Ventas", value: euro(y.sales), detail: `${y.invoices} facturas · sin impuestos` }, { label: "Cobrado", value: euro(y.collected), detail: `${y.paidInvoices} pagadas` }, { label: "Pendiente", value: euro(y.pending), detail: "Acumulado anual" }, { label: "Vencido", value: euro(y.overdue), detail: `${y.overdueInvoices} vencidas` }, { label: "Ticket medio", value: euro(y.averageTicket), detail: "Por factura" }, { label: "Tasa de cobro", value: `${y.collectionRate.toFixed(1)}%`, detail: "Cobrado / total emitido" }];
+  const max = Math.max(...snapshot.last12Months.flatMap((item) => [item.sales, item.previousYearSales]), 1);
+  return <div className="page"><Title name="Analíticas personales" sub={`Datos fiscales reales de Holded · ${currentUser}`} eyebrow="FINANZAS"><Button variant="outline" onClick={syncHolded} disabled={syncing}><Landmark />Actualizar Holded</Button></Title><div className="sync-status"><ShieldCheck /><span>{syncMessage}</span><Badge variant="outline">HOLDED</Badge></div><div className="finance-group"><div className="finance-group-title"><h2>Mes actual</h2><p>Importes calculados desde las facturas de Holded.</p></div><ReadonlyMetricGrid metrics={monthMetrics} /></div><section className="panel clean-chart"><div className="panel-heading"><h2>Ventas de los últimos 12 meses</h2><div className="comparison-legend"><span className="current">Actual</span><span className="previous">Anterior</span></div></div><div className="metric-bars comparison">{snapshot.last12Months.map((item) => <div key={item.month} title={`${item.label}: ${euro(item.sales)} · año anterior: ${euro(item.previousYearSales)}`}><i className="comparison-bars"><span className="previous-year" style={{ height: `${Math.max(2, item.previousYearSales / max * 100)}%` }} /><span className="current-year" style={{ height: `${Math.max(2, item.sales / max * 100)}%` }} /></i><small>{item.label}</small></div>)}</div></section><div className="finance-group"><div className="finance-group-title"><h2>Año actual</h2><p>Acumulado fiscal real.</p></div><ReadonlyMetricGrid metrics={yearMetrics} /></div></div>;
 }
 
-const salesDefaults: EditableMetric[] = [
-  { id: "leads", label: "Leads", value: "42", detail: "En el periodo" }, { id: "contacted", label: "Contactados", value: "34", detail: "81,0% de leads" }, { id: "qualified", label: "Cualificados", value: "25", detail: "59,5% de leads" }, { id: "scheduled", label: "Llamadas agendadas", value: "20", detail: "80% de cualificados" },
-  { id: "held", label: "Llamadas hechas", value: "16", detail: "80% de agendadas" }, { id: "sales", label: "Ventas", value: "7", detail: "43,8% de llamadas" }, { id: "revenue", label: "Facturación", value: "22.400 €", detail: "Ventas del periodo" }, { id: "collected", label: "Cobrado", value: "18.900 €", detail: "En el periodo" },
-  { id: "ticket", label: "Ticket medio", value: "3.200 €", detail: "Por venta" }, { id: "lead-sale", label: "% Lead → venta", value: "16,7%", detail: "7 de 42 leads" }, { id: "call-sale", label: "% Llamada → venta", value: "43,8%", detail: "Cierre en llamada" }, { id: "no-show", label: "No-shows", value: "4", detail: "20% de agendadas" },
-];
-
-function SalesAnalytics({ currentUser }: { currentUser: string }) {
-  const { metrics, update } = useEditableMetrics(`robin-sales-${currentUser}`, salesDefaults);
-  return <div className="page"><Title name="Ventas" sub={`Embudo y rendimiento comercial · ${currentUser}`} eyebrow="ANALÍTICAS PERSONALES"><Badge variant="outline">DATOS EDITABLES</Badge></Title><div className="sales-filters"><label>Desde<input type="date" /></label><label>Hasta<input type="date" /></label><label>Origen<select><option>Todos</option><option>Meta Ads</option><option>Instagram</option><option>Referido</option><option>Orgánico</option></select></label><label>Campaña<select><option>Todas</option><option>Grados en Holanda</option><option>Estudiar en España</option></select></label><div><button>7 días</button><button>30 días</button><button>Este mes</button></div></div><EditableMetricGrid metrics={metrics} onChange={update} /><div className="sales-analysis-grid"><section className="panel sales-funnel"><h2>Embudo de conversión</h2>{[["Leads totales", 42, 100], ["Contactados", 34, 81], ["Cualificados", 25, 60], ["Llamadas agendadas", 20, 48], ["Llamadas hechas", 16, 38], ["Ventas cerradas", 7, 17]].map(([label, value, width]) => <div key={label}><p><span>{label}</span><strong>{value}</strong></p><i><b style={{ width: `${width}%` }} /></i></div>)}</section><section className="panel clean-chart"><h2>Evolución diaria</h2><div className="metric-bars">{[["L", 42], ["M", 70], ["X", 54], ["J", 88], ["V", 62], ["S", 30], ["D", 46]].map(([day, value]) => <div key={day}><span style={{ height: `${value}%` }} /><small>{day}</small></div>)}</div></section></div><div className="sales-tables"><PerformanceTable title="Rendimiento por origen" rows={[["Meta Ads", "18", "11", "4", "22,2%", "12.800 €"], ["Instagram", "9", "5", "1", "11,1%", "3.200 €"], ["Referido", "8", "6", "2", "25,0%", "6.400 €"], ["Orgánico", "7", "3", "0", "0%", "0 €"]]} /><PerformanceTable title="Rendimiento por campaña" rows={[["Grados en Holanda", "21", "14", "4", "19,0%", "12.800 €"], ["Estudiar en España", "13", "7", "2", "15,4%", "6.400 €"], ["Boca a boca", "8", "4", "1", "12,5%", "3.200 €"]]} /></div></div>;
+function SalesAnalytics({ currentUser, contacts, leadStages }: { currentUser: string; contacts: Contact[]; leadStages: Record<string, CrmStage> }) {
+  const owned = contacts.filter((lead) => lead.owner === currentUser);
+  const count = (stage: CrmStage) => owned.filter((lead) => (leadStages[lead.id] || lead.stage) === stage).length;
+  const clients = count("Cliente");
+  const stages: Array<[string, number]> = [["Leads asignados", owned.length], ["Contactados", count("Contactado")], ["Llamadas agendadas", count("Llamada programada")], ["Llamadas realizadas", count("Llamada tenida")], ["Propuestas", count("Propuesta enviada")], ["Clientes", clients]];
+  const metrics = stages.map(([label, value]) => ({ label, value: String(value), detail: owned.length ? `${(value / owned.length * 100).toFixed(1)}% de la cartera` : "Sin leads asignados" }));
+  const sources = [...new Set(owned.map((lead) => lead.source))].map((source) => { const rows = owned.filter((lead) => lead.source === source); const wins = rows.filter((lead) => (leadStages[lead.id] || lead.stage) === "Cliente").length; return [source, String(rows.length), String(wins), rows.length ? `${(wins / rows.length * 100).toFixed(1)}%` : "0%"] as string[]; });
+  return <div className="page"><Title name="Analíticas personales" sub={`Embudo real de la cartera de ${currentUser}`} eyebrow="VENTAS" /><ReadonlyMetricGrid metrics={metrics} /><section className="panel sales-funnel"><h2>Embudo de conversión</h2>{stages.map(([label, value]) => <div key={label}><p><span>{label}</span><strong>{value}</strong></p><i><b style={{ width: `${owned.length ? Math.max(2, value / owned.length * 100) : 0}%` }} /></i></div>)}</section><PerformanceTable title="Rendimiento por origen" rows={sources.map(([source, leads, wins, conversion]) => [source, leads, wins, conversion])} /></div>;
 }
 
 function PerformanceTable({ title, rows }: { title: string; rows: string[][] }) {
-  return <section className="panel"><div className="panel-heading"><div><h2>{title}</h2><p>Conversión y facturación</p></div></div><div className="data-table"><table><thead><tr><th>Segmento</th><th>Leads</th><th>Cual.</th><th>Ventas</th><th>% conv.</th><th>Facturación</th></tr></thead><tbody>{rows.map((row) => <tr key={row[0]}>{row.map((cell, index) => <td key={`${row[0]}-${index}`}>{index === 0 ? <b>{cell}</b> : cell}</td>)}</tr>)}</tbody></table></div></section>;
+  return <section className="panel"><div className="panel-heading"><div><h2>{title}</h2><p>Datos calculados desde el CRM</p></div></div><div className="data-table"><table><thead><tr><th>Origen</th><th>Leads</th><th>Clientes</th><th>Conversión</th></tr></thead><tbody>{rows.map((row) => <tr key={row[0]}>{row.map((cell, index) => <td key={`${row[0]}-${index}`}>{index === 0 ? <b>{cell}</b> : cell}</td>)}</tr>)}</tbody></table></div></section>;
 }
 
 function Campaigns({ currentUser, notify }: { currentUser: string; notify: (message: string) => void }) {
-  const [snapshot, setSnapshot] = useState<MetaSnapshot>({ spend: 3262, impressions: 184200, clicks: 4210, reach: 102600, ctr: 2.29, cpc: 0.77, cpm: 17.71, leads: 127, purchases: 18, revenue: 14027, cpl: 25.69, cac: 181.22, roas: 4.3 });
-  const [syncing, setSyncing] = useState(false);
-  const [connection, setConnection] = useState("Datos de demostración");
-  const rows = [["Grados en Holanda · Otoño", "1.842 €", "74", "24,89 €", "4,8×"], ["Estudiar en España · General", "984 €", "31", "31,74 €", "3,2×"], ["The Robin Plan · Retargeting", "436 €", "22", "19,82 €", "5,1×"]];
-  async function syncMeta() {
+  const [snapshot, setSnapshot] = useState<MetaSnapshot | null>(null);
+  const [syncing, setSyncing] = useState(true);
+  const [connection, setConnection] = useState("Conectando con Meta Marketing API…");
+  async function syncMeta(force = false) {
     setSyncing(true);
-    try { const data = await integrationClient.meta(); setSnapshot(data); setConnection("Sincronizado con Meta Marketing API"); }
+    try {
+      const data = await integrationClient.meta(force);
+      setSnapshot(data);
+      setConnection(`Sincronizado con ${data.account.name} · ${new Date(data.syncedAt).toLocaleString("es-ES")}`);
+    }
     catch (error) { setConnection(error instanceof Error ? error.message : "No se pudo conectar con Meta"); }
     finally { setSyncing(false); }
   }
+  useEffect(() => { void syncMeta(false); }, []);
   const euro = (value: number) => `${value.toLocaleString("es-ES", { maximumFractionDigits: 2 })} €`;
+  const summary = snapshot?.summary ?? { spend: 0, impressions: 0, clicks: 0, reach: 0, ctr: 0, cpc: 0, cpm: 0, leads: 0, purchases: 0, revenue: 0, cpl: 0, cac: 0, roas: 0 };
+  const maxSpend = Math.max(...(snapshot?.daily.map((day) => day.spend) ?? [0]), 1);
+  const maxCpm = Math.max(...(snapshot?.daily.map((day) => day.cpm) ?? [0]), 1);
+  const statusLabel: Record<string, string> = { ACTIVE: "Activa", PAUSED: "Pausada", ARCHIVED: "Archivada", DELETED: "Eliminada", CAMPAIGN_PAUSED: "Pausada", ADSET_PAUSED: "Pausada", IN_PROCESS: "En revisión", WITH_ISSUES: "Con incidencias" };
+  if (syncing && !snapshot) return <div className="page"><DashboardLoader /></div>;
   return (
     <div className="page">
-      <Title name="Meta Ads" sub={`Campañas y resultados asignados a ${currentUser}.`} eyebrow="CAMPAÑAS PERSONALES"><Button variant="outline" onClick={syncMeta} disabled={syncing}><Megaphone />{syncing ? "Sincronizando…" : "Sincronizar Meta"}</Button><Button onClick={() => notify("Campaña creada como borrador demo")}><Plus />Nueva campaña</Button></Title>
-      <div className="meta-banner"><ShieldCheck /><div><strong>{connection}</strong><p>Al configurar las variables de Netlify, este panel consultará los últimos 30 días.</p></div><Badge variant="outline">META API</Badge></div>
+      <Title name="Meta Ads" sub={`Resultados reales de la cuenta publicitaria · acceso de ${currentUser}.`} eyebrow="CAMPAÑAS"><Button variant="outline" onClick={() => void syncMeta(true)} disabled={syncing}><Megaphone />{syncing ? "Sincronizando…" : "Actualizar datos"}</Button></Title>
+      <div className="meta-banner"><ShieldCheck /><div><strong>{connection}</strong><p>Periodo: últimos 30 días · importes en {snapshot?.account.currency || "EUR"} · zona horaria {snapshot?.account.timezone || "de la cuenta"}</p></div><Badge variant="outline">DATOS REALES</Badge></div>
       <section className="ads-kpi-grid">{[
-        ["Inversión", euro(snapshot.spend), "Gasto total"], ["Impresiones", snapshot.impressions.toLocaleString("es-ES"), `${(snapshot.impressions / 1000).toFixed(1)}k`], ["Clics", snapshot.clicks.toLocaleString("es-ES"), `${snapshot.ctr.toFixed(2)}% CTR`], ["CTR", `${snapshot.ctr.toFixed(2)}%`, "Clics / impresiones"],
-        ["CPC medio", euro(snapshot.cpc), "Coste por clic"], ["CPM", euro(snapshot.cpm), "Coste por mil"], ["Alcance", snapshot.reach.toLocaleString("es-ES"), "Personas únicas"], ["Leads", snapshot.leads.toLocaleString("es-ES"), "Conversiones atribuidas"],
-        ["CPL real", euro(snapshot.cpl), "Inversión / leads"], ["Ventas", snapshot.purchases.toLocaleString("es-ES"), "Compras atribuidas"], ["CAC", euro(snapshot.cac), "Inversión / ventas"], ["ROAS", `${snapshot.roas.toFixed(2)}×`, euro(snapshot.revenue)],
+        ["Inversión", euro(summary.spend), "Gasto total"], ["Impresiones", summary.impressions.toLocaleString("es-ES"), `${(summary.impressions / 1000).toFixed(1)}k`], ["Clics", summary.clicks.toLocaleString("es-ES"), `${summary.ctr.toFixed(2)}% CTR`], ["CTR", `${summary.ctr.toFixed(2)}%`, "Clics / impresiones"],
+        ["CPC medio", euro(summary.cpc), "Coste por clic"], ["CPM", euro(summary.cpm), "Coste por mil"], ["Alcance", summary.reach.toLocaleString("es-ES"), "Personas únicas"], ["Leads", summary.leads.toLocaleString("es-ES"), "Conversiones atribuidas"],
+        ["CPL real", euro(summary.cpl), "Inversión / leads"], ["Ventas", summary.purchases.toLocaleString("es-ES"), "Compras atribuidas"], ["CAC", euro(summary.cac), "Inversión / ventas"], ["ROAS", `${summary.roas.toFixed(2)}×`, euro(summary.revenue)],
       ].map(([label, value, detail]) => <article key={label}><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>)}</section>
-      <div className="sales-analysis-grid"><section className="panel clean-chart"><h2>Inversión diaria</h2><div className="metric-bars">{[["L", 52], ["M", 78], ["X", 63], ["J", 92], ["V", 70], ["S", 34], ["D", 45]].map(([day, value]) => <div key={day}><span style={{ height: `${value}%` }} /><small>{day}</small></div>)}</div></section><section className="panel clean-chart"><h2>CPM diario</h2><div className="metric-bars gold-bars">{[["L", 44], ["M", 61], ["X", 56], ["J", 74], ["V", 68], ["S", 50], ["D", 58]].map(([day, value]) => <div key={day}><span style={{ height: `${value}%` }} /><small>{day}</small></div>)}</div></section></div>
-      <section className="panel campaign-panel"><div className="panel-heading"><div><h2>Campañas</h2><p>Datos demostrativos · últimos 30 días</p></div></div><div className="data-table"><table><thead><tr><th>Campaña</th><th>Estado</th><th>Inversión</th><th>Leads</th><th>CPL</th><th>ROAS</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row[0]}><td><b>{row[0]}</b><small>Responsable: {currentUser}</small></td><td><Badge variant="outline">Activa</Badge></td>{row.slice(1).map((cell) => <td key={cell}>{cell}</td>)}<td><button className="icon-action" onClick={() => notify(`Abriendo ${row[0]} en modo demo`)}><ArrowRight /></button></td></tr>)}</tbody></table></div></section>
+      <div className="sales-analysis-grid"><section className="panel clean-chart"><h2>Inversión diaria</h2><div className="metric-bars">{snapshot?.daily.map((day) => <div key={day.date} title={`${day.date}: ${euro(day.spend)}`}><span style={{ height: `${Math.max(2, day.spend / maxSpend * 100)}%` }} /><small>{new Date(`${day.date}T12:00:00`).toLocaleDateString("es-ES", { day: "2-digit" })}</small></div>)}</div></section><section className="panel clean-chart"><h2>CPM diario</h2><div className="metric-bars gold-bars">{snapshot?.daily.map((day) => <div key={day.date} title={`${day.date}: ${euro(day.cpm)}`}><span style={{ height: `${Math.max(2, day.cpm / maxCpm * 100)}%` }} /><small>{new Date(`${day.date}T12:00:00`).toLocaleDateString("es-ES", { day: "2-digit" })}</small></div>)}</div></section></div>
+      <section className="panel campaign-panel"><div className="panel-heading"><div><h2>Campañas</h2><p>Datos reales · últimos 30 días</p></div></div><div className="data-table"><table><thead><tr><th>Campaña</th><th>Estado</th><th>Inversión</th><th>Leads</th><th>CPL</th><th>ROAS</th></tr></thead><tbody>{snapshot?.campaigns.map((row) => <tr key={row.id}><td><b>{row.name}</b><small>ID: {row.id}</small></td><td><Badge variant="outline">{statusLabel[row.status] || row.status}</Badge></td><td>{euro(row.spend)}</td><td>{row.leads.toLocaleString("es-ES")}</td><td>{euro(row.cpl)}</td><td>{row.roas.toFixed(2)}×</td></tr>)}{snapshot && snapshot.campaigns.length === 0 && <tr><td colSpan={6}>No hay campañas con entrega en los últimos 30 días.</td></tr>}</tbody></table></div></section>
     </div>
   );
 }
