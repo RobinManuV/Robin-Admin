@@ -4,6 +4,7 @@ const { readSessionFromEvent } = require('../../lib/auth');
 const { isApplicationAdmin } = require('../../lib/authorization');
 const { json, methodNotAllowed, serverError, parseJsonBody } = require('../../lib/http');
 const { isBlockedLeadName } = require('../../lib/crm-lead-ingest');
+const { resolveCrmOwner, syncCrmIdentity } = require('../../lib/crm-identity');
 
 const campaignNameCache = new Map();
 const CAMPAIGN_CACHE_MS = 6 * 60 * 60 * 1000;
@@ -12,7 +13,7 @@ const LOST_REASONS = new Set(['price', 'more_destinations', 'competition', 'othe
 async function requireAdmin(event) {
   const session = readSessionFromEvent(event);
   if (!session) return null;
-  const { data: user } = await getSupabase().from('users').select('id,email,username,role').eq('id', session.uid).single();
+  const { data: user } = await getSupabase().from('users').select('id,email,username,nombre,apellidos,role').eq('id', session.uid).single();
   return user && isApplicationAdmin(user) ? user : null;
 }
 
@@ -57,6 +58,7 @@ exports.handler = async (event) => {
     const admin = await requireAdmin(event);
     if (!admin) return json({ error: 'unauthorized' }, { statusCode: 401 });
     const crm = getAdminSupabase();
+    const portal = getSupabase();
     if (event.httpMethod === 'GET') {
       const { data, error } = await crm.from('crm_leads').select('*').order('notion_numeric_id', { ascending: false });
       if (error) throw error;
@@ -78,7 +80,14 @@ exports.handler = async (event) => {
       const now = new Date().toISOString();
       const allowedSources = new Set(['organic', 'organic_social', 'referral', 'other', 'schools']);
       const source = allowedSources.has(String(body.source || '')) ? String(body.source) : 'other';
-      const { data, error } = await crm.from('crm_leads').insert({ name, email, phone, body_text: String(body.notes || '').trim() || null, crm_stage: 'Por contactar', owner_names: body.owner ? [String(body.owner).trim()] : [], source_payload: { source, created_via: 'manual', created_by: admin.id }, source_created_at: now, source_updated_at: now }).select('*').single();
+      const actor = await syncCrmIdentity(crm, admin);
+      const owner = body.owner ? await resolveCrmOwner({ portal, crm, ownerName: body.owner }) : { available: actor.available, user: null };
+      const insert = { name, email, phone, body_text: String(body.notes || '').trim() || null, crm_stage: 'Por contactar', owner_names: body.owner ? [String(body.owner).trim()] : [], source_payload: { source, created_via: 'manual', created_by: admin.id }, source_created_at: now, source_updated_at: now };
+      if (actor.available && owner.available) {
+        insert.updated_by_user_id = admin.id;
+        insert.owner_id = owner.user?.id || null;
+      }
+      const { data, error } = await crm.from('crm_leads').insert(insert).select('*').single();
       if (error) throw error;
       return json({ lead: data }, { statusCode: 201 });
     }
@@ -110,6 +119,15 @@ exports.handler = async (event) => {
     }
     const allowed = ['owner_names', 'source_payload', 'lead_type', 'crm_stage', 'heat', 'comment', 'lost_at'];
     const update = Object.fromEntries(Object.entries(body.patch).filter(([key]) => allowed.includes(key)));
+    const actor = await syncCrmIdentity(crm, admin);
+    if (actor.available) {
+      update.updated_by_user_id = admin.id;
+      if (update.owner_names !== undefined) {
+        const ownerName = Array.isArray(update.owner_names) ? update.owner_names[0] : '';
+        const owner = await resolveCrmOwner({ portal, crm, ownerName });
+        if (owner.available) update.owner_id = owner.user?.id || null;
+      }
+    }
     const { data, error } = await crm.from('crm_leads').update(update).eq('id', body.id).select('*').single();
     if (error) throw error;
     return json({ lead: data });

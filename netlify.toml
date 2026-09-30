@@ -42,6 +42,10 @@
   to = "/.netlify/functions/admin-crm-leads"
   status = 200
 [[redirects]]
+  from = "/api/admin/crm/heartbeat"
+  to = "/.netlify/functions/admin-crm-heartbeat"
+  status = 200
+[[redirects]]
   from = "/api/leads/website"
   to = "/.netlify/functions/website-lead"
   status = 200

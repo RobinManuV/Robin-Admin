@@ -237,9 +237,31 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
     return () => window.removeEventListener("robin:portal-state", syncPortalNavigation);
   }, []);
 
+  useEffect(() => {
+    let lastActivityAt = Date.now();
+    let stopped = false;
+    const markActivity = () => { lastActivityAt = Date.now(); };
+    const sendHeartbeat = () => {
+      if (stopped || document.visibilityState !== "visible" || Date.now() - lastActivityAt > 5 * 60_000) return;
+      void fetch("/api/admin/crm/heartbeat", { method: "POST", credentials: "include", keepalive: true }).catch(() => undefined);
+    };
+    const onVisibility = () => { if (document.visibilityState === "visible") { markActivity(); sendHeartbeat(); } };
+    const activityEvents: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "scroll", "touchstart"];
+    activityEvents.forEach((name) => window.addEventListener(name, markActivity, { passive: true }));
+    document.addEventListener("visibilitychange", onVisibility);
+    sendHeartbeat();
+    const timer = window.setInterval(sendHeartbeat, 180_000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      activityEvents.forEach((name) => window.removeEventListener(name, markActivity));
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [authUser.id]);
+
   function moveLead(id: string, stage: CrmStage, outcome?: { lostReason?: LostReason; lostReasonDetail?: string }) {
     setLeadStages((stages) => ({ ...stages, [id]: stage }));
-    const lostAt = stage === "Lost" ? new Date().toISOString().slice(0, 10) : "";
+    const lostAt = stage === "Lost" ? new Date().toISOString() : "";
     if (stage === "Lost") setLeadLostDates((dates) => ({ ...dates, [id]: lostAt }));
     else setLeadLostDates((dates) => { const next = { ...dates }; delete next[id]; return next; });
     const lostReason = stage === "Lost" ? outcome?.lostReason || "" : "";

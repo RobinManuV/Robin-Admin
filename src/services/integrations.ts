@@ -23,23 +23,58 @@ export type FinanceDashboard = {
   sources?: Record<string, boolean>;
   warnings?: string[];
 };
+export type CrmPerformance = {
+  history: { eventsAvailable: boolean; sessionsAvailable: boolean; applicationsAvailable: boolean; eventsComplete: boolean; sessionsComplete: boolean; eventsSince: string | null; sessionsSince: string | null };
+  summary: { newLeads: number; leadVariation: number | null; contracts: number; contracted: number; averageTicket: number | null; won: number | null; lost: number | null; winRate: number | null; speedMinutes: number | null; collected: number; collectionRate: number | null; qualityIssues: number };
+  agents: { key: string; name: string; assigned: number | null; contacted: number | null; contactRate: number | null; speedMinutes: number | null; contracts: number; won: number | null; lost: number | null; winRate: number | null; contracted: number; revenuePerLead: number | null; portfolio: number; stale: number | null; activeDays: number | null; actionsPerDay: number | null; collected: number; collectionRate: number | null; collectionDays: number | null; admissionRate: number | null; applications: number | null }[];
+  stageTimes: { stage: string; values: Record<string, number | null> }[];
+  funnel: { stage: string; count: number; conversion: number | null; lost: number }[] | null;
+  lostReasons: { key: string; label: string; count: number; percentage: number | null }[];
+  alerts: { key: string; severity: string; count: number | null; label: string }[];
+  fifo: { key: string; name: string; value: number | null }[];
+  quality: { key: string; label: string; count: number }[];
+};
 export type SalesDashboard = {
   period: FinancePeriod;
   rangeLabel: string;
   granularity: 'day' | 'week' | 'month';
   syncedAt: string;
-  kpis: { sales: number; leads: number; conversion: number | null; cac: number | null; lac: number | null };
-  buckets: { key: string; label: string; tick: string; leads: number; sales: number; conversion: number | null }[];
-  channels: { key: string; label: string; leads: number; sales: number; percentage: number | null }[];
-  campaigns: { id: string | null; name: string; leads: number; sales: number; conversion: number | null; spend: number | null; contracted: number; cac: number | null; margin: number | null }[];
-  marginsByChannel: { key: string; label: string; status: 'ready' | 'unavailable' | 'wip'; contracted: number | null; spend: number | null; margin: number | null }[];
+  kpis: { contracted: number; contracts: number; leads: number | null; conversion: number | null; cac: number | null; lac: number | null };
+  buckets: { key: string; label: string; tick: string; leads: number; contracts: number; conversion: number | null }[];
+  channels: { key: string; label: string; leads: number; contracts: number; contracted: number; percentage: number | null }[];
+  campaigns: { id: string | null; name: string; leads: number; contracts: number; conversion: number | null; spend: number | null; contracted: number; paid: number; contacted: number; matchedCrmLeads: number; contactRate: number | null; cpl: number | null; cac: number | null; roas: number | null; roasCollected: number | null; margin: number | null }[];
+  marginsByChannel: { key: string; label: string; status: 'ready' | 'unavailable' | 'wip'; paid: number | null; spend: number | null; margin: number | null }[];
   agents: { key: string; name: string; leads: number | null; sales: number | null; conversion: number | null }[];
   teamAverage: number | null;
   sources: { portal: boolean; adminCrm: boolean; holdedMarketing: boolean; meta: boolean };
   meta: { currency: string; spend: number | null };
+  team: CrmPerformance;
 };
 const META_CACHE_KEY = 'robin-admin-meta-insights-v1';
 const META_CACHE_MS = 30 * 60 * 1000;
+
+function previewBucketLength(period: FinancePeriod, now: Date) {
+  if (period === '30d') return 30;
+  if (period === 'month') return now.getDate();
+  if (period === '3m') return 14;
+  if (period === '365d') return 13;
+  return ((now.getMonth() - 8 + 12) % 12) + 1;
+}
+
+function previewCrmPerformance(): CrmPerformance {
+  const agents = ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, assigned: null, contacted: null, contactRate: null, speedMinutes: null, contracts: 0, won: null, lost: null, winRate: null, contracted: 0, revenuePerLead: null, portfolio: 0, stale: null, activeDays: null, actionsPerDay: null, collected: 0, collectionRate: null, collectionDays: null, admissionRate: null, applications: null }));
+  return {
+    history: { eventsAvailable: false, sessionsAvailable: false, applicationsAvailable: false, eventsComplete: false, sessionsComplete: false, eventsSince: null, sessionsSince: null },
+    summary: { newLeads: 0, leadVariation: null, contracts: 0, contracted: 0, averageTicket: null, won: null, lost: null, winRate: null, speedMinutes: null, collected: 0, collectionRate: null, qualityIssues: 0 },
+    agents,
+    stageTimes: ['Contactado', 'Propuesta enviada', 'Llamada programada', 'Llamada tenida', 'En espera'].map((stage) => ({ stage, values: { noel: null, manuel: null, maria: null } })),
+    funnel: null,
+    lostReasons: [{ key: 'price', label: 'Precio', count: 0, percentage: null }, { key: 'more_destinations', label: 'Están buscando más destinos', count: 0, percentage: null }, { key: 'competition', label: 'Competencia', count: 0, percentage: null }, { key: 'other', label: 'Otros', count: 0, percentage: null }],
+    alerts: [{ key: 'unassigned', severity: 'bad', count: 0, label: 'leads en bandeja más de 2 h sin asignar' }, { key: 'stale', severity: 'bad', count: null, label: 'leads estancados más de 7 días' }, { key: 'meetings', severity: 'warn', count: 0, label: 'llamadas programadas vencidas' }, { key: 'contact', severity: 'warn', count: null, label: 'leads en Por contactar más de 24 h' }],
+    fifo: agents.map(({ key, name }) => ({ key, name, value: null })),
+    quality: [{ key: 'category', label: 'Leads en pipeline sin categoría', count: 0 }, { key: 'heat', label: 'Leads sin heat', count: 0 }, { key: 'campaign', label: 'Leads sin campaña', count: 0 }, { key: 'test', label: 'Leads de prueba', count: 0 }, { key: 'duplicates', label: 'Posibles duplicados', count: 0 }],
+  };
+}
 
 function isLocalAdminPreview() {
   if (import.meta.env?.VITE_ENABLE_LOCAL_PREVIEW !== '1'
@@ -106,7 +141,7 @@ export const integrationClient = {
   financeDashboard: async (period: FinancePeriod): Promise<FinanceDashboard> => {
     if (isLocalAdminPreview()) {
       const now = new Date();
-      const labels = Array.from({ length: period === '30d' ? 30 : period === '3m' ? 13 : Math.max(1, now.getMonth() + 1) }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', sales: 0, collected: 0, pending: 0, contracted: 0, cumulativeContracted: 0, cumulativeCollected: 0, newClients: 0, expenses: 0, previousSales: 0 }));
+      const labels = Array.from({ length: previewBucketLength(period, now) }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', sales: 0, collected: 0, pending: 0, contracted: 0, cumulativeContracted: 0, cumulativeCollected: 0, newClients: 0, expenses: 0, previousSales: 0 }));
       return { period, rangeLabel: 'Vista previa local', granularity: period === '30d' || period === 'month' ? 'day' : period === '3m' ? 'week' : 'month', syncedAt: now.toISOString(), available: false, kpis: { sales: null, invoices: null, contracted: null, students: null, cac: null, anomaly: false }, buckets: labels, collections: { sales: null, collected: null, emitted: null, contracted: null, invoices: null, pending: null, averageInvoice: null, averageTicket: null }, expenses: { operational: null, marketing: null, taxes: null, other: null, capex: null, payments: null, total: null }, invoices: [], cash: { available: false, points: [], accounts: [] }, reports: { profitAndLoss: 'wip', balance: 'wip' }, sources: { holdedInvoices: false, holdedAccounting: false, portal: false, treasury: false, ecb: false }, warnings: [] };
     }
     const response = await fetch(`/api/admin/finance/dashboard?period=${encodeURIComponent(period)}`, { credentials: 'include' });
@@ -117,7 +152,7 @@ export const integrationClient = {
   salesDashboard: async (period: FinancePeriod): Promise<SalesDashboard> => {
     if (isLocalAdminPreview()) {
       const now = new Date();
-      const length = period === '30d' ? 30 : period === '3m' ? 13 : Math.max(1, now.getMonth() + 1);
+      const length = previewBucketLength(period, now);
       const channels = [
         { key: 'meta', label: 'Meta' },
         { key: 'organic', label: 'Orgánico' },
@@ -126,7 +161,7 @@ export const integrationClient = {
         { key: 'other', label: 'Otros' },
         { key: 'schools', label: 'Colegios' },
       ];
-      return { period, rangeLabel: 'Vista previa local', granularity: period === '30d' || period === 'month' ? 'day' : period === '3m' ? 'week' : 'month', syncedAt: now.toISOString(), kpis: { sales: 0, leads: 0, conversion: null, cac: null, lac: null }, buckets: Array.from({ length }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', leads: 0, sales: 0, conversion: null })), channels: channels.map((channel) => ({ ...channel, leads: 0, sales: 0, percentage: null })), campaigns: [], marginsByChannel: channels.map((channel) => ({ ...channel, status: channel.key === 'meta' ? 'unavailable' as const : 'wip' as const, contracted: null, spend: null, margin: null })), agents: ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, leads: 0, sales: 0, conversion: null })).concat([{ key: 'team', name: 'Media del equipo', leads: null, sales: null, conversion: null }]), teamAverage: null, sources: { portal: false, adminCrm: false, holdedMarketing: false, meta: false }, meta: { currency: 'EUR', spend: null } };
+      return { period, rangeLabel: 'Vista previa local', granularity: period === '30d' || period === 'month' ? 'day' : period === '3m' ? 'week' : 'month', syncedAt: now.toISOString(), kpis: { contracted: 0, contracts: 0, leads: null, conversion: null, cac: null, lac: null }, buckets: Array.from({ length }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', leads: 0, contracts: 0, conversion: null })), channels: channels.map((channel) => ({ ...channel, leads: 0, contracts: 0, contracted: 0, percentage: null })), campaigns: [], marginsByChannel: channels.map((channel) => ({ ...channel, status: 'unavailable' as const, paid: null, spend: null, margin: null })), agents: ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, leads: 0, sales: 0, conversion: null })).concat([{ key: 'team', name: 'Media del equipo', leads: null, sales: null, conversion: null }]), teamAverage: null, sources: { portal: false, adminCrm: false, holdedMarketing: false, meta: false }, meta: { currency: 'EUR', spend: null }, team: previewCrmPerformance() };
     }
     const response = await fetch(`/api/admin/sales/dashboard?period=${encodeURIComponent(period)}`, { credentials: 'include' });
     const payload = await response.json().catch(() => ({}));

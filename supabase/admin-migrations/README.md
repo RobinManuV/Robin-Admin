@@ -4,5 +4,10 @@ Estas migraciones se aplican al proyecto Supabase configurado mediante
 `ADMIN_SUPABASE_URL` y `ADMIN_SUPABASE_SERVICE_ROLE_KEY`, no al Supabase del
 Portal del Alumno.
 
-La tabla de tesorería solo se utiliza desde funciones de servidor con la clave
-de servicio. No concede acceso al navegador.
+Las tablas de tesorería y del histórico comercial solo se utilizan desde
+funciones de servidor con la clave de servicio. No conceden acceso directo al
+navegador.
+
+- `202609290001_create_finance_treasury_snapshots.sql`: histórico de caja.
+- `202609300001_create_crm_performance_history.sql`: identidades CRM, eventos
+  comerciales atómicos y sesiones activas del equipo.

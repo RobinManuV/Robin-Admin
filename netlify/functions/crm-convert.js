@@ -7,6 +7,8 @@ const { json, methodNotAllowed, parseJsonBody, serverError, verifyOrigin } = req
 const { passwordPolicy } = require('../../shared/password-policy.cjs');
 const { normalizeTipo, ensureDriveFolder } = require('../../lib/notion');
 const { sendAccountAccessEmail } = require('../../lib/account-access-email');
+const { contractedAmountForUser } = require('../../lib/finance-dashboard');
+const { resolveCrmOwner, syncCrmIdentity } = require('../../lib/crm-identity');
 
 const normalizedPerson = (value) => String(value || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
@@ -22,7 +24,7 @@ exports.handler = async (event) => {
   if (!session) return json({ error: 'unauthorized' }, { statusCode: 401 });
   try {
     const portal = getSupabase();
-    const { data: admin } = await portal.from('users').select('id,email,username,role').eq('id', session.uid).single();
+    const { data: admin } = await portal.from('users').select('id,email,username,nombre,apellidos,role').eq('id', session.uid).single();
     if (!admin || !isApplicationAdmin(admin)) return json({ error: 'forbidden' }, { statusCode: 403 });
     const body = parseJsonBody(event);
     if (!body || !body.leadId) return json({ error: 'missing_lead_id' }, { statusCode: 400 });
@@ -72,7 +74,15 @@ exports.handler = async (event) => {
       const accessEmail = await sendAccountAccessEmail({ email: lead.email, name: lead.name, username: leadId, password });
       emailSent = !!accessEmail.sent;
     }
-    const { error: crmError } = await crm.from('crm_leads').update({
+    const [{ data: portalUser, error: portalUserError }, { data: portalPayments, error: portalPaymentsError }] = await Promise.all([
+      portal.from('users').select('id,tipo,origin,has_eu_id,num_carreras,contract_data').eq('id', userId).single(),
+      portal.from('payments').select('user_id,installment,amount,status').eq('user_id', userId),
+    ]);
+    if (portalUserError) throw portalUserError;
+    if (portalPaymentsError) throw portalPaymentsError;
+    const actor = await syncCrmIdentity(crm, admin);
+    const owner = await resolveCrmOwner({ portal, crm, ownerName: salesAgent });
+    const crmUpdate = {
       crm_stage: 'Cliente',
       source_payload: {
         ...(lead.source_payload || {}),
@@ -80,7 +90,13 @@ exports.handler = async (event) => {
         advisor_email: assignedTo,
         converted_by: admin.id,
       },
-    }).eq('id', lead.id);
+    };
+    if (actor.available && owner.available) {
+      crmUpdate.updated_by_user_id = admin.id;
+      crmUpdate.owner_id = owner.user?.id || null;
+      crmUpdate.price_at_signature = contractedAmountForUser(portalUser, portalPayments || []);
+    }
+    const { error: crmError } = await crm.from('crm_leads').update(crmUpdate).eq('id', lead.id);
     if (crmError) throw crmError;
     return json({ ok: true, result, userId, emailSent, loginUrl: '/portal/', assignedTo, salesAgent: salesAgent || null });
   } catch (error) {
