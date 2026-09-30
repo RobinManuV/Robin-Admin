@@ -7,6 +7,7 @@ const { isBlockedLeadName } = require('../../lib/crm-lead-ingest');
 
 const campaignNameCache = new Map();
 const CAMPAIGN_CACHE_MS = 6 * 60 * 60 * 1000;
+const LOST_REASONS = new Set(['price', 'more_destinations', 'competition', 'other']);
 
 async function requireAdmin(event) {
   const session = readSessionFromEvent(event);
@@ -75,7 +76,9 @@ exports.handler = async (event) => {
       if (!name) return json({ error: 'name_required' }, { statusCode: 400 });
       if (isBlockedLeadName(name)) return json({ error: 'blocked_spam_lead' }, { statusCode: 400 });
       const now = new Date().toISOString();
-      const { data, error } = await crm.from('crm_leads').insert({ name, email, phone, body_text: String(body.notes || '').trim() || null, crm_stage: 'Por contactar', owner_names: body.owner ? [String(body.owner).trim()] : [], source_payload: { source: 'manual', created_by: admin.id }, source_created_at: now, source_updated_at: now }).select('*').single();
+      const allowedSources = new Set(['organic', 'organic_social', 'referral', 'other', 'schools']);
+      const source = allowedSources.has(String(body.source || '')) ? String(body.source) : 'other';
+      const { data, error } = await crm.from('crm_leads').insert({ name, email, phone, body_text: String(body.notes || '').trim() || null, crm_stage: 'Por contactar', owner_names: body.owner ? [String(body.owner).trim()] : [], source_payload: { source, created_via: 'manual', created_by: admin.id }, source_created_at: now, source_updated_at: now }).select('*').single();
       if (error) throw error;
       return json({ lead: data }, { statusCode: 201 });
     }
@@ -87,11 +90,23 @@ exports.handler = async (event) => {
       return json({ ok: true, deleted: ids.length });
     }
     if (!body.id || !body.patch || typeof body.patch !== 'object') return json({ error: 'invalid_request' }, { statusCode: 400 });
-    if (body.patch.source !== undefined) {
+    const lostReason = body.patch.lost_reason == null ? '' : String(body.patch.lost_reason).trim().toLowerCase();
+    const lostReasonDetail = body.patch.lost_reason_detail == null ? '' : String(body.patch.lost_reason_detail).trim();
+    if (body.patch.crm_stage === 'Lost') {
+      if (!LOST_REASONS.has(lostReason)) return json({ error: 'lost_reason_required' }, { statusCode: 400 });
+      if (lostReason === 'other' && !lostReasonDetail) return json({ error: 'lost_reason_detail_required' }, { statusCode: 400 });
+      if (lostReasonDetail.length > 120) return json({ error: 'lost_reason_detail_too_long' }, { statusCode: 400 });
+    }
+    if (body.patch.source !== undefined || body.patch.lost_reason !== undefined || body.patch.lost_reason_detail !== undefined) {
       const { data: current, error: currentError } = await crm.from('crm_leads').select('source_payload').eq('id', body.id).single();
       if (currentError) throw currentError;
-      body.patch.source_payload = { ...(current?.source_payload || {}), source: String(body.patch.source || '').trim().toLowerCase() || 'manual' };
+      body.patch.source_payload = { ...(current?.source_payload || {}) };
+      if (body.patch.source !== undefined) body.patch.source_payload.source = String(body.patch.source || '').trim().toLowerCase() || 'manual';
+      if (body.patch.lost_reason !== undefined) body.patch.source_payload.lost_reason = lostReason || null;
+      if (body.patch.lost_reason_detail !== undefined) body.patch.source_payload.lost_reason_detail = lostReasonDetail || null;
       delete body.patch.source;
+      delete body.patch.lost_reason;
+      delete body.patch.lost_reason_detail;
     }
     const allowed = ['owner_names', 'source_payload', 'lead_type', 'crm_stage', 'heat', 'comment', 'lost_at'];
     const update = Object.fromEntries(Object.entries(body.patch).filter(([key]) => allowed.includes(key)));

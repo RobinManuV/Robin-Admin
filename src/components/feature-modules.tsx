@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { Contact, CrmStage, LeadCategory } from "@/types/domain";
+import type { Contact, CrmStage, LeadCategory, LostReason } from "@/types/domain";
 import { integrationClient } from "@/services/integrations";
 import { adminDataClient } from "@/services/admin-data";
 import type { FinanceSnapshot, MetaSnapshot, PaymentAnalytics } from "@/services/integrations";
@@ -45,16 +45,21 @@ import {
   AreaChart,
   Bar,
   BarChart,
+  Cell,
   CartesianGrid,
+  ComposedChart,
+  LabelList,
   Line,
   LineChart,
+  Pie,
+  PieChart as RechartsPieChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import type { FinanceDashboard, FinancePeriod } from "@/services/integrations";
+import type { FinanceDashboard, FinancePeriod, SalesDashboard } from "@/services/integrations";
 
 type FeatureModuleProps = {
   path: string;
@@ -67,9 +72,9 @@ type FeatureModuleProps = {
   onSetLeadSource: (id: string, source: string) => void;
   onDeleteLead: (id: string) => Promise<void>;
   onDeleteLeads: (ids: string[]) => Promise<void>;
-  onAddLead: (input: { name: string; email?: string; phone?: string; notes?: string; owner?: string }) => Promise<void>;
+  onAddLead: (input: { name: string; email?: string; phone?: string; notes?: string; owner?: string; source?: string }) => Promise<void>;
   leadStages: Record<string, CrmStage>;
-  onMoveLead: (id: string, stage: CrmStage) => void;
+  onMoveLead: (id: string, stage: CrmStage, outcome?: { lostReason?: LostReason; lostReasonDetail?: string }) => void;
   leadCategories: Record<string, LeadCategory | "">;
   onCategorizeLead: (id: string, category: LeadCategory | "") => void;
   leadHeat: Record<string, number>;
@@ -114,7 +119,7 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
   const [campaignFilter, setCampaignFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [addingLead, setAddingLead] = useState(false);
-  const [manualLead, setManualLead] = useState({ name: "", email: "", phone: "", notes: "", owner: "" });
+  const [manualLead, setManualLead] = useState({ name: "", email: "", phone: "", notes: "", owner: "", source: "organic" });
   const [savingLead, setSavingLead] = useState(false);
   const list = useMemo(() => contacts.filter((contact) => {
     const stage = leadStages[contact.id] || contact.stage || "Por contactar";
@@ -131,8 +136,8 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
   function exportLeads() {
     const rows = contacts.filter((contact) => (leadStages[contact.id] || contact.stage || "Por contactar") !== "Cliente");
     const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
-    const headers = ["Nombre", "Email", "Teléfono", "Origen", "Campaña", "Estado", "Responsable", "Heat", "Notas", "Fecha de alta"];
-    const body = rows.map((contact) => [contact.name, contact.email, contact.phone, contact.source, contact.campaign, leadStages[contact.id] || contact.stage || "Por contactar", leadOwners[contact.id] || "Sin asignar", contact.heat ?? "", contact.notes || "", contact.createdAt || ""].map(csvCell).join(","));
+    const headers = ["Nombre", "Email", "Teléfono", "Origen", "Campaña", "Estado", "Responsable", "Heat", "Motivo Lost", "Detalle Lost", "Notas", "Fecha de alta"];
+    const body = rows.map((contact) => [contact.name, contact.email, contact.phone, contact.source, contact.campaign, leadStages[contact.id] || contact.stage || "Por contactar", leadOwners[contact.id] || "Sin asignar", contact.heat ?? "", lostReasonLabel(contact.lostReason), contact.lostReasonDetail || "", contact.notes || "", contact.createdAt || ""].map(csvCell).join(","));
     const blob = new Blob([`\uFEFF${headers.map(csvCell).join(",")}\n${body.join("\n")}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -162,7 +167,7 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
                 <tr key={contact.id} className={!leadOwners[contact.id] ? "unassigned-lead" : ""} onClick={() => setSelected(contact)}>
                   <td className="select-column"><input type="checkbox" aria-label={`Seleccionar ${contact.name}`} checked={selectedIds.has(contact.id)} onClick={(event) => event.stopPropagation()} onChange={(event) => setSelectedIds((current) => { const next = new Set(current); if (event.target.checked) next.add(contact.id); else next.delete(contact.id); return next; })} /></td>
                   <td><button type="button" className="lead-name-button" onClick={() => setSelected(contact)}><b>{contact.name}</b><small>{contact.email}</small>{contact.notes && <small className="lead-form-note">{contact.notes}</small>}</button></td>
-                  <td><select className="source-select" value={contact.source === "Meta Ads" ? "meta" : contact.source === "Página web" ? "website" : contact.source === "Manual" ? "manual" : "other"} onClick={(event) => event.stopPropagation()} onChange={(event) => { event.stopPropagation(); onSetLeadSource(contact.id, event.target.value); notify(`Origen de ${contact.name} actualizado`); }}><option value="meta">Meta Ads</option><option value="website">Página web</option><option value="manual">Manual</option><option value="other">Otro</option></select></td>
+                  <td><select className="source-select" value={contact.source === "Meta Ads" ? "meta" : contact.source === "Orgánico" || contact.source === "Página web" ? "organic" : contact.source === "Orgánico RRSS" ? "organic_social" : contact.source === "Referidos" ? "referral" : contact.source === "Colegios" ? "schools" : "other"} onClick={(event) => event.stopPropagation()} onChange={(event) => { event.stopPropagation(); onSetLeadSource(contact.id, event.target.value); notify(`Origen de ${contact.name} actualizado`); }}><option value="meta">Meta</option><option value="organic">Orgánico</option><option value="organic_social">Orgánico RRSS</option><option value="referral">Referidos</option><option value="other">Otros</option><option value="schools">Colegios</option></select></td>
                   <td><Badge variant="outline">{leadStages[contact.id]}</Badge></td>
                   <td>
                     <select
@@ -193,7 +198,7 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
         </div>
       </section>
       <p className="assignment-note"><UserCheck /> Al asignar un lead, aparecerá inmediatamente en el CRM personal del usuario seleccionado.</p>
-      {addingLead && <div className="drawer-wrap" onMouseDown={(event) => { if (event.target === event.currentTarget) setAddingLead(false); }}><form className="manual-lead-card" onSubmit={async (event) => { event.preventDefault(); setSavingLead(true); try { await onAddLead(manualLead); notify(`${manualLead.name} añadido correctamente`); setManualLead({ name: "", email: "", phone: "", notes: "", owner: "" }); setAddingLead(false); } catch (error) { notify(error instanceof Error ? error.message : "No se pudo crear el lead"); } finally { setSavingLead(false); } }}><button className="drawer-close" type="button" onClick={() => setAddingLead(false)}>×</button><span>NUEVO LEAD</span><h2>Añadir manualmente</h2><p>El lead quedará en Por contactar.</p><label>Nombre<input required value={manualLead.name} onChange={(event) => setManualLead((lead) => ({ ...lead, name: event.target.value }))} /></label><div className="manual-lead-row"><label>Email<input type="email" value={manualLead.email} onChange={(event) => setManualLead((lead) => ({ ...lead, email: event.target.value }))} /></label><label>Teléfono<input value={manualLead.phone} onChange={(event) => setManualLead((lead) => ({ ...lead, phone: event.target.value }))} /></label></div><label>Asignar a<select value={manualLead.owner} onChange={(event) => setManualLead((lead) => ({ ...lead, owner: event.target.value }))}><option value="">Sin asignar</option>{admins.map((admin) => <option key={admin}>{admin}</option>)}</select></label><label>Notas<textarea value={manualLead.notes} onChange={(event) => setManualLead((lead) => ({ ...lead, notes: event.target.value }))} /></label><div className="manual-lead-actions"><Button type="button" variant="outline" onClick={() => setAddingLead(false)}>Cancelar</Button><Button type="submit" disabled={savingLead}>{savingLead ? "Guardando…" : "Crear lead"}</Button></div></form></div>}
+      {addingLead && <div className="drawer-wrap" onMouseDown={(event) => { if (event.target === event.currentTarget) setAddingLead(false); }}><form className="manual-lead-card" onSubmit={async (event) => { event.preventDefault(); setSavingLead(true); try { await onAddLead(manualLead); notify(`${manualLead.name} añadido correctamente`); setManualLead({ name: "", email: "", phone: "", notes: "", owner: "", source: "organic" }); setAddingLead(false); } catch (error) { notify(error instanceof Error ? error.message : "No se pudo crear el lead"); } finally { setSavingLead(false); } }}><button className="drawer-close" type="button" onClick={() => setAddingLead(false)}>×</button><span>NUEVO LEAD</span><h2>Añadir manualmente</h2><p>El lead quedará en Por contactar.</p><label>Nombre<input required value={manualLead.name} onChange={(event) => setManualLead((lead) => ({ ...lead, name: event.target.value }))} /></label><div className="manual-lead-row"><label>Email<input type="email" value={manualLead.email} onChange={(event) => setManualLead((lead) => ({ ...lead, email: event.target.value }))} /></label><label>Teléfono<input value={manualLead.phone} onChange={(event) => setManualLead((lead) => ({ ...lead, phone: event.target.value }))} /></label></div><label>Origen<select value={manualLead.source} onChange={(event) => setManualLead((lead) => ({ ...lead, source: event.target.value }))}><option value="organic">Orgánico</option><option value="organic_social">Orgánico RRSS</option><option value="referral">Referidos</option><option value="other">Otros</option><option value="schools">Colegios</option></select></label><label>Asignar a<select value={manualLead.owner} onChange={(event) => setManualLead((lead) => ({ ...lead, owner: event.target.value }))}><option value="">Sin asignar</option>{admins.map((admin) => <option key={admin}>{admin}</option>)}</select></label><label>Notas<textarea value={manualLead.notes} onChange={(event) => setManualLead((lead) => ({ ...lead, notes: event.target.value }))} /></label><div className="manual-lead-actions"><Button type="button" variant="outline" onClick={() => setAddingLead(false)}>Cancelar</Button><Button type="submit" disabled={savingLead}>{savingLead ? "Guardando…" : "Crear lead"}</Button></div></form></div>}
       {selected && <ContactDrawer contact={{ ...selected, owner: leadOwners[selected.id] || "Sin asignar", stage: leadStages[selected.id] }} heat={selected.heat || 50} notes={selected.notes || ""} onHeatChange={(value) => onSetLeadHeat(selected.id, value)} onNotesChange={(value) => onSetLeadNotes(selected.id, value)} onClose={() => setSelected(null)} leadMode />}
     </div>
   );
@@ -277,7 +282,7 @@ function ContactDrawer({ contact, onClose, heat = contact.heat || 50, notes = co
         <span>{leadMode ? "FICHA DEL LEAD" : "PERFIL DEL ALUMNO"}</span><h2>{contact.name}</h2><p>{contact.email} · {contact.phone}</p>
         <div className="detail-kpis"><article><small>{leadMode ? "Tipo" : "Progreso"}</small><strong>{leadMode ? contact.category || "—" : `${contact.probability}%`}</strong></article><article><small>Responsable</small><strong>{contact.owner}</strong></article></div>
         {!leadMode && <section className="whatsapp-detail"><h3><MessageCircle /> WhatsApp</h3><p>{contact.phone}</p><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Escribe un mensaje…" /><Button variant="outline" onClick={sendMessage} disabled={sending || !message.trim()}>{sending ? "Enviando…" : "Enviar por WhatsApp"}</Button>{messageStatus && <small>{messageStatus}</small>}</section>}
-        {leadMode && <section className="lead-information"><h3>Información del lead</h3><dl><div><dt>Teléfono</dt><dd>{contact.phone || "—"}</dd></div><div><dt>Origen</dt><dd>{contact.source || "—"}</dd></div><div><dt>Campaña</dt><dd>{contact.campaign && contact.campaign !== "Pendiente de identificar" ? contact.campaign : "Sin identificar"}</dd></div><div><dt>Estado</dt><dd>{contact.stage || "Por contactar"}</dd></div><div><dt>Responsable</dt><dd>{contact.owner || "Sin asignar"}</dd></div><div><dt>Fecha de alta</dt><dd>{contact.createdAt ? new Date(contact.createdAt).toLocaleDateString("es-ES") : "—"}</dd></div></dl></section>}
+        {leadMode && <section className="lead-information"><h3>Información del lead</h3><dl><div><dt>Teléfono</dt><dd>{contact.phone || "—"}</dd></div><div><dt>Origen</dt><dd>{contact.source || "—"}</dd></div><div><dt>Campaña</dt><dd>{contact.campaign && contact.campaign !== "Pendiente de identificar" ? contact.campaign : "Sin identificar"}</dd></div><div><dt>Estado</dt><dd>{contact.stage || "Por contactar"}</dd></div>{contact.stage === "Lost" && <><div><dt>Motivo Lost</dt><dd>{lostReasonLabel(contact.lostReason)}</dd></div>{contact.lostReasonDetail && <div><dt>Detalle</dt><dd>{contact.lostReasonDetail}</dd></div>}</>}<div><dt>Responsable</dt><dd>{contact.owner || "Sin asignar"}</dd></div><div><dt>Fecha de alta</dt><dd>{contact.createdAt ? new Date(contact.createdAt).toLocaleDateString("es-ES") : "—"}</dd></div></dl></section>}
         <section className="heat-control"><h3><Flame /> Heat del lead <b>{localHeat}</b></h3><input type="range" min="0" max="100" value={localHeat} onChange={(event) => { const value = Number(event.target.value); setLocalHeat(value); onHeatChange?.(value); }} /><div><span>Frío</span><span>Caliente</span></div></section>
         <section className="lead-notes"><h3>Notas del equipo</h3><textarea value={localNotes} onChange={(event) => { setLocalNotes(event.target.value); onNotesChange?.(event.target.value); }} placeholder="Añade contexto, objeciones y próximos pasos…" /><small>Guardado automáticamente en este espacio de trabajo.</small></section>
         {!leadMode && <><section><h3>Información académica</h3><dl><div><dt>Universidad</dt><dd>{contact.university}</dd></div><div><dt>Curso</dt><dd>{contact.course}</dd></div><div><dt>País</dt><dd>{contact.country}</dd></div></dl></section><section><h3>Próxima acción</h3><p>{contact.nextAction}</p></section></>}
@@ -296,7 +301,7 @@ function GlobalAnalytics({ contacts, leadStages, snapshot, connected }: { contac
           <button type="button" role="tab" aria-selected={activeTab === "sales"} className={activeTab === "sales" ? "active" : ""} onClick={() => setActiveTab("sales")}>Ventas</button>
         </div>
       </Title>
-      {activeTab === "finance" ? <FinanceOverview /> : <section className="analytics-wip" role="tabpanel" aria-label="Ventas en desarrollo"><Badge variant="outline">WIP</Badge></section>}
+      {activeTab === "finance" ? <FinanceOverview /> : <SalesOverview />}
     </div>
   );
 }
@@ -320,7 +325,7 @@ function plainNumber(value: number | null | undefined) {
   return value == null || !Number.isFinite(value) ? "—" : value.toLocaleString("es-ES");
 }
 
-function SourceTag({ children, source }: { children: React.ReactNode; source: "holded" | "portal" | "both" }) {
+function SourceTag({ children, source }: { children: React.ReactNode; source: "holded" | "portal" | "both" | "meta" }) {
   return <span className={`finance-source ${source}`}>{children}</span>;
 }
 
@@ -423,6 +428,86 @@ function FinanceOverview() {
     <section className="panel finance-invoices"><ChartHeading title="Últimas facturas" sub="Tipo de cliente y cuota cruzados con el Portal" source="both" /><div className="data-table"><table><thead><tr><th>Factura</th><th>Cliente</th><th>Tipo de cliente</th><th>Pago</th><th>Fecha</th><th>Base</th><th>IVA</th><th>Total</th><th>Estado</th></tr></thead><tbody>{data.invoices.slice(0, invoiceLimit).map((invoice) => <tr key={invoice.id}><td><b>{invoice.number}</b></td><td>{invoice.customer}</td><td>{invoice.clientType || "—"}</td><td>{invoice.installment || "—"}</td><td>{invoice.date ? new Date(`${invoice.date}T12:00:00`).toLocaleDateString("es-ES") : "—"}</td><td>{money(invoice.base, invoice.currency)}</td><td>{money(invoice.tax, invoice.currency)}</td><td><b>{money(invoice.total, invoice.currency)}</b></td><td><Badge variant="outline">{statusLabels[invoice.status] || invoice.status}</Badge></td></tr>)}</tbody></table>{!data.invoices.length && <p className="finance-empty-row">No hay facturas en el periodo seleccionado.</p>}</div>{invoiceLimit < data.invoices.length && <button className="finance-load-more" type="button" onClick={() => setInvoiceLimit((limit) => limit + 5)}>Cargar 5 más</button>}</section>
 
     <section className="panel finance-cash"><ChartHeading title="Caja" sub="Saldo conjunto de todas las cuentas de Tesorería, convertido a EUR con el cambio diario del BCE" source="holded" /><div className="finance-cash-cards">{cashCards.map((card) => { const delta = card.point && currentCash != null ? currentCash - card.point.balance : null; return <article key={card.tag} className={card.current ? "current" : ""}><span><b>{card.tag}</b>{card.name}</span><strong>{card.point ? money(card.point.balance) : "—"}</strong><small>{card.point ? `${new Date(`${card.point.date}T12:00:00`).toLocaleDateString("es-ES")} · ${card.current ? "saldo actual" : `${delta != null && delta >= 0 ? "+" : "−"}${money(Math.abs(delta || 0))} hasta hoy`}` : "Sin histórico disponible"}</small></article>; })}</div>{data.cash.available && cashPoints.length ? <ResponsiveContainer width="100%" height={270}><AreaChart data={cashPoints}><defs><linearGradient id="cash-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2f5a8a" stopOpacity={0.18} /><stop offset="100%" stopColor="#2f5a8a" stopOpacity={0.02} /></linearGradient></defs><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="date" tickFormatter={(value) => new Date(`${value}T12:00:00`).toLocaleDateString("es-ES", { month: "short", year: "2-digit" })} axisLine={false} tickLine={false} fontSize={10} /><YAxis tickFormatter={(value) => `${Math.round(value / 1000)}k €`} axisLine={false} tickLine={false} width={55} fontSize={10} domain={["auto", "auto"]} /><Tooltip content={<FinanceTooltip />} />{cashMarkers.map((marker) => <ReferenceLine key={marker.point!.date} x={marker.point!.date} stroke="#9ca9b8" strokeDasharray="3 4" label={{ value: marker.tag, position: "insideTopRight", fill: "#708096", fontSize: 9 }} />)}<Area type="monotone" dataKey="balance" name="Saldo" stroke="#2f5a8a" strokeWidth={2.5} fill="url(#cash-fill)" activeDot={{ r: 4 }} /></AreaChart></ResponsiveContainer> : <div className="finance-cash-empty"><Landmark /><strong>El histórico comienza hoy</strong><span>Las capturas diarias y los cierres mensuales aparecerán aquí.</span></div>}</section>
+  </div>;
+}
+
+const SALES_CHANNEL_COLORS: Record<string, string> = {
+  meta: "#2f5a8a",
+  organic: "#c8742a",
+  organic_social: "#5f9c86",
+  referral: "#9274a8",
+  other: "#aab4c2",
+  schools: "#d4a84f",
+};
+
+function percent(value: number | null | undefined) {
+  return value == null || !Number.isFinite(value) ? "—" : `${value.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+}
+
+function SalesHeading({ title, sub, sources, granularity }: { title: string; sub: string; sources: Array<"portal" | "holded" | "meta">; granularity?: SalesDashboard["granularity"] }) {
+  return <div className="finance-chart-heading"><div><div className="finance-chart-title"><h2>{title}</h2>{sources.map((source) => <SourceTag key={source} source={source}>{source === "portal" ? "Portal" : source === "holded" ? "Holded" : "Meta Ads"}</SourceTag>)}{granularity && <span className="finance-granularity">{GRANULARITY_LABEL[granularity]}</span>}</div><p>{sub}</p></div></div>;
+}
+
+function SalesOverview() {
+  const [period, setPeriod] = useState<FinancePeriod>("ytd");
+  const [data, setData] = useState<SalesDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    integrationClient.salesDashboard(period)
+      .then((result) => { if (active) setData(result); })
+      .catch((reason) => { if (active) { setData(null); setError(reason instanceof Error ? reason.message : "No se pudieron cargar las ventas"); } })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [period]);
+
+  if (loading && !data) return <DashboardLoader />;
+  if (error && !data) return <div className="finance-error"><AlertTriangle /><div><strong>No se pudieron cargar las ventas</strong><span>{error}</span></div></div>;
+  if (!data) return null;
+
+  const visibleChannels = data.channels.filter((channel) => channel.sales > 0);
+  const totalSales = data.kpis.sales;
+  const channelPie = visibleChannels.map((channel) => ({ ...channel, value: channel.sales }));
+  const campaignMax = Math.max(...data.campaigns.flatMap((campaign) => [campaign.leads, campaign.sales]), 1);
+  const agentMax = Math.max(10, ...data.agents.map((agent) => agent.conversion || 0), data.teamAverage || 0);
+  const sourcesUnavailable = !data.sources.holdedMarketing || !data.sources.meta;
+  const kpis = [
+    { label: "Ventas", source: ["portal"] as const, value: plainNumber(data.kpis.sales), detail: "Leads del periodo que han comprado", icon: UserCheck },
+    { label: "Conversión", source: ["portal"] as const, value: percent(data.kpis.conversion), detail: `${plainNumber(data.kpis.sales)} clientes de ${plainNumber(data.kpis.leads)} leads`, icon: TrendingUp },
+    { label: "CAC", source: ["holded", "portal"] as const, value: data.sources.holdedMarketing ? money(data.kpis.cac) : "—", detail: "Gasto en marketing ÷ clientes", icon: BarChart3 },
+    { label: "LAC", source: ["holded", "portal"] as const, value: data.sources.holdedMarketing ? money(data.kpis.lac) : "—", detail: "Gasto en marketing ÷ leads", icon: Megaphone },
+  ];
+
+  return <div className="finance-dashboard sales-dashboard" role="tabpanel" aria-label="Ventas">
+    <header className="finance-dashboard-header">
+      <div><span>INICIO · VENTAS</span><h2>Ventas</h2><p>Leads, conversión y rentabilidad comercial · {data.rangeLabel}</p></div>
+      <div className="finance-period"><label htmlFor="sales-period">Periodo</label><select id="sales-period" value={period} onChange={(event) => setPeriod(event.target.value as FinancePeriod)}>{FINANCE_PERIODS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><small>Gráficos {GRANULARITY_LABEL[data.granularity].toLowerCase()} · el filtro aplica a toda la pantalla</small></div>
+    </header>
+
+    {sourcesUnavailable && <div className="finance-source-warning"><AlertTriangle /><span>{!data.sources.holdedMarketing && !data.sources.meta ? "Holded y Meta Ads no están disponibles; los importes afectados se muestran como “—”." : !data.sources.holdedMarketing ? "El gasto de marketing de Holded no está disponible; CAC y LAC se muestran como “—”." : "Meta Ads no está disponible; el CAC por campaña y el margen de Meta por canal se muestran como “—”."}</span></div>}
+
+    <section className="finance-kpis sales-kpis">{kpis.map(({ label, source, value, detail, icon: Icon }) => <article key={label}><i><Icon /></i><div><span>{label}<span className="sales-source-list">{source.map((item) => <SourceTag key={item} source={item}>{item === "portal" ? "Portal" : "Holded"}</SourceTag>)}</span></span><strong>{value}</strong><small>{detail}</small></div></article>)}</section>
+
+    <div className="sales-primary-grid">
+      <section className="panel finance-chart sales-temporal-chart"><SalesHeading title="Ventas vs leads" sub="Cohortes por fecha de creación del lead · barras: leads y ventas · línea: conversión" sources={["portal"]} granularity={data.granularity} /><ResponsiveContainer width="100%" height={290}><ComposedChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="label" tickFormatter={(_, index) => data.buckets[index]?.tick || ""} axisLine={false} tickLine={false} fontSize={10} /><YAxis yAxisId="count" hide domain={[0, "auto"]} /><YAxis yAxisId="conversion" orientation="right" domain={[0, "auto"]} tickFormatter={(value) => `${value}%`} axisLine={false} tickLine={false} width={38} fontSize={9} /><Tooltip formatter={(value: any, name: any) => [name === "Conversión" ? percent(Number(value)) : Number(value).toLocaleString("es-ES"), name]} /><Bar yAxisId="count" dataKey="leads" name="Leads" fill="#b9c9df" radius={[4,4,0,0]} /><Bar yAxisId="count" dataKey="sales" name="Ventas" fill="#2f5a8a" radius={[4,4,0,0]} /><Line yAxisId="conversion" type="monotone" dataKey="conversion" name="Conversión" stroke="#c8742a" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls={false} /></ComposedChart></ResponsiveContainer></section>
+      <section className="panel finance-chart sales-channel-chart"><SalesHeading title="Ventas por canal" sub="Canal registrado en el lead comprador" sources={["portal"]} />{totalSales > 0 ? <><ResponsiveContainer width="100%" height={210}><RechartsPieChart><Pie data={channelPie} dataKey="value" nameKey="label" innerRadius={58} outerRadius={88} paddingAngle={2}>{channelPie.map((channel) => <Cell key={channel.key} fill={SALES_CHANNEL_COLORS[channel.key]} />)}<LabelList dataKey="value" position="outside" formatter={(value: any) => Number(value).toLocaleString("es-ES")} /></Pie><Tooltip formatter={(value: any, _name: any, item: any) => [`${Number(value).toLocaleString("es-ES")} · ${percent(item?.payload?.percentage)}`, item?.payload?.label]} /></RechartsPieChart></ResponsiveContainer><div className="sales-donut-total"><strong>{plainNumber(totalSales)}</strong><span>ventas</span></div><div className="sales-channel-legend">{visibleChannels.map((channel) => <div key={channel.key}><span><i style={{ background: SALES_CHANNEL_COLORS[channel.key] }} />{channel.label}</span><strong>{percent(channel.percentage)}</strong></div>)}</div></> : <div className="sales-empty-chart">No hay ventas en esta cohorte.</div>}</section>
+    </div>
+
+    <section className="panel finance-chart sales-campaign-wide"><SalesHeading title="Leads vs ventas por campaña" sub="Solo campañas de Meta · conversión de los leads captados en el periodo" sources={["portal"]} />{data.campaigns.length ? <ResponsiveContainer width="100%" height={310}><BarChart data={data.campaigns} margin={{ top: 42, right: 12, left: 0, bottom: 46 }}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="name" interval={0} angle={-18} textAnchor="end" axisLine={false} tickLine={false} height={62} fontSize={10} /><YAxis hide domain={[0, campaignMax * 1.3]} /><Tooltip formatter={(value: any, name: any) => [name === "Conversión" ? percent(Number(value)) : Number(value).toLocaleString("es-ES"), name]} /><Bar dataKey="leads" name="Leads" fill="#b9c9df" radius={[4,4,0,0]}><LabelList dataKey="leads" position="top" fill="#65758a" fontSize={10} /><LabelList dataKey="conversion" name="Conversión" position="top" offset={20} fill="#c8742a" fontSize={9} formatter={(value: any) => percent(Number(value))} /></Bar><Bar dataKey="sales" name="Ventas" fill="#2f5a8a" radius={[4,4,0,0]}><LabelList dataKey="sales" position="top" fill="#1f3d63" fontSize={10} /></Bar></BarChart></ResponsiveContainer> : <div className="sales-empty-chart">No hay campañas de Meta identificadas para los leads del periodo.</div>}</section>
+
+    <div className="sales-secondary-grid">
+      <section className="panel finance-chart"><SalesHeading title="CAC por campaña" sub="Inversión de Meta Ads ÷ clientes de la campaña" sources={["meta", "portal"]} />{data.campaigns.length ? <ResponsiveContainer width="100%" height={275}><BarChart data={data.campaigns} margin={{ top: 28, right: 10, left: 0, bottom: 42 }}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="name" interval={0} angle={-18} textAnchor="end" axisLine={false} tickLine={false} height={58} fontSize={9} /><YAxis hide /><Tooltip formatter={(value: any) => money(Number(value))} /><Bar dataKey="cac" name="CAC" fill="#c8742a" radius={[5,5,0,0]}><LabelList dataKey="cac" position="top" fill="#1f3d63" fontSize={9} formatter={(value: any) => money(Number(value))} /></Bar></BarChart></ResponsiveContainer> : <div className="sales-empty-chart">No hay campañas con datos para el periodo.</div>}</section>
+      <section className="panel finance-chart"><SalesHeading title="Margen por canal" sub="Meta: (contratado total − inversión total) ÷ contratado total" sources={["portal", "meta"]} /><ResponsiveContainer width="100%" height={225}><BarChart data={data.marginsByChannel} margin={{ top: 28, right: 10, left: 0, bottom: 14 }}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="label" interval={0} axisLine={false} tickLine={false} fontSize={9} /><YAxis hide domain={["auto", "auto"]} /><Tooltip formatter={(value: any) => percent(Number(value))} /><Bar dataKey="margin" name="Margen" fill="#5f9c86" radius={[5,5,0,0]}><LabelList dataKey="margin" position="top" fill="#2d6150" fontSize={10} formatter={(value: any) => percent(Number(value))} /></Bar></BarChart></ResponsiveContainer><div className="sales-channel-wip">{data.marginsByChannel.filter((channel) => channel.status === "wip").map((channel) => <span key={channel.key}>{channel.label}<b>WIP</b></span>)}</div></section>
+    </div>
+
+    <div className="sales-section-title"><span>EQUIPO COMERCIAL</span><h2>CRM</h2></div>
+    <section className="panel finance-chart sales-agent-chart"><SalesHeading title="Conversión por agente y media" sub="Clientes de la cohorte ÷ leads del agente comercial registrado al cerrar la venta" sources={["portal"]} /><ResponsiveContainer width="100%" height={285}><BarChart layout="vertical" data={data.agents} margin={{ top: 8, right: 58, left: 30, bottom: 8 }}><CartesianGrid horizontal={false} stroke="#eef1f5" /><XAxis type="number" domain={[0, Math.ceil(agentMax * 1.18)]} tickFormatter={(value) => `${value}%`} axisLine={false} tickLine={false} fontSize={9} /><YAxis dataKey="name" type="category" width={110} axisLine={false} tickLine={false} fontSize={11} /><Tooltip formatter={(value: any) => percent(Number(value))} /><ReferenceLine x={data.teamAverage || 0} stroke="#c8742a" strokeDasharray="5 4" /><Bar dataKey="conversion" name="Conversión" radius={[0,5,5,0]}>{data.agents.map((agent) => <Cell key={agent.key} fill={agent.key === "team" ? "#c8742a" : "#2f5a8a"} />)}<LabelList dataKey="conversion" position="right" fill="#1f3d63" fontSize={11} formatter={(value: any) => percent(Number(value))} /></Bar></BarChart></ResponsiveContainer></section>
+
+    <section className="panel sales-activity-placeholder"><div><span>PRÓXIMAMENTE</span><h2>Tiempo de actividad comercial</h2><p>Este espacio queda reservado para definir la medición de actividad del equipo.</p></div><Badge variant="outline">WIP</Badge></section>
   </div>;
 }
 
@@ -559,6 +644,13 @@ function StudentPortal({ currentUser, snapshot }: { currentUser: string; snapsho
 
 const leadCategories: LeadCategory[] = ["delft", "Llegada", "Mentoría", "General", "LATAM", "ESPECIAL"];
 const salesStages: CrmStage[] = ["Contactado", "Propuesta enviada", "Llamada programada", "Llamada tenida", "En espera"];
+const lostReasonOptions: Array<{ value: LostReason; label: string }> = [
+  { value: "price", label: "Precio" },
+  { value: "more_destinations", label: "Están buscando más destinos" },
+  { value: "competition", label: "Competencia" },
+  { value: "other", label: "Otros" },
+];
+const lostReasonLabel = (reason?: LostReason) => lostReasonOptions.find((option) => option.value === reason)?.label || "—";
 
 function CategoryPicker({ value, onChange }: { value: LeadCategory | ""; onChange: (value: LeadCategory) => void }) {
   const [open, setOpen] = useState(false);
@@ -568,7 +660,7 @@ function CategoryPicker({ value, onChange }: { value: LeadCategory | ""; onChang
   </div>;
 }
 
-function Crm({ path, currentUser, contacts, leadOwners, leadStages, onMoveLead, leadCategories: categories, onCategorizeLead, leadHeat, onSetLeadHeat, leadNotes, onSetLeadNotes, leadLostDates, portalSnapshot, portalConnected, onPortalRefresh, notify }: FeatureModuleProps) {
+function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMoveLead, leadCategories: categories, onCategorizeLead, leadHeat, onSetLeadHeat, leadNotes, onSetLeadNotes, leadLostDates, portalSnapshot, portalConnected, onPortalRefresh, notify }: FeatureModuleProps) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Contact | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -577,6 +669,11 @@ function Crm({ path, currentUser, contacts, leadOwners, leadStages, onMoveLead, 
   const [lostHeat, setLostHeat] = useState("0");
   const [lostFrom, setLostFrom] = useState("");
   const [lostTo, setLostTo] = useState("");
+  const [pendingClientId, setPendingClientId] = useState<string | null>(null);
+  const [selectedAdvisor, setSelectedAdvisor] = useState("");
+  const [pendingLostId, setPendingLostId] = useState<string | null>(null);
+  const [lostReason, setLostReason] = useState<LostReason | "">("");
+  const [lostReasonDetail, setLostReasonDetail] = useState("");
   const boardWrapRef = useRef<HTMLDivElement>(null);
   const owned = useMemo(() => contacts.filter((contact) => leadOwners[contact.id] === currentUser && `${contact.name} ${contact.email} ${contact.source}`.toLowerCase().includes(query.toLowerCase())), [contacts, currentUser, leadOwners, query]);
 
@@ -584,33 +681,57 @@ function Crm({ path, currentUser, contacts, leadOwners, leadStages, onMoveLead, 
     setSelected({ ...contact, owner: currentUser, category: categories[contact.id] || undefined, heat: leadHeat[contact.id], notes: leadNotes[contact.id] });
   }
 
-  async function dropLead(stage: CrmStage) {
+  function dropLead(stage: CrmStage) {
     const leadId = draggingId;
     if (!leadId) return;
     setDraggingId(null);
+    if (stage === "Lost") {
+      setLostReason("");
+      setLostReasonDetail("");
+      setPendingLostId(leadId);
+      return;
+    }
     if (stage !== "Cliente") {
       onMoveLead(leadId, stage);
-      notify(stage === "Lost" ? "Lead marcado como perdido" : `Lead movido a ${stage}`);
+      notify(`Lead movido a ${stage}`);
       return;
     }
     const contact = contacts.find((item) => item.id === leadId);
     const clientType = categories[leadId];
-    if (!contact || !clientType) {
+    if (!contact?.email || !clientType) {
       notify("No se puede crear el cliente sin email y tipo de contrato");
       return;
     }
+    setSelectedAdvisor("");
+    setPendingClientId(leadId);
+  }
+
+  async function confirmClientConversion() {
+    const leadId = pendingClientId;
+    const contact = contacts.find((item) => item.id === leadId);
+    const clientType = leadId ? categories[leadId] : "";
+    if (!leadId || !contact || !clientType || !selectedAdvisor) return;
     setConvertingId(leadId);
     notify(`Creando la cuenta de ${contact.name} en el portal…`);
     try {
-      const result = await integrationClient.convertLead({ leadId, name: contact.name, email: contact.email, advisor: currentUser, clientType });
+      const result = await integrationClient.convertLead({ leadId, name: contact.name, email: contact.email, advisor: selectedAdvisor, clientType });
       onMoveLead(leadId, "Cliente");
       await onPortalRefresh();
-      if (result.result === "exists") notify(`${contact.name} ya existía en el portal y se ha vinculado como cliente`);
-      else if (result.emailSent) notify(`Cuenta creada para ${contact.name} y correo de acceso enviado`);
-      else notify(`Cuenta creada para ${contact.name}; el correo no pudo enviarse y queda pendiente`);
+      setPendingClientId(null);
+      if (result.result === "exists") notify(`${contact.name} ya existía; ahora su asesor es ${selectedAdvisor}`);
+      else if (result.emailSent) notify(`Cuenta creada, asignada a ${selectedAdvisor} y correo de acceso enviado`);
+      else notify(`Cuenta creada y asignada a ${selectedAdvisor}; el correo queda pendiente`);
     } catch (error) {
       notify(error instanceof Error ? error.message : "No se pudo crear la cuenta en el portal");
     } finally { setConvertingId(null); }
+  }
+
+  function confirmLost() {
+    const leadId = pendingLostId;
+    if (!leadId || !lostReason || (lostReason === "other" && !lostReasonDetail.trim())) return;
+    onMoveLead(leadId, "Lost", { lostReason, lostReasonDetail: lostReason === "other" ? lostReasonDetail.trim() : "" });
+    setPendingLostId(null);
+    notify("Lead marcado como perdido con motivo registrado");
   }
 
   function startDragging(leadId: string) {
@@ -659,9 +780,11 @@ function Crm({ path, currentUser, contacts, leadOwners, leadStages, onMoveLead, 
 
       {path === "/crm/clientes" && <div className="personal-leads">{portalConnected && !portalSnapshot ? <div className="empty compact"><GraduationCap /><h2>Cargando clientes…</h2></div> : portalSnapshot ? portalSnapshot.clients.filter((client) => client.assigned_to === portalSnapshot.admin.email).map((client) => <a className="lead-card" key={client.id} href={`${portalSnapshot.portalUrl}/portal/`} target="_blank" rel="noreferrer"><small>{client.tipo || "general"}</small><h3>{[client.nombre, client.apellidos].filter(Boolean).join(" ") || client.email}</h3><p>{client.email}</p><div><span>Fase {client.application_phase || 1}</span><strong>{client.pago_completed ? "Al corriente" : "Onboarding"}</strong></div><footer>Abrir en portal<ChevronRight /></footer></a>) : owned.filter((contact) => leadStages[contact.id] === "Cliente").map((contact) => <button className="lead-card" key={contact.id} onClick={() => openContact(contact)}><small>{categories[contact.id]}</small><h3>{contact.name}</h3><p>{contact.email}</p><div><span>Agente de venta: {currentUser}</span><strong>{contact.value.toLocaleString("es-ES")} €</strong></div><footer>Ver portal del cliente<ChevronRight /></footer></button>)}</div>}
 
-      {path === "/crm/lost" && <><div className="lost-filters"><label>Desde<input type="date" value={lostFrom} onChange={(event) => setLostFrom(event.target.value)} /></label><label>Hasta<input type="date" value={lostTo} onChange={(event) => setLostTo(event.target.value)} /></label><label>Categoría<select value={lostCategory} onChange={(event) => setLostCategory(event.target.value)}><option value="">Todas</option>{leadCategories.map((category) => <option key={category}>{category}</option>)}</select></label><label>Heat mínimo<input type="number" min="0" max="100" value={lostHeat} onChange={(event) => setLostHeat(event.target.value)} /></label></div><div className="data-table panel"><table><thead><tr><th>Lead</th><th>Categoría</th><th>Heat final</th><th>Origen</th><th>Fecha Lost</th></tr></thead><tbody>{owned.filter((contact) => { const lostDate = leadLostDates[contact.id] || ""; return leadStages[contact.id] === "Lost" && (!lostCategory || categories[contact.id] === lostCategory) && leadHeat[contact.id] >= Number(lostHeat || 0) && (!lostFrom || lostDate >= lostFrom) && (!lostTo || lostDate <= lostTo); }).map((contact) => <tr key={contact.id} onClick={() => openContact(contact)}><td><b>{contact.name}</b><small>{contact.email}</small></td><td>{categories[contact.id]}</td><td>{leadHeat[contact.id]}</td><td>{contact.source}</td><td>{leadLostDates[contact.id] || "—"}</td></tr>)}</tbody></table></div></>}
+      {path === "/crm/lost" && <><div className="lost-filters"><label>Desde<input type="date" value={lostFrom} onChange={(event) => setLostFrom(event.target.value)} /></label><label>Hasta<input type="date" value={lostTo} onChange={(event) => setLostTo(event.target.value)} /></label><label>Categoría<select value={lostCategory} onChange={(event) => setLostCategory(event.target.value)}><option value="">Todas</option>{leadCategories.map((category) => <option key={category}>{category}</option>)}</select></label><label>Heat mínimo<input type="number" min="0" max="100" value={lostHeat} onChange={(event) => setLostHeat(event.target.value)} /></label></div><div className="data-table panel"><table><thead><tr><th>Lead</th><th>Categoría</th><th>Heat final</th><th>Origen</th><th>Motivo</th><th>Fecha Lost</th></tr></thead><tbody>{owned.filter((contact) => { const lostDate = leadLostDates[contact.id] || ""; return leadStages[contact.id] === "Lost" && (!lostCategory || categories[contact.id] === lostCategory) && leadHeat[contact.id] >= Number(lostHeat || 0) && (!lostFrom || lostDate >= lostFrom) && (!lostTo || lostDate <= lostTo); }).map((contact) => <tr key={contact.id} onClick={() => openContact(contact)}><td><b>{contact.name}</b><small>{contact.email}</small></td><td>{categories[contact.id]}</td><td>{leadHeat[contact.id]}</td><td>{contact.source}</td><td>{lostReasonLabel(contact.lostReason)}{contact.lostReasonDetail && <small>{contact.lostReasonDetail}</small>}</td><td>{leadLostDates[contact.id] || "—"}</td></tr>)}</tbody></table></div></>}
 
       {selected && <ContactDrawer contact={selected} leadMode heat={leadHeat[selected.id]} notes={leadNotes[selected.id]} onHeatChange={(value) => onSetLeadHeat(selected.id, value)} onNotesChange={(value) => onSetLeadNotes(selected.id, value)} onClose={() => setSelected(null)} />}
+      {pendingClientId && <div className="drawer-wrap outcome-dialog-wrap" onMouseDown={(event) => { if (event.target === event.currentTarget && !convertingId) setPendingClientId(null); }}><form className="manual-lead-card crm-outcome-card" onSubmit={(event) => { event.preventDefault(); void confirmClientConversion(); }}><button className="drawer-close" type="button" disabled={!!convertingId} onClick={() => setPendingClientId(null)}>×</button><span>PASAR A IN</span><h2>Asignar asesor del cliente</h2><p>El agente de venta seguirá siendo <b>{leadOwners[pendingClientId] || currentUser}</b>. El asesor elegido será quien reciba al alumno en el Portal del Alumno.</p><label>Asesor<select required autoFocus value={selectedAdvisor} onChange={(event) => setSelectedAdvisor(event.target.value)}><option value="">Seleccionar asesor…</option>{admins.map((admin) => <option key={admin} value={admin}>{admin}</option>)}</select></label><div className="outcome-role-summary"><span>Agente de venta<strong>{leadOwners[pendingClientId] || currentUser}</strong></span><span>Asesor del cliente<strong>{selectedAdvisor || "Pendiente"}</strong></span></div><div className="manual-lead-actions"><Button type="button" variant="outline" disabled={!!convertingId} onClick={() => setPendingClientId(null)}>Cancelar</Button><Button type="submit" disabled={!selectedAdvisor || !!convertingId}>{convertingId ? "Creando cliente…" : "Crear cliente"}</Button></div></form></div>}
+      {pendingLostId && <div className="drawer-wrap outcome-dialog-wrap" onMouseDown={(event) => { if (event.target === event.currentTarget) setPendingLostId(null); }}><form className="manual-lead-card crm-outcome-card" onSubmit={(event) => { event.preventDefault(); confirmLost(); }}><button className="drawer-close" type="button" onClick={() => setPendingLostId(null)}>×</button><span>MARCAR COMO LOST</span><h2>Motivo obligatorio</h2><p>Selecciona por qué se ha perdido este lead. Este dato quedará guardado para el análisis comercial.</p><label>Motivo<select required autoFocus value={lostReason} onChange={(event) => { setLostReason(event.target.value as LostReason | ""); if (event.target.value !== "other") setLostReasonDetail(""); }}><option value="">Seleccionar motivo…</option>{lostReasonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{lostReason === "other" && <label>Explicación breve<input required maxLength={120} value={lostReasonDetail} onChange={(event) => setLostReasonDetail(event.target.value)} placeholder="Escribe el motivo" /></label>}<div className="manual-lead-actions"><Button type="button" variant="outline" onClick={() => setPendingLostId(null)}>Cancelar</Button><Button type="submit" disabled={!lostReason || (lostReason === "other" && !lostReasonDetail.trim())}>Marcar como Lost</Button></div></form></div>}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { Contact, CrmStage, LeadCategory } from "@/types/domain";
+import type { Contact, CrmStage, LeadCategory, LostReason } from "@/types/domain";
 
 function isLocalAdminPreview() {
   if (import.meta.env?.VITE_ENABLE_LOCAL_PREVIEW !== "1"
@@ -13,7 +13,7 @@ function isLocalAdminPreview() {
 }
 
 export type EditableMetricRecord = { id: string; label: string; value: string; detail: string; group?: string };
-type LeadPatch = { owner?: string; source?: string; category?: LeadCategory | ""; stage?: CrmStage; heat?: number; notes?: string; lostAt?: string };
+type LeadPatch = { owner?: string; source?: string; category?: LeadCategory | ""; stage?: CrmStage; heat?: number; notes?: string; lostAt?: string; lostReason?: LostReason | ""; lostReasonDetail?: string };
 
 function statusFor(stage: CrmStage): Contact["status"] {
   if (stage === "Por contactar") return "Nuevo";
@@ -25,10 +25,16 @@ function statusFor(stage: CrmStage): Contact["status"] {
 
 function sourceFor(row: Record<string, any>): string {
   const source = String(row.source_payload?.source || "").trim().toLowerCase();
-  if (source === "website") return "Página web";
+  if (source === "website") {
+    const utmSource = String(row.source_payload?.utm_source || "").trim().toLowerCase();
+    return /(^|\W)(meta|facebook|instagram|fb|ig)(\W|$)/.test(utmSource) ? "Meta Ads" : "Orgánico";
+  }
   if (source === "meta") return "Meta Ads";
-  if (source === "manual") return "Manual";
-  if (source === "other") return "Otro";
+  if (["organic", "organico"].includes(source)) return "Orgánico";
+  if (["organic_social", "organico_rrss", "rrss"].includes(source)) return "Orgánico RRSS";
+  if (["referral", "referido", "referidos"].includes(source)) return "Referidos";
+  if (["schools", "school", "colegio", "colegios"].includes(source)) return "Colegios";
+  if (["manual", "other", "otro", "otros"].includes(source)) return "Otros";
   if (row.campaign_notion_urls?.length) return "Meta Ads";
   return "Sin origen";
 }
@@ -66,7 +72,7 @@ function toContact(row: Record<string, any>): Contact {
     .join("\n");
   const storedCampaign = String(row.campaign_notion_urls?.[0] || "");
   const campaign = row.source_payload?.campaign_name || row.source_payload?.form_name || (!storedCampaign.startsWith("meta-ad:") ? storedCampaign : "") || "Pendiente de identificar";
-  return { id: row.id, name, initials: name.split(/\s+/).slice(0, 2).map((part: string) => part[0] || "").join("").toUpperCase(), email: row.email || fieldValue(fields, /^e?mail$/, /^correo/) || "", phone: row.phone || fieldValue(fields, /phone/, /telefono/, /movil/) || "", country: "", university: row.school_name || "", course: "", product: "Aplicación", status: statusFor(stage), source: sourceFor(row), campaign, owner: row.owner_names?.[0] || "", probability: Number(row.heat || 0), nextAction: "", lastContact: row.contact_at || "—", value: 0, tags: [], category: category as LeadCategory | undefined, heat: Number(row.heat ?? 50), notes: row.comment || row.body_text || row.summary || formNotes || remainingFormDetails || "", stage, lostAt: row.lost_at || undefined, createdAt: row.source_created_at || row.created_at || undefined, clientAt: row.inside_at || undefined };
+  return { id: row.id, name, initials: name.split(/\s+/).slice(0, 2).map((part: string) => part[0] || "").join("").toUpperCase(), email: row.email || fieldValue(fields, /^e?mail$/, /^correo/) || "", phone: row.phone || fieldValue(fields, /phone/, /telefono/, /movil/) || "", country: "", university: row.school_name || "", course: "", product: "Aplicación", status: statusFor(stage), source: sourceFor(row), campaign, owner: row.owner_names?.[0] || "", probability: Number(row.heat || 0), nextAction: "", lastContact: row.contact_at || "—", value: 0, tags: [], category: category as LeadCategory | undefined, heat: Number(row.heat ?? 50), notes: row.comment || row.body_text || row.summary || formNotes || remainingFormDetails || "", stage, lostAt: row.lost_at || undefined, lostReason: row.source_payload?.lost_reason || undefined, lostReasonDetail: row.source_payload?.lost_reason_detail || undefined, createdAt: row.source_created_at || row.created_at || undefined, clientAt: row.inside_at || undefined };
 }
 
 export const adminDataClient = {
@@ -86,6 +92,8 @@ export const adminDataClient = {
     if (patch.heat !== undefined) update.heat = patch.heat;
     if (patch.notes !== undefined) update.comment = patch.notes;
     if (patch.lostAt !== undefined) update.lost_at = patch.lostAt || null;
+    if (patch.lostReason !== undefined) update.lost_reason = patch.lostReason || null;
+    if (patch.lostReasonDetail !== undefined) update.lost_reason_detail = patch.lostReasonDetail.trim() || null;
     const response = await fetch("/api/admin/crm/leads", { method: "PATCH", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, patch: update }) });
     if (!response.ok) throw new Error("No se pudo actualizar el lead");
     return { ok: true };
@@ -100,7 +108,7 @@ export const adminDataClient = {
     if (!response.ok) throw new Error("No se pudieron eliminar los leads seleccionados");
     return { ok: true };
   },
-  async createLead(input: { name: string; email?: string; phone?: string; notes?: string; owner?: string }): Promise<Contact> {
+  async createLead(input: { name: string; email?: string; phone?: string; notes?: string; owner?: string; source?: string }): Promise<Contact> {
     const response = await fetch("/api/admin/crm/leads", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error === "name_required" ? "El nombre es obligatorio" : "No se pudo crear el lead");

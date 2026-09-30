@@ -23,6 +23,21 @@ export type FinanceDashboard = {
   sources?: Record<string, boolean>;
   warnings?: string[];
 };
+export type SalesDashboard = {
+  period: FinancePeriod;
+  rangeLabel: string;
+  granularity: 'day' | 'week' | 'month';
+  syncedAt: string;
+  kpis: { sales: number; leads: number; conversion: number | null; cac: number | null; lac: number | null };
+  buckets: { key: string; label: string; tick: string; leads: number; sales: number; conversion: number | null }[];
+  channels: { key: string; label: string; leads: number; sales: number; percentage: number | null }[];
+  campaigns: { id: string | null; name: string; leads: number; sales: number; conversion: number | null; spend: number | null; contracted: number; cac: number | null; margin: number | null }[];
+  marginsByChannel: { key: string; label: string; status: 'ready' | 'unavailable' | 'wip'; contracted: number | null; spend: number | null; margin: number | null }[];
+  agents: { key: string; name: string; leads: number | null; sales: number | null; conversion: number | null }[];
+  teamAverage: number | null;
+  sources: { portal: boolean; adminCrm: boolean; holdedMarketing: boolean; meta: boolean };
+  meta: { currency: string; spend: number | null };
+};
 const META_CACHE_KEY = 'robin-admin-meta-insights-v1';
 const META_CACHE_MS = 30 * 60 * 1000;
 
@@ -99,14 +114,33 @@ export const integrationClient = {
     if (!response.ok) throw new Error(payload.detail || 'No se pudieron cargar las finanzas');
     return payload as FinanceDashboard;
   },
+  salesDashboard: async (period: FinancePeriod): Promise<SalesDashboard> => {
+    if (isLocalAdminPreview()) {
+      const now = new Date();
+      const length = period === '30d' ? 30 : period === '3m' ? 13 : Math.max(1, now.getMonth() + 1);
+      const channels = [
+        { key: 'meta', label: 'Meta' },
+        { key: 'organic', label: 'Orgánico' },
+        { key: 'organic_social', label: 'Orgánico RRSS' },
+        { key: 'referral', label: 'Referidos' },
+        { key: 'other', label: 'Otros' },
+        { key: 'schools', label: 'Colegios' },
+      ];
+      return { period, rangeLabel: 'Vista previa local', granularity: period === '30d' || period === 'month' ? 'day' : period === '3m' ? 'week' : 'month', syncedAt: now.toISOString(), kpis: { sales: 0, leads: 0, conversion: null, cac: null, lac: null }, buckets: Array.from({ length }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', leads: 0, sales: 0, conversion: null })), channels: channels.map((channel) => ({ ...channel, leads: 0, sales: 0, percentage: null })), campaigns: [], marginsByChannel: channels.map((channel) => ({ ...channel, status: channel.key === 'meta' ? 'unavailable' as const : 'wip' as const, contracted: null, spend: null, margin: null })), agents: ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, leads: 0, sales: 0, conversion: null })).concat([{ key: 'team', name: 'Media del equipo', leads: null, sales: null, conversion: null }]), teamAverage: null, sources: { portal: false, adminCrm: false, holdedMarketing: false, meta: false }, meta: { currency: 'EUR', spend: null } };
+    }
+    const response = await fetch(`/api/admin/sales/dashboard?period=${encodeURIComponent(period)}`, { credentials: 'include' });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.detail || 'No se pudieron cargar las ventas');
+    return payload as SalesDashboard;
+  },
   sendWhatsApp: async () => ({ messageId: "demo" }),
   convertLead: async (lead: { leadId: string; name: string; email: string; advisor: string; clientType: string }) => {
     const response = await fetch("/api/internal/crm/convert", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(lead) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const messages: Record<string, string> = { lead_email_required: "El lead necesita un email antes de pasar a IN", identity_collision: "Ya existe un usuario con ese email o identificador", invalid_bootstrap_password_configuration: "Falta configurar una contraseña inicial válida" };
+      const messages: Record<string, string> = { lead_email_required: "El lead necesita un email antes de pasar a IN", advisor_required: "Debes elegir el asesor del cliente", advisor_invalid: "El asesor elegido no tiene acceso activo al portal", identity_collision: "Ya existe un usuario con ese email o identificador", invalid_bootstrap_password_configuration: "Falta configurar una contraseña inicial válida" };
       throw new Error(messages[payload.error] || payload.detail || "No se pudo crear el alumno en el portal");
     }
-    return payload as { result: "created" | "exists"; userId: string; emailSent: boolean; loginUrl: string };
+    return payload as { result: "created" | "exists"; userId: string; emailSent: boolean; loginUrl: string; assignedTo: string; salesAgent: string | null };
   },
 };

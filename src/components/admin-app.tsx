@@ -49,7 +49,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FeatureModule } from "@/components/feature-modules";
-import type { Contact, CrmStage, LeadCategory } from "@/types/domain";
+import type { Contact, CrmStage, LeadCategory, LostReason } from "@/types/domain";
 import { portalClient } from "@/services/portal";
 import type { PortalAdmin, PortalSnapshot } from "@/services/portal";
 import { adminDataClient } from "@/services/admin-data";
@@ -237,11 +237,15 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
     return () => window.removeEventListener("robin:portal-state", syncPortalNavigation);
   }, []);
 
-  function moveLead(id: string, stage: CrmStage) {
+  function moveLead(id: string, stage: CrmStage, outcome?: { lostReason?: LostReason; lostReasonDetail?: string }) {
     setLeadStages((stages) => ({ ...stages, [id]: stage }));
     const lostAt = stage === "Lost" ? new Date().toISOString().slice(0, 10) : "";
     if (stage === "Lost") setLeadLostDates((dates) => ({ ...dates, [id]: lostAt }));
-    persistLead(id, { stage, lostAt });
+    else setLeadLostDates((dates) => { const next = { ...dates }; delete next[id]; return next; });
+    const lostReason = stage === "Lost" ? outcome?.lostReason || "" : "";
+    const lostReasonDetail = stage === "Lost" ? outcome?.lostReasonDetail || "" : "";
+    setCrmContacts((contacts) => contacts.map((contact) => contact.id === id ? { ...contact, stage, lostAt: lostAt || undefined, lostReason: lostReason || undefined, lostReasonDetail: lostReasonDetail || undefined } : contact));
+    persistLead(id, { stage, lostAt, lostReason, lostReasonDetail });
   }
 
   function addAdmin(name: string) {
@@ -265,7 +269,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
     hydrateLeads(await adminDataClient.listLeads());
   }
 
-  async function addLead(input: { name: string; email?: string; phone?: string; notes?: string; owner?: string }) {
+  async function addLead(input: { name: string; email?: string; phone?: string; notes?: string; owner?: string; source?: string }) {
     const lead = await adminDataClient.createLead(input);
     hydrateLeads([lead, ...crmContacts]);
   }
@@ -333,7 +337,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
               contacts={crmContacts}
               leadOwners={leadOwners}
               onAssignLead={(id, owner) => { setLeadOwners((owners) => ({ ...owners, [id]: owner })); persistLead(id, { owner }); }}
-              onSetLeadSource={(id, source) => { const label = source === "meta" ? "Meta Ads" : source === "website" ? "Página web" : source === "manual" ? "Manual" : "Otro"; setCrmContacts((contacts) => contacts.map((contact) => contact.id === id ? { ...contact, source: label } : contact)); persistLead(id, { source }); }}
+              onSetLeadSource={(id, source) => { const labels: Record<string, string> = { meta: "Meta Ads", organic: "Orgánico", organic_social: "Orgánico RRSS", referral: "Referidos", other: "Otros", schools: "Colegios" }; const label = labels[source] || "Otros"; setCrmContacts((contacts) => contacts.map((contact) => contact.id === id ? { ...contact, source: label } : contact)); persistLead(id, { source }); }}
               onDeleteLead={deleteLead}
               onDeleteLeads={deleteLeads}
               onAddLead={addLead}

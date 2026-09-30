@@ -62,6 +62,10 @@
   to = "/.netlify/functions/admin-finance-dashboard"
   status = 200
 [[redirects]]
+  from = "/api/admin/sales/dashboard"
+  to = "/.netlify/functions/admin-sales-dashboard"
+  status = 200
+[[redirects]]
   from = "/api/admin/payment-analytics"
   to = "/.netlify/functions/admin-payment-analytics"
   status = 200

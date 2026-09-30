@@ -8,6 +8,13 @@ const { passwordPolicy } = require('../../shared/password-policy.cjs');
 const { normalizeTipo, ensureDriveFolder } = require('../../lib/notion');
 const { sendAccountAccessEmail } = require('../../lib/account-access-email');
 
+const normalizedPerson = (value) => String(value || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+function matchesAdvisor(user, requested) {
+  const values = [user.email, user.username, user.nombre, [user.nombre, user.apellidos].filter(Boolean).join(' ')];
+  return values.some((value) => normalizedPerson(value) === requested);
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return methodNotAllowed(['POST']);
   if (!verifyOrigin(event)) return json({ error: 'forbidden_origin' }, { statusCode: 403 });
@@ -19,10 +26,17 @@ exports.handler = async (event) => {
     if (!admin || !isApplicationAdmin(admin)) return json({ error: 'forbidden' }, { statusCode: 403 });
     const body = parseJsonBody(event);
     if (!body || !body.leadId) return json({ error: 'missing_lead_id' }, { statusCode: 400 });
+    const requestedAdvisor = normalizedPerson(body.advisor);
+    if (!requestedAdvisor) return json({ error: 'advisor_required' }, { statusCode: 400 });
+
+    const { data: adminRows, error: adminRowsError } = await portal.from('users').select('id,email,username,nombre,apellidos,role');
+    if (adminRowsError) throw adminRowsError;
+    const advisor = (adminRows || []).filter(isApplicationAdmin).find((candidate) => matchesAdvisor(candidate, requestedAdvisor));
+    if (!advisor) return json({ error: 'advisor_invalid' }, { statusCode: 400 });
 
     const crm = getAdminSupabase();
     const { data: lead, error: leadError } = await crm.from('crm_leads')
-      .select('id,notion_numeric_id,name,email,lead_type,source_payload').eq('id', body.leadId).single();
+      .select('id,notion_numeric_id,name,email,lead_type,owner_names,source_payload').eq('id', body.leadId).single();
     if (leadError || !lead) return json({ error: 'lead_not_found' }, { statusCode: 404 });
     if (!lead.email) return json({ error: 'lead_email_required' }, { statusCode: 400 });
 
@@ -31,7 +45,8 @@ exports.handler = async (event) => {
     // website/Meta leads have no Notion page and must not depend on one.
     const notionPageId = lead.source_payload?.notion_url ? lead.id : null;
     const tipo = normalizeTipo(body.clientType || lead.lead_type);
-    const assignedTo = normalizeEmail(admin);
+    const assignedTo = normalizeEmail(advisor);
+    const salesAgent = String(lead.owner_names?.[0] || admin.nombre || admin.email || '').trim();
     let result = 'created';
     let userId;
     let emailSent = false;
@@ -57,9 +72,17 @@ exports.handler = async (event) => {
       const accessEmail = await sendAccountAccessEmail({ email: lead.email, name: lead.name, username: leadId, password });
       emailSent = !!accessEmail.sent;
     }
-    const { error: crmError } = await crm.from('crm_leads').update({ crm_stage: 'Cliente' }).eq('id', lead.id);
+    const { error: crmError } = await crm.from('crm_leads').update({
+      crm_stage: 'Cliente',
+      source_payload: {
+        ...(lead.source_payload || {}),
+        sales_agent: salesAgent || null,
+        advisor_email: assignedTo,
+        converted_by: admin.id,
+      },
+    }).eq('id', lead.id);
     if (crmError) throw crmError;
-    return json({ ok: true, result, userId, emailSent, loginUrl: '/portal/' });
+    return json({ ok: true, result, userId, emailSent, loginUrl: '/portal/', assignedTo, salesAgent: salesAgent || null });
   } catch (error) {
     console.error('crm-convert error', error);
     return serverError(error, 'crm.convert');
