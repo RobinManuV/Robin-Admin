@@ -6,6 +6,7 @@ const holded = require('../../lib/holded');
 const {
   buildFinanceDashboard,
   captureTreasuryHistory,
+  listCashflowExpenseEntries,
   listLedgerEntries,
   madridToday,
   periodBounds,
@@ -41,10 +42,19 @@ exports.handler = async (event) => {
     const bounds = periodBounds(period);
     const invoiceStart = bounds.previousStart < bounds.start ? bounds.previousStart : bounds.start;
 
-    const [invoices, portalRows, ledgerResult] = await Promise.all([
+    const [invoices, portalRows, expenseResult] = await Promise.all([
       holded.listSalesInvoices({ start: Math.floor(invoiceStart.getTime() / 1000), end: Math.floor(bounds.end.getTime() / 1000) }),
       loadPortalFinanceRows(),
-      listLedgerEntries(bounds.start, bounds.end).then((entries) => ({ entries, available: true })).catch((error) => ({ entries: [], available: false, error: error.message })),
+      listCashflowExpenseEntries(bounds.start, bounds.end)
+        .then((result) => ({ ...result, available: true, source: 'cashflow_payments' }))
+        .catch(async (cashflowError) => {
+          try {
+            const entries = await listLedgerEntries(bounds.start, bounds.end);
+            return { entries, skippedDocuments: 0, available: true, source: 'daily_ledger', fallbackError: cashflowError.message };
+          } catch (ledgerError) {
+            return { entries: [], skippedDocuments: 0, available: false, source: null, error: ledgerError.message, fallbackError: cashflowError.message };
+          }
+        }),
     ]);
 
     let treasuryHistory = [];
@@ -66,18 +76,21 @@ exports.handler = async (event) => {
       invoices,
       users: portalRows.users,
       payments: portalRows.payments,
-      ledgerEntries: ledgerResult.entries,
+      ledgerEntries: expenseResult.entries,
       treasuryHistory: treasuryAvailable ? treasuryHistory : null,
     });
     dashboard.sources = {
       holdedInvoices: true,
-      holdedAccounting: ledgerResult.available,
+      holdedAccounting: expenseResult.available,
+      holdedExpenseCashflow: expenseResult.source === 'cashflow_payments',
       portal: true,
       treasury: treasuryAvailable,
       ecb: treasuryAvailable,
     };
     dashboard.warnings = [
-      ...(!ledgerResult.available ? ['holded_accounting_unavailable'] : []),
+      ...(!expenseResult.available ? ['holded_accounting_unavailable'] : []),
+      ...(expenseResult.source === 'daily_ledger' ? ['holded_cashflow_fallback'] : []),
+      ...(expenseResult.skippedDocuments ? ['holded_cashflow_partial'] : []),
       ...(!treasuryAvailable ? ['treasury_history_unavailable'] : []),
     ];
     return json(dashboard);
