@@ -60,7 +60,9 @@ exports.handler = async (event) => {
     const crm = getAdminSupabase();
     const portal = getSupabase();
     if (event.httpMethod === 'GET') {
-      const { data, error } = await crm.from('crm_leads').select('*').order('notion_numeric_id', { ascending: false });
+      const { data, error } = await crm.from('crm_leads').select('*')
+        .order('source_created_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false, nullsFirst: false });
       if (error) throw error;
       const leads = data || [];
       const campaignNames = await metaCampaignNames(leads);

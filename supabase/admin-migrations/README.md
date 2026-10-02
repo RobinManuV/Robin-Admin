@@ -11,3 +11,5 @@ navegador.
 - `202609290001_create_finance_treasury_snapshots.sql`: histórico de caja.
 - `202609300001_create_crm_performance_history.sql`: identidades CRM, eventos
   comerciales atómicos y sesiones activas del equipo.
+- `202610010001_create_web_analytics.sql`: eventos anónimos de la web pública,
+  agregados del panel, mapas de calor y retención de 14 meses.

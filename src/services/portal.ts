@@ -6,11 +6,30 @@ export type PortalSnapshot = { admin: PortalAdmin; clients: PortalClient[]; paym
 
 import { api, login, logout, me } from "@/robin-platform/portal-source/src/api.js";
 
+function portalApiUrl(path: string) {
+  if (typeof window !== "undefined" && /(^|\.)project-robin\.com$/i.test(window.location.hostname) && path.startsWith("/api/")) {
+    return `/portal${path}`;
+  }
+  return path;
+}
+
+async function downloadClientDatabase() {
+  const response = await fetch(portalApiUrl("/api/admin/clients/export"), { credentials: "same-origin" });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || payload.error || `No se pudo descargar la base de datos (HTTP ${response.status})`);
+  }
+  const disposition = response.headers.get("content-disposition") || "";
+  const filename = disposition.match(/filename="([^"]+)"/i)?.[1] || `base-datos-clientes-robin-${new Date().toISOString().slice(0, 10)}.csv`;
+  return { blob: await response.blob(), filename };
+}
+
 export const portalClient = {
   login,
   me: me as () => Promise<PortalAdmin>,
   logout,
   snapshot: () => api.get("/api/admin/integration-snapshot") as Promise<PortalSnapshot>,
+  downloadClientDatabase,
   adminUsers: () => api.get("/api/admin/users") as Promise<{ users: PortalAccessUser[] }>,
   createAdmin: (payload: { name: string; email: string; password: string }) => api.post("/api/admin/users", { action: "create", ...payload }) as Promise<{ user: PortalAccessUser }>,
   deleteAdmin: (id: string) => api.post("/api/admin/users", { action: "delete", id }) as Promise<{ ok: boolean }>,

@@ -15,6 +15,7 @@ import {
   FileText,
   ExternalLink,
   GraduationCap,
+  Globe2,
   Handshake,
   HelpCircle,
   Inbox,
@@ -67,6 +68,7 @@ const workspaceTabs = [
   ["/crm", "CRM", "crm"],
   ["/analiticas", "Analíticas personales", "analytics"],
   ["/campanas", "Campañas", "campaigns"],
+  ["/web", "Web", "web"],
 ] as const;
 
 const sideMenus: Record<string, NavItem[]> = {
@@ -112,6 +114,7 @@ const sideMenus: Record<string, NavItem[]> = {
     ["/analiticas/ventas", "Ventas", TrendingUp],
   ],
   campaigns: [["/campanas", "Meta Ads", BriefcaseBusiness]],
+  web: [["/web", "Web", Globe2]],
 };
 
 const areaNames: Record<string, string> = {
@@ -121,6 +124,7 @@ const areaNames: Record<string, string> = {
   crm: "CRM personal",
   analytics: "Analíticas personales",
   campaigns: "Campañas personales",
+  web: "Web",
 };
 
 function getArea(path: string) {
@@ -129,6 +133,7 @@ function getArea(path: string) {
   if (path.startsWith("/crm")) return "crm";
   if (path.startsWith("/analiticas")) return "analytics";
   if (path.startsWith("/campanas")) return "campaigns";
+  if (path.startsWith("/web")) return "web";
   return "home";
 }
 
@@ -138,6 +143,7 @@ function isSideItemActive(path: string, href: string, portalSection = "inicio", 
   if (href === "/") return path === "/";
   if (href === "/crm") return path === "/crm";
   if (href === "/campanas") return path.startsWith("/campanas");
+  if (href === "/web") return path.startsWith("/web");
   if (href === "/analiticas/pagos") return path === "/analiticas" || path === href;
   return path === href;
 }

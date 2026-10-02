@@ -60,6 +60,7 @@ import {
   YAxis,
 } from "recharts";
 import type { FinanceDashboard, FinancePeriod, SalesDashboard } from "@/services/integrations";
+import { WebAnalytics } from "@/components/web-analytics";
 
 type FeatureModuleProps = {
   path: string;
@@ -101,11 +102,31 @@ export function FeatureModule(props: FeatureModuleProps) {
   if (path.startsWith("/crm")) return <Crm {...props} />;
   if (path.startsWith("/analiticas")) return <PersonalAnalytics path={path} currentUser={props.currentUser} contacts={props.contacts} leadStages={props.leadStages} snapshot={props.portalSnapshot} />;
   if (path.startsWith("/campanas")) return <Campaigns currentUser={props.currentUser} notify={props.notify} />;
+  if (path.startsWith("/web")) return <WebAnalytics notify={props.notify} />;
   return <div className="page"><div className="empty"><AlertTriangle /><h2>Vista no disponible</h2><p>Esta sección ya no forma parte de la nueva navegación.</p></div></div>;
 }
 
 function Title({ name, sub, eyebrow = "ROBIN ADMIN PLATFORM", children }: { name: string; sub: string; eyebrow?: string; children?: React.ReactNode }) {
   return <div className="title"><div><span>{eyebrow}</span><h1>{name}</h1><p>{sub}</p></div><div>{children}</div></div>;
+}
+
+function leadEntryTimestamp(value?: string) {
+  const timestamp = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function formatLeadEntry(value?: string) {
+  const timestamp = leadEntryTimestamp(value);
+  if (!timestamp) return "—";
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Europe/Madrid",
+  }).format(new Date(timestamp)).replace(",", " ·");
 }
 
 function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onSetLeadSource, onDeleteLead, onDeleteLeads, onAddLead, onSetLeadHeat, onSetLeadNotes, notify }: FeatureModuleProps) {
@@ -130,7 +151,7 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
     if (stageFilter !== "all" && stage !== stageFilter) return false;
     if (sourceFilter !== "all" && contact.source !== sourceFilter) return false;
     return campaignFilter === "all" || contact.campaign === campaignFilter;
-  }), [contacts, leadOwners, leadStages, query, assignment, stageFilter, sourceFilter, campaignFilter]);
+  }).sort((a, b) => leadEntryTimestamp(b.createdAt) - leadEntryTimestamp(a.createdAt) || b.id.localeCompare(a.id)), [contacts, leadOwners, leadStages, query, assignment, stageFilter, sourceFilter, campaignFilter]);
   const sources = useMemo(() => [...new Set(contacts.map((contact) => contact.source).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [contacts]);
   const campaigns = useMemo(() => [...new Set(contacts.map((contact) => contact.campaign).filter((campaign) => campaign && campaign !== "Pendiente de identificar"))].sort((a, b) => a.localeCompare(b, "es")), [contacts]);
   function exportLeads() {
@@ -161,12 +182,13 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
       <section className="panel inbox-panel">
         <div className="data-table">
           <table>
-            <thead><tr><th className="select-column"><input type="checkbox" aria-label="Seleccionar todos los leads visibles" checked={list.length > 0 && list.every((contact) => selectedIds.has(contact.id))} onChange={(event) => setSelectedIds(event.target.checked ? new Set(list.map((contact) => contact.id)) : new Set())} /></th><th>Lead</th><th>Origen</th><th>Estado</th><th>Asignar a</th><th>Acciones</th></tr></thead>
+            <thead><tr><th className="select-column"><input type="checkbox" aria-label="Seleccionar todos los leads visibles" checked={list.length > 0 && list.every((contact) => selectedIds.has(contact.id))} onChange={(event) => setSelectedIds(event.target.checked ? new Set(list.map((contact) => contact.id)) : new Set())} /></th><th>Lead</th><th>Entrada</th><th>Origen</th><th>Estado</th><th>Asignar a</th><th>Acciones</th></tr></thead>
             <tbody>
               {list.map((contact) => (
                 <tr key={contact.id} className={!leadOwners[contact.id] ? "unassigned-lead" : ""} onClick={() => setSelected(contact)}>
                   <td className="select-column"><input type="checkbox" aria-label={`Seleccionar ${contact.name}`} checked={selectedIds.has(contact.id)} onClick={(event) => event.stopPropagation()} onChange={(event) => setSelectedIds((current) => { const next = new Set(current); if (event.target.checked) next.add(contact.id); else next.delete(contact.id); return next; })} /></td>
                   <td><button type="button" className="lead-name-button" onClick={() => setSelected(contact)}><b>{contact.name}</b><small>{contact.email}</small>{contact.notes && <small className="lead-form-note">{contact.notes}</small>}</button></td>
+                  <td><time className="lead-entry-time" dateTime={contact.createdAt}>{formatLeadEntry(contact.createdAt)}</time></td>
                   <td><select className="source-select" value={contact.source === "Meta Ads" ? "meta" : contact.source === "Orgánico" || contact.source === "Página web" ? "organic" : contact.source === "Orgánico RRSS" ? "organic_social" : contact.source === "Referidos" ? "referral" : contact.source === "Colegios" ? "schools" : "other"} onClick={(event) => event.stopPropagation()} onChange={(event) => { event.stopPropagation(); onSetLeadSource(contact.id, event.target.value); notify(`Origen de ${contact.name} actualizado`); }}><option value="meta">Meta</option><option value="organic">Orgánico</option><option value="organic_social">Orgánico RRSS</option><option value="referral">Referidos</option><option value="other">Otros</option><option value="schools">Colegios</option></select></td>
                   <td><Badge variant="outline">{leadStages[contact.id]}</Badge></td>
                   <td>
@@ -707,6 +729,7 @@ function CategoryPicker({ value, onChange }: { value: LeadCategory | ""; onChang
 
 function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMoveLead, leadCategories: categories, onCategorizeLead, leadHeat, onSetLeadHeat, leadNotes, onSetLeadNotes, leadLostDates, portalSnapshot, portalConnected, onPortalRefresh, notify }: FeatureModuleProps) {
   const [query, setQuery] = useState("");
+  const [exportingClients, setExportingClients] = useState(false);
   const [selected, setSelected] = useState<Contact | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [convertingId, setConvertingId] = useState<string | null>(null);
@@ -724,6 +747,26 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
 
   function openContact(contact: Contact) {
     setSelected({ ...contact, owner: currentUser, category: categories[contact.id] || undefined, heat: leadHeat[contact.id], notes: leadNotes[contact.id] });
+  }
+
+  async function exportClientDatabase() {
+    setExportingClients(true);
+    try {
+      const { blob, filename } = await portalClient.downloadClientDatabase();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      notify("Base de datos de clientes descargada");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "No se pudo descargar la base de datos de clientes");
+    } finally {
+      setExportingClients(false);
+    }
   }
 
   function dropLead(stage: CrmStage) {
@@ -788,7 +831,7 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
   return (
     <div className="page">
       <Title name={title} sub={`Cartera comercial de ${currentUser}.`} eyebrow="CRM PERSONAL"><Badge variant="outline">{owned.length} REGISTROS</Badge></Title>
-      <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label><Button variant="outline"><Filter />Filtros</Button></div>
+      <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label><Button variant="outline"><Filter />Filtros</Button>{path === "/crm/clientes" && <Button variant="outline" disabled={exportingClients} onClick={() => void exportClientDatabase()}><Download />{exportingClients ? "Preparando…" : "Descargar base de datos"}</Button>}</div>
 
       {path === "/crm" && (
         <div className="qualification-grid">
