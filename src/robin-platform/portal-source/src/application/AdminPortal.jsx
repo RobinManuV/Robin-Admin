@@ -396,7 +396,7 @@ function AdminDashboard({ user, onOpenClient, onOpenAssign, onGotoTab }) {
                 return (
                   <button key={i}
                     onClick={() => cl && onOpenClient && onOpenClient(cl)}
-                    className="w-full text-left rounded-lg px-2 py-1.5 hover:bg-slate-50 flex items-start gap-2">
+                    className="admin-activity-row w-full text-left rounded-lg px-2 py-1.5 hover:bg-slate-50 flex items-start gap-2">
                     <div className="h-1.5 w-1.5 rounded-full mt-2 flex-shrink-0"
                       style={{ background:
                         ev.type==="document_upload"   ? "#0ea5e9" :
@@ -1004,7 +1004,7 @@ function AdminNotificaciones({ adminId, clients }) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 robin-notifications-view">
       {/* Crear notificación */}
       <Card>
         <CardHeader title="Nueva notificación" subtitle="Aparece como pop-up al cliente la próxima vez que inicie sesión" icon={Bell} />
@@ -1041,7 +1041,7 @@ function AdminNotificaciones({ adminId, clients }) {
           {/* Destinatarios */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Destinatarios ({selected.size} seleccionado(s))</div>
+              <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Destinatarios <span className="notification-selection-count">{selected.size} seleccionado(s)</span></div>
               <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
                 <button type="button" onClick={() => switchScope("assigned")}
                   className="px-3 py-1 rounded-md text-xs font-medium transition"
@@ -1071,7 +1071,7 @@ function AdminNotificaciones({ adminId, clients }) {
                 return (
                   <button key={c.id} type="button" onClick={() => toggle(c.id)}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition">
-                    <div className="h-5 w-5 rounded-md border flex items-center justify-center flex-shrink-0"
+                    <div data-selected={on ? "true" : "false"} className="notification-recipient-check h-5 w-5 rounded-md border flex items-center justify-center flex-shrink-0"
                       style={on ? { background: NAVY, borderColor: NAVY } : { borderColor: "#cbd5e1" }}>
                       {on && <CheckCircle2 className="h-4 w-4 text-white" />}
                     </div>
@@ -1099,7 +1099,7 @@ function AdminNotificaciones({ adminId, clients }) {
       {/* Notificaciones enviadas + seguimiento */}
       <Card>
         <CardHeader title="Notificaciones enviadas" subtitle="Estado de lectura y aceptación por cliente" icon={Clock}
-          right={<button onClick={reloadSent} className="text-xs font-semibold flex items-center gap-1" style={{ color: NAVY }}><RefreshCw className="h-3.5 w-3.5" />Actualizar</button>} />
+          right={<button onClick={reloadSent} className="notification-refresh-button text-xs font-semibold flex items-center gap-1"><RefreshCw className="h-3.5 w-3.5" />Actualizar</button>} />
         <CardContent className="space-y-3">
           {loadingSent ? (
             <div className="py-6 text-center text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin inline mr-2" />Cargando…</div>
@@ -1108,7 +1108,7 @@ function AdminNotificaciones({ adminId, clients }) {
           ) : sent.map((n) => {
             const open = expanded === n.id;
             return (
-              <div key={n.id} className="rounded-xl border border-slate-200 overflow-hidden">
+              <div key={n.id} className="notification-sent-item rounded-xl border border-slate-200 overflow-hidden">
                 <button onClick={() => setExpanded(open ? null : n.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition">
                   {n.type === "terms" ? <FileText className="h-4 w-4 flex-shrink-0" style={{ color: NAVY }} /> : <Bell className="h-4 w-4 flex-shrink-0" style={{ color: NAVY }} />}
                   <div className="min-w-0 flex-1">
@@ -1237,7 +1237,7 @@ function AssignClientModal({ adminEmail, list, loading, error, busyId, onAssign,
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4" style={{ background: "rgba(15,23,42,0.5)" }}>
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+      <div className="assign-client-modal w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
           <div>
             <div className="text-base font-bold text-slate-900" style={{ fontFamily: "'Georgia', serif" }}>Asignar cliente</div>
@@ -1266,7 +1266,7 @@ function AssignClientModal({ adminEmail, list, loading, error, busyId, onAssign,
               const mine = (c.assigned_to || "").toLowerCase() === (adminEmail || "").toLowerCase();
               const other = !!c.assigned_to && !mine;
               return (
-                <div key={c.id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2.5">
+                <div key={c.id} className="assign-client-row flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2.5">
                   <ClientAvatar nombre={c.nombre} apellidos={c.apellidos} />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-slate-900 truncate">
@@ -1282,7 +1282,7 @@ function AssignClientModal({ adminEmail, list, loading, error, busyId, onAssign,
                   {mine ? (
                     <Badge tone="green">Tuyo</Badge>
                   ) : (
-                    <Btn size="sm" variant={other ? "secondary" : "primary"}
+                    <Btn className="assign-client-action" size="sm" variant={other ? "secondary" : "primary"}
                       onClick={() => onAssign(c.id)} disabled={busyId === c.id}>
                       {busyId === c.id ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> …</> : (other ? "Reasignar a mí" : "Asignar")}
                     </Btn>

@@ -42,7 +42,7 @@ function AdminSubNotifications({ notifications = [], users = [], onChanged }) {
   async function remove(n) { if (!window.confirm(`¿Eliminar la notificación "${n.title}"?`)) return; try { await subAdminMutate("notification", "delete", { id: n.id }); await onChanged(); } catch (_) {} }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 robin-notifications-view">
       <Card>
         <CardHeader title="Nueva notificación" subtitle="Aparece como pop-up informativo al suscriptor la próxima vez que inicie sesión" icon={Bell} />
         <CardContent className="space-y-4">
@@ -50,7 +50,7 @@ function AdminSubNotifications({ notifications = [], users = [], onChanged }) {
           <TextareaField label="Contenido" value={content} onChange={setContent} rows={4} placeholder="Escribe el mensaje que verá el suscriptor…" />
           <div>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Destinatarios</div>
+              <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Destinatarios <span className="notification-selection-count">{selected.size} seleccionado(s)</span></div>
               <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
                 <button type="button" onClick={() => setScope("all")} className="px-3 py-1 rounded-md text-xs font-medium transition"
                   style={scope === "all" ? { background: NAVY, color: "white" } : { color: "#475569" }}>Todos</button>
@@ -71,7 +71,7 @@ function AdminSubNotifications({ notifications = [], users = [], onChanged }) {
                   {filtered.length === 0 && <div className="text-xs text-slate-400 px-2 py-1">Sin suscriptores.</div>}
                   {filtered.map((u) => (
                     <label key={u.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50 cursor-pointer">
-                      <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggle(u.id)} />
+                      <input className="notification-recipient-checkbox" type="checkbox" checked={selected.has(u.id)} onChange={() => toggle(u.id)} />
                       <span className="text-sm text-slate-700 truncate">{u.name || u.email}</span>
                       {u.email && <span className="text-xs text-slate-400 truncate">· {u.email}</span>}
                     </label>
@@ -92,7 +92,7 @@ function AdminSubNotifications({ notifications = [], users = [], onChanged }) {
         <CardContent className="space-y-2">
           {notifications.length === 0 && <div className="text-sm text-slate-400 px-2">Todavía no has enviado notificaciones.</div>}
           {notifications.map((n) => (
-            <div key={n.id} className="rounded-xl border border-slate-100 p-4">
+            <div key={n.id} className="notification-sent-item rounded-xl border border-slate-100 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-semibold text-slate-900">{n.title}</div>
