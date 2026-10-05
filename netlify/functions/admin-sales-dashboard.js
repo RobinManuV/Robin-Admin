@@ -6,6 +6,7 @@ const { json, methodNotAllowed, serverError } = require('../../lib/http');
 const { loadExpenseEntries, periodBounds, summarizeExpenses } = require('../../lib/finance-dashboard');
 const { buildSalesDashboard } = require('../../lib/sales-dashboard');
 const { isMissingPerformanceSchema } = require('../../lib/crm-identity');
+const { activeSalesTestRun, isLeadInTestRun } = require('../../lib/sales-test-mode');
 
 const PERIODS = new Set(['30d', 'month', '3m', '365d', 'ytd']);
 const metaCache = new Map();
@@ -65,9 +66,27 @@ async function resolveAds(adIds) {
 }
 
 async function loadMeta(bounds, leads) {
-  const cacheKey = `${ymd(bounds.start)}:${ymd(bounds.end)}`;
+  const crm = getAdminSupabase();
+  const activeSimulation = await activeSalesTestRun(crm);
+  const simulationRun = activeSimulation?.status === 'active' ? activeSimulation.test_run : '';
+  const cacheKey = `${ymd(bounds.start)}:${ymd(bounds.end)}:${simulationRun || 'live'}`;
   const cached = metaCache.get(cacheKey);
   let data = cached && Date.now() - cached.savedAt < META_CACHE_MS ? cached.data : null;
+  if (simulationRun) {
+    const { data: fixtures, error } = await crm.from('sales_simulated_meta_campaigns')
+      .select('campaign_id,campaign_name,spend,leads,period_start,period_end')
+      .eq('test_run', simulationRun)
+      .lte('period_start', ymd(addDays(bounds.end, -1)))
+      .gte('period_end', ymd(bounds.start));
+    if (error) throw error;
+    data = {
+      campaigns: (fixtures || []).map((row) => ({ id: row.campaign_id, name: row.campaign_name, spend: number(row.spend), leads: number(row.leads) })),
+      daily: [],
+      currency: 'EUR',
+      simulated: true,
+    };
+    metaCache.set(cacheKey, { savedAt: Date.now(), data });
+  }
   if (!data) {
     const accountId = await metaAccountId();
     const timeRange = JSON.stringify({ since: ymd(bounds.start), until: ymd(addDays(bounds.end, -1)) });
@@ -104,7 +123,7 @@ async function loadMeta(bounds, leads) {
     metaCache.set(cacheKey, { savedAt: Date.now(), data });
   }
   const adIds = [...new Set(leads.map((lead) => lead.source_payload?.ad_id).filter(Boolean).map(String))];
-  return { ...data, adCampaigns: await resolveAds(adIds) };
+  return { ...data, adCampaigns: data.simulated ? new Map() : await resolveAds(adIds) };
 }
 
 async function pagedRows(queryFactory, pageSize = 1000) {
@@ -167,10 +186,27 @@ exports.handler = async (event) => {
     const requested = String(event.queryStringParameters?.period || 'ytd');
     const period = PERIODS.has(requested) ? requested : 'ytd';
     const bounds = periodBounds(period);
-    const [rows, expenses] = await Promise.all([
+    const [loadedRows, expenses, testRun] = await Promise.all([
       loadRows(),
       loadExpenseEntries(bounds.start, bounds.end),
+      activeSalesTestRun(getAdminSupabase()),
     ]);
+    let rows = loadedRows;
+    if (testRun?.status === 'active') {
+      const testLeads = loadedRows.leads.filter((lead) => isLeadInTestRun(lead, testRun.test_run));
+      const leadIds = new Set(testLeads.map((lead) => String(lead.id)));
+      const testUsers = loadedRows.users.filter((user) => leadIds.has(String(user.lead_id || '')));
+      const userIds = new Set(testUsers.map((user) => String(user.id)));
+      rows = {
+        ...loadedRows,
+        leads: testLeads,
+        users: testUsers,
+        payments: loadedRows.payments.filter((payment) => userIds.has(String(payment.user_id))),
+        events: loadedRows.events.filter((event) => leadIds.has(String(event.lead_id))),
+        sessions: [],
+        applications: loadedRows.applications.filter((application) => leadIds.has(String(application.lead_id))),
+      };
+    }
 
     let meta = { campaigns: [], daily: [], adCampaigns: new Map(), currency: 'EUR' };
     let metaAvailable = true;

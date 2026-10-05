@@ -70,6 +70,10 @@
   to = "/.netlify/functions/admin-sales-dashboard"
   status = 200
 [[redirects]]
+  from = "/api/admin/sales/test"
+  to = "/.netlify/functions/admin-sales-test"
+  status = 200
+[[redirects]]
   from = "/api/web/collect"
   to = "/.netlify/functions/web-collect"
   status = 200

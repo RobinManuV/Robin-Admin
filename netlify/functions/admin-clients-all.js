@@ -8,6 +8,8 @@ const { readSessionFromEvent } = require('../../lib/auth');
 const { isApplicationAdmin, normalizeEmail } = require('../../lib/authorization');
 const { json, methodNotAllowed, serverError } = require('../../lib/http');
 const { attachStudentPhones } = require('../../lib/student-phone');
+const { getAdminSupabase } = require('../../lib/admin-supabase');
+const { activeSalesTestRun, testLeadIds } = require('../../lib/sales-test-mode');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') return methodNotAllowed(['GET']);
@@ -35,9 +37,11 @@ exports.handler = async (event) => {
       .order('created_at', { ascending: false });
     if (e2) throw e2;
 
+    const testRun = await activeSalesTestRun(getAdminSupabase());
+    const allowedLeadIds = testRun?.status === 'active' ? new Set(await testLeadIds(getAdminSupabase(), testRun.test_run)) : null;
     const clients = await attachStudentPhones(sb, (rows || []).filter((r) => {
       const isAdminRow = isApplicationAdmin(r);
-      return !isAdminRow;
+      return !isAdminRow && (!allowedLeadIds || allowedLeadIds.has(String(r.lead_id || '')));
     }));
 
     return json({ admin_email: adminEmail, clients });

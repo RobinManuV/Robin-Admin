@@ -13,6 +13,8 @@ const {
 } = require('../../lib/authorization');
 const { json, methodNotAllowed, serverError } = require('../../lib/http');
 const { attachStudentPhones } = require('../../lib/student-phone');
+const { getAdminSupabase } = require('../../lib/admin-supabase');
+const { activeSalesTestRun, testLeadIds } = require('../../lib/sales-test-mode');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') return methodNotAllowed(['GET']);
@@ -45,7 +47,10 @@ exports.handler = async (event) => {
     if (e2) throw e2;
 
     // Por seguridad, nunca devolver otro admin/supervisor como cliente.
-    const list = await attachStudentPhones(sb, (clients || []).filter((client) => !hasApplicationAdminRole(client)));
+    const testRun = await activeSalesTestRun(getAdminSupabase());
+    const allowedLeadIds = testRun?.status === 'active' ? new Set(await testLeadIds(getAdminSupabase(), testRun.test_run)) : null;
+    const visibleClients = (clients || []).filter((client) => !hasApplicationAdminRole(client) && (!allowedLeadIds || allowedLeadIds.has(String(client.lead_id || ''))));
+    const list = await attachStudentPhones(sb, visibleClients);
 
     return json({
       admin: {

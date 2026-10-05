@@ -9,6 +9,8 @@ const { normalizeTipo, ensureDriveFolder } = require('../../lib/notion');
 const { sendAccountAccessEmail } = require('../../lib/account-access-email');
 const { contractedAmountForUser } = require('../../lib/finance-dashboard');
 const { resolveCrmOwner, syncCrmIdentity } = require('../../lib/crm-identity');
+const { ensurePayments } = require('../../lib/payments');
+const { randomUUID } = require('crypto');
 
 const normalizedPerson = (value) => String(value || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
@@ -38,7 +40,7 @@ exports.handler = async (event) => {
 
     const crm = getAdminSupabase();
     const { data: lead, error: leadError } = await crm.from('crm_leads')
-      .select('id,notion_numeric_id,name,email,lead_type,owner_names,source_payload').eq('id', body.leadId).single();
+      .select('id,notion_numeric_id,name,email,lead_type,owner_names,source_payload,is_test').eq('id', body.leadId).single();
     if (leadError || !lead) return json({ error: 'lead_not_found' }, { statusCode: 404 });
     if (!lead.email) return json({ error: 'lead_email_required' }, { statusCode: 400 });
 
@@ -49,6 +51,7 @@ exports.handler = async (event) => {
     const tipo = normalizeTipo(body.clientType || lead.lead_type);
     const assignedTo = normalizeEmail(advisor);
     const salesAgent = String(lead.owner_names?.[0] || admin.nombre || admin.email || '').trim();
+    const isTestLead = lead.is_test === true && lead.source_payload?.simulated === true && Boolean(lead.source_payload?.test_run);
     let result = 'created';
     let userId;
     let emailSent = false;
@@ -58,10 +61,10 @@ exports.handler = async (event) => {
       userId = existing.id;
       const { error } = await portal.from('users').update({ assigned_to: assignedTo, tipo, notion_page_id: notionPageId }).eq('id', existing.id);
       if (error) throw error;
-      await ensureDriveFolder(portal, existing.id);
+      if (!isTestLead) await ensureDriveFolder(portal, existing.id);
     } else {
       if (await identityExists(portal, [leadId, lead.email])) return json({ error: 'identity_collision' }, { statusCode: 409 });
-      const password = String(process.env.NOTION_BOOTSTRAP_PASSWORD || process.env.DEFAULT_PASSWORD || '');
+      const password = isTestLead ? `Test-${randomUUID()}-Aa1!` : String(process.env.NOTION_BOOTSTRAP_PASSWORD || process.env.DEFAULT_PASSWORD || '');
       if (!password || !passwordPolicy(password).ok) return json({ error: 'invalid_bootstrap_password_configuration' }, { statusCode: 500 });
       const { data: inserted, error: insertError } = await portal.from('users').insert({
         lead_id: leadId, notion_page_id: notionPageId, username: leadId, email: lead.email,
@@ -70,9 +73,30 @@ exports.handler = async (event) => {
       }).select('id').single();
       if (insertError) throw insertError;
       userId = inserted.id;
-      await ensureDriveFolder(portal, inserted.id);
-      const accessEmail = await sendAccountAccessEmail({ email: lead.email, name: lead.name, username: leadId, password });
-      emailSent = !!accessEmail.sent;
+      if (!isTestLead) {
+        await ensureDriveFolder(portal, inserted.id);
+        const accessEmail = await sendAccountAccessEmail({ email: lead.email, name: lead.name, username: leadId, password });
+        emailSent = !!accessEmail.sent;
+      }
+    }
+    if (isTestLead) {
+      const nowIso = new Date().toISOString();
+      const { error: testUserError } = await portal.from('users').update({
+        requires_onboarding: false,
+        dni_completed: true,
+        profile_completed: true,
+        contract_signed: true,
+        contract_signed_at: nowIso,
+        contract_data: { simulated: true, test_run: lead.source_payload.test_run, tipo, fecha_firma: nowIso, version_template: 'test-mode' },
+        pago_completed: true,
+        pago_completed_at: nowIso,
+        pago_data: { simulated: true, test_run: lead.source_payload.test_run, source: 'test-mode' },
+      }).eq('id', userId);
+      if (testUserError) throw testUserError;
+      const { data: testUser, error: testUserLoadError } = await portal.from('users')
+        .select('id,tipo,origin,has_eu_id,num_carreras,pago_completed,pago_completed_at,pago_data').eq('id', userId).single();
+      if (testUserLoadError) throw testUserLoadError;
+      await ensurePayments(portal, testUser);
     }
     const [{ data: portalUser, error: portalUserError }, { data: portalPayments, error: portalPaymentsError }] = await Promise.all([
       portal.from('users').select('id,tipo,origin,has_eu_id,num_carreras,contract_data').eq('id', userId).single(),

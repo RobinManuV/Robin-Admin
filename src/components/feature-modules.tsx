@@ -21,8 +21,10 @@ import {
   MessageCircle,
   KeyRound,
   Plus,
+  PlayCircle,
   Search,
   ShieldCheck,
+  StopCircle,
   TrendingUp,
   Trash2,
   UserCheck,
@@ -36,7 +38,7 @@ import { integrationClient } from "@/services/integrations";
 import { adminDataClient } from "@/services/admin-data";
 import type { FinanceSnapshot, MetaSnapshot, PaymentAnalytics } from "@/services/integrations";
 import { portalClient } from "@/services/portal";
-import type { PortalAccessUser, PortalAdmin, PortalClient, PortalSnapshot } from "@/services/portal";
+import type { PortalAccessUser, PortalAdmin, PortalClient, PortalSnapshot, SalesTestStatus } from "@/services/portal";
 import { RobinStudentsAdmin } from "@/components/robin-students-admin";
 import { RobinSubscriptionsAdmin } from "@/components/robin-subscriptions-admin";
 import { DashboardLoader } from "@/components/dashboard-loader";
@@ -544,12 +546,12 @@ function SalesOverview() {
   const channelPie = visibleChannels.map((channel) => ({ ...channel, value: channel.contracted }));
   const campaignMax = Math.max(...data.campaigns.flatMap((campaign) => [campaign.leads, campaign.contracts]), 1);
   const cacCampaigns = data.campaigns.filter((campaign) => campaign.cac != null);
-  const sourcesUnavailable = !data.sources.holdedMarketing || !data.sources.meta;
+  const sourcesUnavailable = !data.sources.meta;
   const kpis = [
     { label: "Contratado", source: ["portal"] as const, value: money(data.kpis.contracted), detail: `${plainNumber(data.kpis.contracts)} contratos firmados en el periodo`, icon: UserCheck },
-    { label: "Conversión", source: ["portal", "meta"] as const, value: percent(data.kpis.conversion), detail: data.kpis.leads == null ? "Sin leads disponibles en Meta" : `${plainNumber(data.kpis.contracts)} contratos de ${plainNumber(data.kpis.leads)} leads de Meta`, icon: TrendingUp },
-    { label: "CAC", source: ["holded", "portal"] as const, value: data.sources.holdedMarketing ? money(data.kpis.cac) : "—", detail: "Gasto en marketing ÷ clientes", icon: BarChart3 },
-    { label: "LAC", source: ["holded", "portal"] as const, value: data.sources.holdedMarketing ? money(data.kpis.lac) : "—", detail: "Gasto en marketing ÷ leads", icon: Megaphone },
+    { label: "Conversión", source: ["portal"] as const, value: percent(data.kpis.conversion), detail: `${plainNumber(data.kpis.contracts)} contratos de ${plainNumber(data.kpis.leads)} leads del Portal`, icon: TrendingUp },
+    { label: "CAC", source: ["meta", "portal"] as const, value: data.sources.meta ? money(data.kpis.cac) : "—", detail: "Gasto de campañas Meta ÷ clientes", icon: BarChart3 },
+    { label: "LAC", source: ["meta", "portal"] as const, value: data.sources.meta ? money(data.kpis.lac) : "—", detail: "Gasto de campañas Meta ÷ leads del Portal", icon: Megaphone },
   ];
 
   return <div className="finance-dashboard sales-dashboard" role="tabpanel" aria-label="Ventas">
@@ -558,12 +560,12 @@ function SalesOverview() {
       <div className="finance-period"><label htmlFor="sales-period">Periodo</label><select id="sales-period" value={period} onChange={(event) => setPeriod(event.target.value as FinancePeriod)}>{FINANCE_PERIODS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><small>Gráficos {GRANULARITY_LABEL[data.granularity].toLowerCase()} · el filtro aplica a toda la pantalla</small></div>
     </header>
 
-    {sourcesUnavailable && <div className="finance-source-warning"><AlertTriangle /><span>{!data.sources.holdedMarketing && !data.sources.meta ? "Holded y Meta Ads no están disponibles; los importes afectados se muestran como “—”." : !data.sources.holdedMarketing ? "El gasto de marketing de Holded no está disponible; CAC y LAC se muestran como “—”." : "Meta Ads no está disponible; los leads, las campañas, el CAC por campaña y el margen de Meta se muestran como “—”."}</span></div>}
+    {sourcesUnavailable && <div className="finance-source-warning"><AlertTriangle /><span>Meta Ads no está disponible: no se ha recibido el gasto de campañas. La conversión sigue usando los leads históricos guardados en el Portal; CAC, LAC y el detalle de campañas se muestran como “—”.</span></div>}
 
     <section className="finance-kpis sales-kpis">{kpis.map(({ label, source, value, detail, icon: Icon }) => <article key={label}><i><Icon /></i><div><span>{label}<span className="sales-source-list">{source.map((item) => <SourceTag key={item} source={item}>{item === "portal" ? "Portal" : item === "meta" ? "Meta Ads" : "Holded"}</SourceTag>)}</span></span><strong>{value}</strong><small>{detail}</small></div></article>)}</section>
 
     <div className="sales-primary-grid">
-      <section className="panel finance-chart sales-temporal-chart"><SalesHeading title="Contratos vs leads" sub="Leads registrados por Meta Ads y contratos firmados en Portal" sources={["meta", "portal"]} granularity={data.granularity} /><ResponsiveContainer width="100%" height={290}><ComposedChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="label" tickFormatter={(_, index) => data.buckets[index]?.tick || ""} axisLine={false} tickLine={false} fontSize={10} /><YAxis yAxisId="count" hide domain={[0, "auto"]} /><YAxis yAxisId="conversion" orientation="right" domain={[0, "auto"]} tickFormatter={(value) => `${value}%`} axisLine={false} tickLine={false} width={38} fontSize={9} /><Tooltip formatter={(value: any, name: any) => [name === "Conversión" ? percent(Number(value)) : Number(value).toLocaleString("es-ES"), name]} /><Bar yAxisId="count" dataKey="leads" name="Leads Meta" fill="#b9c9df" radius={[4,4,0,0]} /><Bar yAxisId="count" dataKey="contracts" name="Contratos firmados" fill="#2f5a8a" radius={[4,4,0,0]} /><Line yAxisId="conversion" type="monotone" dataKey="conversion" name="Conversión" stroke="#c8742a" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls={false} /></ComposedChart></ResponsiveContainer></section>
+      <section className="panel finance-chart sales-temporal-chart"><SalesHeading title="Contratos vs leads" sub="Leads registrados y contratos firmados en Portal" sources={["portal"]} granularity={data.granularity} /><ResponsiveContainer width="100%" height={290}><ComposedChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="label" tickFormatter={(_, index) => data.buckets[index]?.tick || ""} axisLine={false} tickLine={false} fontSize={10} /><YAxis yAxisId="count" hide domain={[0, "auto"]} /><YAxis yAxisId="conversion" orientation="right" domain={[0, "auto"]} tickFormatter={(value) => `${value}%`} axisLine={false} tickLine={false} width={38} fontSize={9} /><Tooltip formatter={(value: any, name: any) => [name === "Conversión" ? percent(Number(value)) : Number(value).toLocaleString("es-ES"), name]} /><Bar yAxisId="count" dataKey="leads" name="Leads Portal" fill="#b9c9df" radius={[4,4,0,0]} /><Bar yAxisId="count" dataKey="contracts" name="Contratos firmados" fill="#2f5a8a" radius={[4,4,0,0]} /><Line yAxisId="conversion" type="monotone" dataKey="conversion" name="Conversión" stroke="#c8742a" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls={false} /></ComposedChart></ResponsiveContainer></section>
       <section className="panel finance-chart sales-channel-chart"><SalesHeading title="Contratado por canal" sub="Importe contratado en Portal según el canal del lead" sources={["portal"]} />{totalContracted > 0 && channelPie.length ? <><ResponsiveContainer width="100%" height={210}><RechartsPieChart><Pie data={channelPie} dataKey="value" nameKey="label" innerRadius={58} outerRadius={88} paddingAngle={2}>{channelPie.map((channel) => <Cell key={channel.key} fill={SALES_CHANNEL_COLORS[channel.key]} />)}<LabelList dataKey="value" position="outside" formatter={(value: any) => money(Number(value))} /></Pie><Tooltip formatter={(value: any, _name: any, item: any) => [`${money(Number(value))} · ${percent(item?.payload?.percentage)}`, item?.payload?.label]} /></RechartsPieChart></ResponsiveContainer><div className="sales-donut-total"><strong>{money(channelPie.reduce((total, channel) => total + channel.value, 0))}</strong><span>contratado con canal</span></div><div className="sales-channel-legend">{visibleChannels.map((channel) => <div key={channel.key}><span><i style={{ background: SALES_CHANNEL_COLORS[channel.key] }} />{channel.label}</span><strong>{percent(channel.percentage)}</strong></div>)}</div></> : <div className="sales-empty-chart">No hay importe contratado con un canal identificable en el periodo.</div>}</section>
     </div>
 
@@ -658,7 +660,25 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [testBusy, setTestBusy] = useState(false);
+  const [testStatus, setTestStatus] = useState<SalesTestStatus | null>(null);
   useEffect(() => { portalClient.adminUsers().then((result) => setUsers(result.users)).catch(() => setUsers([])); }, []);
+  useEffect(() => { portalClient.salesTestStatus().then(setTestStatus).catch(() => setTestStatus(null)); }, []);
+
+  async function launchTest() {
+    setTestBusy(true);
+    try { const result = await portalClient.launchSalesTest(); setTestStatus(result); notify("Modo de prueba activado para todos los administradores"); }
+    catch (error) { notify(error instanceof Error ? error.message : "No se pudo activar el modo de prueba"); }
+    finally { setTestBusy(false); }
+  }
+
+  async function stopTest() {
+    if (!window.confirm("Se borrarán todos los leads, clientes, pagos y campañas creados por el test. Los datos reales no se modificarán. ¿Continuar?")) return;
+    setTestBusy(true);
+    try { const result = await portalClient.stopSalesTest(); setTestStatus(result); notify(`Test detenido: ${result.removed?.leads || 0} leads y ${result.removed?.users || 0} clientes eliminados`); }
+    catch (error) { notify(error instanceof Error ? error.message : "No se pudo detener y limpiar el test"); }
+    finally { setTestBusy(false); }
+  }
 
   async function createUser(event: React.FormEvent) {
     event.preventDefault(); setBusy(true);
@@ -687,6 +707,13 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
       <section className="settings-security-grid">
         <form className="panel profile-photo-card" onSubmit={(event) => event.preventDefault()}><div className="settings-avatar">{avatarUrl ? <img src={avatarUrl} alt="Foto de perfil" /> : currentUser.slice(0, 2).toUpperCase()}</div><div><h2>Foto de perfil</h2><p>JPG, PNG o WEBP de hasta 5 MB.</p><label className="ui-button outline"><Camera />Cambiar foto<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; try { const result = await portalClient.uploadAvatar(file); setAvatarUrl(result.avatar_url); notify("Foto de perfil actualizada"); } catch (error) { notify(error instanceof Error ? error.message : "No se pudo subir la foto"); } }} /></label></div></form>
         <form className="panel password-card" onSubmit={async (event) => { event.preventDefault(); setBusy(true); try { await portalClient.changePassword(currentPassword, newPassword); setCurrentPassword(""); setNewPassword(""); notify("Contraseña actualizada"); } catch (error) { notify(error instanceof Error ? error.message : "No se pudo cambiar la contraseña"); } finally { setBusy(false); } }}><div><h2><KeyRound /> Cambiar mi contraseña</h2><p>Usa al menos 10 caracteres.</p></div><input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} placeholder="Contraseña actual" required /><input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Nueva contraseña" minLength={10} required /><Button type="submit" disabled={busy}>Actualizar</Button></form>
+      </section>
+      <section className={`panel sales-test-card ${testStatus?.active ? "is-active" : ""}`}>
+        <div><h2>{testStatus?.active ? "Modo de prueba activo" : "Modo de prueba de ventas"}</h2><p>{testStatus?.active ? "Visible para todos los administradores. Puedes mover los leads, convertirlos en clientes o marcarlos como Lost; Detener test eliminará todo el conjunto." : "Crea 20 leads simulados, campañas de Meta y clientes de prueba. Los clientes tienen contrato firmado y solo la primera cuota pagada."}</p></div>
+        <Badge variant="outline">{testStatus?.active ? "TEST ACTIVO" : "INACTIVO"}</Badge>
+        {testStatus?.active
+          ? <Button type="button" variant="outline" onClick={() => void stopTest()} disabled={testBusy}><StopCircle />{testBusy ? "Deteniendo…" : "Detener test"}</Button>
+          : <Button type="button" onClick={() => void launchTest()} disabled={testBusy}><PlayCircle />{testBusy ? "Activando…" : "Launch test"}</Button>}
       </section>
       <section className="admin-grid">
         {users.map((user) => { const label = user.nombre || user.email || user.username || "Administrador"; const current = user.id === portalAdmin.id; return <article className="panel" key={user.id}><i className={user.avatar_url ? "has-photo" : ""}>{user.avatar_url ? <img src={user.avatar_url} alt="" /> : label.slice(0, 2).toUpperCase()}</i><div><h3>{label}</h3><p>{user.email || "Administrador"}{current ? " · Usuario actual" : ""}</p></div><Badge variant="outline">Activo</Badge>{current ? <span /> : <button type="button" className="remove-admin" aria-label={`Eliminar ${label}`} onClick={() => void removeUser(user)}><Trash2 /></button>}</article>; })}
