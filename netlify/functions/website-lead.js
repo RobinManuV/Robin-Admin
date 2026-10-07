@@ -32,6 +32,9 @@ exports.handler = async (event) => {
   const phone = pick('phone', 'telefono', 'teléfono', 'Teléfono', 'field_8584413');
   const message = pick('message', 'mensaje', 'Mensaje', 'notes', 'notas', 'comentario', 'comentarios', 'consulta', 'interes', 'interés');
   const service = pick('leadType', 'tipo', 'Servicio', 'service', 'field_8b6c6a7');
+  const rawFormName = pick('form-name', 'form_name', 'formName', 'formulario') || body.form_name || body.formName || body.form || body.meta?.form_name || '';
+  const normalizedFormName = String(rawFormName).trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const formName = /colegio|school/.test(normalizedFormName) ? 'colegios' : normalizedFormName || null;
   const leadType = normalizeLeadType(service);
   const remainingDetails = Object.entries(values)
     .filter(([key, value]) => value != null && String(value).trim() && !/(name|nombre|apellido|mail|correo|phone|telefono|movil|leadtype|tipo|servicio|service|website)/i.test(key))
@@ -45,7 +48,7 @@ exports.handler = async (event) => {
       email, phone, summary: body.summary,
       comment: formNotes, bodyText: formNotes, leadType,
       campaign: body.campaign || body.utm_campaign,
-      payload: { questionnaire: body.questionnaire || body.cuestionario || null, service: service || null, utm_source: body.utm_source || null, utm_medium: body.utm_medium || null, page_url: body.pageUrl || body.page_url || body.meta?.page_url || 'https://project-robin.com/contacto/' },
+      payload: { form_name: formName, questionnaire: body.questionnaire || body.cuestionario || null, service: service || null, utm_source: body.utm_source || null, utm_medium: body.utm_medium || null, page_url: body.pageUrl || body.page_url || body.meta?.page_url || 'https://project-robin.com/contacto/' },
     });
     // Elementor treats every status other than exactly 200 as a failed form,
     // including the otherwise valid 201 Created response.

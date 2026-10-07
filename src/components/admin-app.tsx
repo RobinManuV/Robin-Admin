@@ -365,7 +365,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
               contacts={crmContacts}
               leadOwners={leadOwners}
               onAssignLead={(id, owner) => { setLeadOwners((owners) => ({ ...owners, [id]: owner })); persistLead(id, { owner }); }}
-              onSetLeadSource={(id, source) => { const labels: Record<string, string> = { meta: "Meta Ads", organic: "Orgánico", organic_social: "Orgánico RRSS", referral: "Referidos", other: "Otros", schools: "Colegios" }; const label = labels[source] || "Otros"; setCrmContacts((contacts) => contacts.map((contact) => contact.id === id ? { ...contact, source: label } : contact)); persistLead(id, { source }); }}
+              onSetLeadSource={(id, source) => { const labels: Record<string, string> = { meta: "Meta Ads", website: "Página web", organic: "Orgánico", organic_social: "Orgánico RRSS", referral: "Referidos", other: "Otros", schools: "Colegios" }; const label = labels[source] || "Otros"; setCrmContacts((contacts) => contacts.map((contact) => contact.id === id ? { ...contact, source: label } : contact)); persistLead(id, { source }); }}
               onDeleteLead={deleteLead}
               onDeleteLeads={deleteLeads}
               onAddLead={addLead}

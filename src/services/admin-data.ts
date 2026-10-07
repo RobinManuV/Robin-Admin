@@ -29,7 +29,7 @@ function sourceFor(row: Record<string, any>): string {
   const source = String(row.source_payload?.source || "").trim().toLowerCase();
   if (source === "website") {
     const utmSource = String(row.source_payload?.utm_source || "").trim().toLowerCase();
-    return /(^|\W)(meta|facebook|instagram|fb|ig)(\W|$)/.test(utmSource) ? "Meta Ads" : "Orgánico";
+    return /(^|\W)(meta|facebook|instagram|fb|ig)(\W|$)/.test(utmSource) ? "Meta Ads" : "Página web";
   }
   if (source === "meta") return "Meta Ads";
   if (["organic", "organico"].includes(source)) return "Orgánico";
@@ -71,16 +71,17 @@ function toContact(row: Record<string, any>): Contact {
   const name = placeholderName ? recoveredName || row.email || row.phone || "Sin nombre" : storedName;
   const stage = (row.crm_stage || "Por contactar") as CrmStage;
   const category = row.lead_type === "Delft" ? "delft" : row.lead_type;
+  const formName = String(row.source_payload?.form_name || row.source_payload?.form || (String(row.comment || "").match(/Formulario:\s*([^\n·]+)/i)?.[1] ?? "")).trim().toLowerCase();
   const formNotes = fieldValue(fields, /(message|mensaje|notes?|notas?|comentario|comments?|details?|detalles?|respuesta|response|consulta|interes)/);
   const remainingFormDetails = Object.entries(fields)
     .filter(([key, value]) => value != null && String(value).trim() && !/(name|nombre|apellido|mail|correo|phone|telefono|movil)/i.test(key))
     .map(([key, value]) => `${key.replace(/_/g, " ")}: ${String(value).trim()}`)
     .join("\n");
   const storedCampaign = String(row.campaign_notion_urls?.[0] || "").trim();
-  const payloadCampaign = String(row.source_payload?.campaign_name || row.source_payload?.form_name || "").trim();
+  const payloadCampaign = String(row.source_payload?.campaign_name || "").trim();
   const isNotionUrl = (value: string) => /^https?:\/\/(?:www\.)?notion\.(?:so|site|com)\//i.test(value);
   const campaign = [payloadCampaign, storedCampaign].find((value) => value && !value.startsWith("meta-ad:") && !isNotionUrl(value)) || "Pendiente de identificar";
-  return { id: row.id, name, initials: name.split(/\s+/).slice(0, 2).map((part: string) => part[0] || "").join("").toUpperCase(), email: row.email || fieldValue(fields, /^e?mail$/, /^correo/) || "", phone: row.phone || fieldValue(fields, /phone/, /telefono/, /movil/) || "", country: "", university: row.school_name || "", course: "", product: "Aplicación", status: statusFor(stage), source: sourceFor(row), campaign, owner: row.owner_names?.[0] || "", probability: Number(row.heat || 0), nextAction: "", lastContact: row.contact_at || "—", value: 0, tags: [], databaseFields: databaseFieldValues(row), category: category as LeadCategory | undefined, heat: Number(row.heat ?? 50), notes: row.comment || row.body_text || row.summary || formNotes || remainingFormDetails || "", stage, lostAt: row.lost_at || undefined, lostReason: row.source_payload?.lost_reason || undefined, lostReasonDetail: row.source_payload?.lost_reason_detail || undefined, createdAt: row.source_created_at || row.created_at || undefined, clientAt: row.inside_at || undefined };
+  return { id: row.id, name, initials: name.split(/\s+/).slice(0, 2).map((part: string) => part[0] || "").join("").toUpperCase(), email: row.email || fieldValue(fields, /^e?mail$/, /^correo/) || "", phone: row.phone || fieldValue(fields, /phone/, /telefono/, /movil/) || "", country: "", university: row.school_name || "", course: "", product: "Aplicación", status: statusFor(stage), source: sourceFor(row), campaign, owner: row.owner_names?.[0] || "", probability: Number(row.heat || 0), nextAction: "", lastContact: row.contact_at || "—", value: 0, tags: [], databaseFields: databaseFieldValues(row), formName, category: category as LeadCategory | undefined, heat: Number(row.heat ?? 50), notes: row.comment || row.body_text || row.summary || formNotes || remainingFormDetails || "", stage, lostAt: row.lost_at || undefined, lostReason: row.source_payload?.lost_reason || undefined, lostReasonDetail: row.source_payload?.lost_reason_detail || undefined, createdAt: row.source_created_at || row.created_at || undefined, clientAt: row.inside_at || undefined };
 }
 
 export const adminDataClient = {
