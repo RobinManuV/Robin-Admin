@@ -8,7 +8,7 @@ const { buildSalesDashboard } = require('../../lib/sales-dashboard');
 const { isMissingPerformanceSchema } = require('../../lib/crm-identity');
 const { activeSalesTestRun, isLeadInTestRun } = require('../../lib/sales-test-mode');
 
-const PERIODS = new Set(['30d', 'month', '3m', '365d', 'ytd']);
+const PERIODS = new Set(['30d', 'month', 'last_month', '3m', '365d', 'ytd']);
 const metaCache = new Map();
 const META_CACHE_MS = 30 * 60 * 1000;
 

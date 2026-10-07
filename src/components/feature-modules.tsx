@@ -136,7 +136,6 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selected, setSelected] = useState<Contact | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [assignment, setAssignment] = useState<"all" | "assigned" | "unassigned">("all");
   const [stageFilter, setStageFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [campaignFilter, setCampaignFilter] = useState("all");
@@ -146,18 +145,17 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
   const [savingLead, setSavingLead] = useState(false);
   const list = useMemo(() => contacts.filter((contact) => {
     const stage = leadStages[contact.id] || contact.stage || "Por contactar";
+    if (leadOwners[contact.id]) return false;
     if (stage === "Cliente") return false;
     if (!`${contact.name} ${contact.email} ${contact.phone} ${contact.source}`.toLowerCase().includes(query.trim().toLowerCase())) return false;
-    if (assignment === "assigned" && !leadOwners[contact.id]) return false;
-    if (assignment === "unassigned" && leadOwners[contact.id]) return false;
     if (stageFilter !== "all" && stage !== stageFilter) return false;
     if (sourceFilter !== "all" && contact.source !== sourceFilter) return false;
     return campaignFilter === "all" || contact.campaign === campaignFilter;
-  }).sort((a, b) => leadEntryTimestamp(b.createdAt) - leadEntryTimestamp(a.createdAt) || b.id.localeCompare(a.id)), [contacts, leadOwners, leadStages, query, assignment, stageFilter, sourceFilter, campaignFilter]);
+  }).sort((a, b) => leadEntryTimestamp(b.createdAt) - leadEntryTimestamp(a.createdAt) || b.id.localeCompare(a.id)), [contacts, leadOwners, leadStages, query, stageFilter, sourceFilter, campaignFilter]);
   const sources = useMemo(() => [...new Set(contacts.map((contact) => contact.source).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [contacts]);
   const campaigns = useMemo(() => [...new Set(contacts.map((contact) => contact.campaign).filter((campaign) => campaign && campaign !== "Pendiente de identificar"))].sort((a, b) => a.localeCompare(b, "es")), [contacts]);
   function exportLeads() {
-    const rows = contacts.filter((contact) => (leadStages[contact.id] || contact.stage || "Por contactar") !== "Cliente");
+    const rows = contacts.filter((contact) => !leadOwners[contact.id] && (leadStages[contact.id] || contact.stage || "Por contactar") !== "Cliente");
     const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
     const headers = ["Nombre", "Email", "Teléfono", "Origen", "Campaña", "Estado", "Responsable", "Heat", "Motivo Lost", "Detalle Lost", "Notas", "Fecha de alta"];
     const body = rows.map((contact) => [contact.name, contact.email, contact.phone, contact.source, contact.campaign, leadStages[contact.id] || contact.stage || "Por contactar", leadOwners[contact.id] || "Sin asignar", contact.heat ?? "", lostReasonLabel(contact.lostReason), contact.lostReasonDetail || "", contact.notes || "", contact.createdAt || ""].map(csvCell).join(","));
@@ -175,12 +173,12 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
       </Title>
       <div className="module-toolbar">
         <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre, email o canal…" /></label>
-        <Button variant="outline" onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{(assignment !== "all" || stageFilter !== "all" || sourceFilter !== "all" || campaignFilter !== "all") && <span className="filter-count">{Number(assignment !== "all") + Number(stageFilter !== "all") + Number(sourceFilter !== "all") + Number(campaignFilter !== "all")}</span>}</Button>
+        <Button variant="outline" onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{(stageFilter !== "all" || sourceFilter !== "all" || campaignFilter !== "all") && <span className="filter-count">{Number(stageFilter !== "all") + Number(sourceFilter !== "all") + Number(campaignFilter !== "all")}</span>}</Button>
         <Button variant="outline" onClick={exportLeads}><Download />Exportar CSV</Button>
         {selectedIds.size > 0 && <Button variant="outline" className="bulk-delete" disabled={deleting === "bulk"} onClick={async () => { if (!window.confirm(`¿Eliminar definitivamente ${selectedIds.size} leads seleccionados?`)) return; setDeleting("bulk"); try { await onDeleteLeads([...selectedIds]); notify(`${selectedIds.size} leads eliminados correctamente`); setSelectedIds(new Set()); } catch (error) { notify(error instanceof Error ? error.message : "No se pudieron eliminar los leads"); } finally { setDeleting(null); } }}><Trash2 />{deleting === "bulk" ? "Eliminando…" : `Eliminar (${selectedIds.size})`}</Button>}
         <Button onClick={() => setAddingLead(true)}><Plus />Añadir lead</Button>
       </div>
-      {filtersOpen && <section className="lead-filters panel"><label>Asignación<select value={assignment} onChange={(event) => setAssignment(event.target.value as typeof assignment)}><option value="all">Todos</option><option value="unassigned">Sin asignar</option><option value="assigned">Asignados</option></select></label><label>Estado<select value={stageFilter} onChange={(event) => setStageFilter(event.target.value)}><option value="all">Todos los estados</option>{["Por contactar", "Contactado", "Llamada programada", "Llamada tenida", "Propuesta enviada", "En espera", "Lost"].map((stage) => <option key={stage}>{stage}</option>)}</select></label><label>Origen<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="all">Todos los orígenes</option>{sources.map((source) => <option key={source} value={source}>{source}</option>)}</select></label><label>Campaña<select value={campaignFilter} onChange={(event) => setCampaignFilter(event.target.value)}><option value="all">Todas las campañas</option>{campaigns.map((campaign) => <option key={campaign} value={campaign}>{campaign}</option>)}</select></label><button type="button" onClick={() => { setAssignment("all"); setStageFilter("all"); setSourceFilter("all"); setCampaignFilter("all"); }}>Limpiar filtros</button></section>}
+      {filtersOpen && <section className="lead-filters panel"><label>Estado<select value={stageFilter} onChange={(event) => setStageFilter(event.target.value)}><option value="all">Todos los estados</option>{["Por contactar", "Contactado", "Llamada programada", "Llamada tenida", "Propuesta enviada", "En espera", "Lost"].map((stage) => <option key={stage}>{stage}</option>)}</select></label><label>Origen<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="all">Todos los orígenes</option>{sources.map((source) => <option key={source} value={source}>{source}</option>)}</select></label><label>Campaña<select value={campaignFilter} onChange={(event) => setCampaignFilter(event.target.value)}><option value="all">Todas las campañas</option>{campaigns.map((campaign) => <option key={campaign} value={campaign}>{campaign}</option>)}</select></label><button type="button" onClick={() => { setStageFilter("all"); setSourceFilter("all"); setCampaignFilter("all"); }}>Limpiar filtros</button></section>}
       <section className="panel inbox-panel">
         <div className="data-table">
           <table>
@@ -200,6 +198,7 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
                       onChange={(event) => {
                         event.stopPropagation();
                         onAssignLead(contact.id, event.target.value);
+                        setSelectedIds((current) => { const next = new Set(current); next.delete(contact.id); return next; });
                         notify(`${contact.name} asignado a ${event.target.value}`);
                       }}
                     >
@@ -333,6 +332,7 @@ function GlobalAnalytics({ contacts, leadStages, snapshot, connected }: { contac
 const FINANCE_PERIODS: Array<{ value: FinancePeriod; label: string }> = [
   { value: "30d", label: "Últimos 30 días" },
   { value: "month", label: "Mes actual" },
+  { value: "last_month", label: "Mes pasado" },
   { value: "3m", label: "Últimos 3 meses" },
   { value: "365d", label: "Últimos 365 días" },
   { value: "ytd", label: "Year to date" },
@@ -366,6 +366,29 @@ function FinanceXAxis({ buckets }: { buckets: FinanceDashboard["buckets"] }) {
   return <XAxis dataKey="label" tickFormatter={(_, index) => buckets[index]?.tick || ""} axisLine={false} tickLine={false} fontSize={10} />;
 }
 
+function expenseDiagnosticCopy(data: FinanceDashboard) {
+  const diagnostic = data.expenseDiagnostics;
+  if (!diagnostic) {
+    return data.sources?.holdedAccounting === false
+      ? { tone: "unavailable", title: "Gastos de Holded no disponibles", text: "El portal no ha podido leer la contabilidad de gastos. Los importes se muestran como “—”." }
+      : null;
+  }
+  if (diagnostic.status === "ok") return { tone: "ok", title: "Gastos de Holded sincronizados", text: `${diagnostic.classifiedDocuments} facturas de compra clasificadas en el periodo seleccionado.` };
+  if (diagnostic.status === "empty") return { tone: "empty", title: "Holded respondió sin gastos", text: "La conexión funciona, pero Holded no devolvió facturas de compra para el periodo seleccionado." };
+  if (diagnostic.status === "partial") return { tone: "partial", title: "Hay gastos pendientes de clasificar", text: `Holded devolvió ${diagnostic.documentCount} facturas de compra: ${diagnostic.classifiedDocuments} clasificadas y ${diagnostic.unclassifiedDocuments} sin una cuenta configurada.` };
+  if (diagnostic.status === "fallback") return { tone: "fallback", title: "Gastos cargados en modo alternativo", text: "No se pudieron leer las facturas de compra. Se muestran movimientos pagados o asientos; las facturas pendientes podrían no estar incluidas." };
+  const missingCredential = diagnostic.code === "holded_analytics_not_configured" || diagnostic.primaryError === "holded_analytics_not_configured";
+  return {
+    tone: "unavailable",
+    title: "Gastos de Holded no disponibles",
+    text: missingCredential
+      ? "Falta HOLDED_API_KEY en el despliegue de producción que ejecuta este portal."
+      : diagnostic.code === "holded_expenses_unclassified"
+        ? `Holded devolvió ${diagnostic.documentCount} facturas, pero ninguna utiliza una cuenta de gastos configurada.`
+        : `Holded no ha entregado los gastos. Código de diagnóstico: ${diagnostic.code || "holded_accounting_unavailable"}.`,
+  };
+}
+
 function FinanceOverview() {
   const [period, setPeriod] = useState<FinancePeriod>("ytd");
   const [data, setData] = useState<FinanceDashboard | null>(null);
@@ -389,11 +412,18 @@ function FinanceOverview() {
   if (error && !data) return <div className="finance-error"><AlertTriangle /><div><strong>No se pudieron cargar las finanzas</strong><span>{error}</span></div></div>;
   if (!data) return null;
   const hasAccounting = data.sources?.holdedAccounting !== false;
+  const expenseStatus = expenseDiagnosticCopy(data);
+  const hasOtherWarnings = data.warnings?.some((warning) => !warning.startsWith("holded_expenses_") && warning !== "holded_accounting_unavailable");
+  const purchaseTax = data.expenses.purchaseTax ?? data.expenses.taxes;
+  const salesTax = data.expenses.salesTax ?? null;
+  const netTax = data.expenses.netTax ?? (salesTax != null && purchaseTax != null ? salesTax - purchaseTax : null);
+  const netTaxLabel = netTax != null && netTax < 0 ? "IVA neto a compensar" : "IVA neto a pagar";
+  const netTaxValue = netTax != null && netTax < 0 ? Math.abs(netTax) : netTax;
   const kpis = [
     { label: "Ventas", source: "holded" as const, value: money(data.kpis.sales), detail: data.kpis.invoices == null ? "—" : `${data.kpis.invoices} facturas emitidas`, icon: CircleDollarSign },
     { label: "Contratado", source: "portal" as const, value: money(data.kpis.contracted), detail: "Todas las cuotas previstas del plan", icon: FileText, alert: data.kpis.anomaly },
     { label: "Alumnos", source: "portal" as const, value: plainNumber(data.kpis.students), detail: "Contratos firmados en el periodo", icon: GraduationCap },
-    { label: "CAC", source: "both" as const, value: hasAccounting ? money(data.kpis.cac) : "—", detail: "Marketing ÷ nuevos alumnos", icon: BarChart3 },
+    { label: "Gastos", source: "holded" as const, value: hasAccounting ? money(data.expenses.total) : "—", detail: "Facturas de compra, incluido IVA", icon: BarChart3 },
   ];
   const cashPoints = data.cash.points.map((point) => ({ ...point, label: new Date(`${point.date}T12:00:00`).toLocaleDateString("es-ES", { month: "short", year: "2-digit" }) }));
   const currentCash = cashPoints.at(-1)?.balance ?? null;
@@ -419,7 +449,8 @@ function FinanceOverview() {
     </header>
 
     {data.kpis.anomaly && <div className="finance-anomaly"><AlertTriangle /><span>{period === "ytd" || period === "365d" ? <><strong>Diferencia de histórico:</strong> El Portal conserva datos desde agosto, mientras Holded contiene el periodo completo. Por eso Contratado puede quedar por debajo de Ventas.</> : <><strong>Inconsistencia de datos:</strong> Contratado es inferior a Ventas en este periodo. Revisa el cruce entre Portal y Holded.</>}</span></div>}
-    {data.warnings?.length ? <div className="finance-source-warning"><AlertTriangle /><span>Hay fuentes temporalmente no disponibles. Sus importes se muestran como “—”.</span></div> : null}
+    {expenseStatus && <div className={`finance-expense-status ${expenseStatus.tone}`}><AlertTriangle /><span><strong>{expenseStatus.title}</strong>{expenseStatus.text}</span></div>}
+    {hasOtherWarnings ? <div className="finance-source-warning"><AlertTriangle /><span>Hay otras fuentes temporalmente no disponibles. Sus importes se muestran como “—”.</span></div> : null}
 
     <section className="finance-kpis">{kpis.map(({ label, source, value, detail, icon: Icon, alert }) => <article key={label} className={alert ? "is-alert" : ""}><i><Icon /></i><div><span>{label}<SourceTag source={source}>{source === "both" ? "Holded + Portal" : source === "holded" ? "Holded" : "Portal"}</SourceTag></span><strong>{value}</strong><small>{detail}</small></div></article>)}</section>
 
@@ -438,12 +469,12 @@ function FinanceOverview() {
         ["Ventas", "Holded", money(data.collections.sales)], ["Cobrado", "Holded", money(data.collections.collected)], ["Emitido (con IVA)", "Holded", money(data.collections.emitted)], ["Contratado", "Portal", money(data.collections.contracted)], ["Nº facturas emitidas", "Holded", plainNumber(data.collections.invoices)], ["Pendiente", "Holded", money(data.collections.pending)], ["Factura media", "Holded", money(data.collections.averageInvoice)], ["Ticket medio", "Portal", money(data.collections.averageTicket)],
       ].map(([label, source, value]) => <div key={label}><span>{label}<SourceTag source={source === "Holded" ? "holded" : "portal"}>{source}</SourceTag></span><strong>{value}</strong></div>)}</div></div>
       <i />
-      <div><h2>Pagos <SourceTag source="holded">Holded</SourceTag></h2><div className="finance-expenses">{[
-        ["Operativos", data.expenses.operational, ""], ["Marketing", data.expenses.marketing, ""], ["Otros", data.expenses.other, ""], ["CAPEX", data.expenses.capex, ""], ["Total pagos", data.expenses.payments, "total"], ["Total IVA", data.expenses.taxes, "tax-total"], ["Total", data.expenses.total, "grand-total"],
-      ].map(([label, value, className]) => <div key={String(label)} className={String(className)}><span>{label}</span><strong>{hasAccounting || label === "Total IVA" ? money(value as number | null) : "—"}</strong></div>)}</div></div>
+      <div><h2>Gastos contabilizados <SourceTag source="holded">Holded</SourceTag></h2><p className="finance-expense-basis">Facturas de compra por fecha de emisión, estén pagadas o pendientes.</p><div className="finance-expenses">{[
+        ["Operativos", data.expenses.operational, ""], ["Marketing", data.expenses.marketing, ""], ["Otros", data.expenses.other, ""], ["CAPEX", data.expenses.capex, ""], ["Base de gastos", data.expenses.payments, "total"], ["IVA soportado · compras", purchaseTax, "tax-total"], ["Total compras", data.expenses.total, "grand-total"], ["IVA repercutido · ventas", salesTax, "sales-tax"], [netTaxLabel, netTaxValue, "net-tax"],
+      ].map(([label, value, className]) => <div key={String(label)} className={String(className)}><span>{label}</span><strong>{hasAccounting ? money(value as number | null) : "—"}</strong></div>)}</div></div>
     </section>
 
-    <section className="panel finance-chart finance-wide-chart"><ChartHeading title="Cobros vs gastos" sub="Entradas y salidas de dinero" source="holded" granularity={data.granularity} />{hasAccounting ? <ResponsiveContainer width="100%" height={260}><LineChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><FinanceXAxis buckets={data.buckets} /><YAxis hide /><Tooltip content={<FinanceTooltip />} cursor={{ stroke: "#9aa8b8", strokeDasharray: "3 3" }} /><Line type="monotone" dataKey="collected" name="Cobros" stroke="#2f5a8a" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} /><Line type="monotone" dataKey="expenses" name="Gastos" stroke="#c8742a" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} /></LineChart></ResponsiveContainer> : <div className="finance-chart-unavailable">— · Contabilidad de Holded no disponible</div>}</section>
+    <section className="panel finance-chart finance-wide-chart"><ChartHeading title="Cobros vs gastos" sub="Cobros frente al total de compras contabilizadas: base más IVA soportado" source="holded" granularity={data.granularity} />{hasAccounting ? <ResponsiveContainer width="100%" height={260}><LineChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><FinanceXAxis buckets={data.buckets} /><YAxis hide /><Tooltip content={<FinanceTooltip />} cursor={{ stroke: "#9aa8b8", strokeDasharray: "3 3" }} /><Line type="monotone" dataKey="collected" name="Cobros" stroke="#2f5a8a" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} /><Line type="monotone" dataKey="expenses" name="Gastos (base + IVA)" stroke="#c8742a" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} /></LineChart></ResponsiveContainer> : <div className="finance-chart-unavailable">— · {expenseStatus?.text || "Contabilidad de Holded no disponible"}</div>}</section>
 
     <div className="finance-reports"><article><div><strong>P&amp;L</strong><span>Pérdidas y ganancias · Holded</span></div><Badge variant="outline">WIP</Badge></article><article><div><strong>Balance</strong><span>Balance de situación · Holded</span></div><Badge variant="outline">WIP</Badge></article></div>
 

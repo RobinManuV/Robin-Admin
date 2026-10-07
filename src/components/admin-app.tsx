@@ -52,7 +52,7 @@ import { Badge } from "@/components/ui/badge";
 import { FeatureModule } from "@/components/feature-modules";
 import type { Contact, CrmStage, LeadCategory, LostReason } from "@/types/domain";
 import { portalClient } from "@/services/portal";
-import type { PortalAdmin, PortalSnapshot } from "@/services/portal";
+import type { PortalAdmin, PortalClient, PortalSnapshot } from "@/services/portal";
 import { adminDataClient } from "@/services/admin-data";
 import { integrationClient } from "@/services/integrations";
 import type { HoldedSnapshot } from "@/services/integrations";
@@ -435,16 +435,16 @@ function Dashboard({ snapshot, contacts, leadStages, currentUser, holded }: { sn
   const clients = snapshot?.clients || [];
   const crmClients = contacts.filter((lead) => (leadStages[lead.id] || lead.stage) === "Cliente");
   const newLeads = contacts.filter((lead) => inRange(lead.createdAt));
-  const newClients = crmClients.filter((client) => inRange(client.clientAt));
+  const newClients = clients.filter((client) => inRange(client.created_at));
   const activeLeads = contacts.filter((lead) => !["Cliente", "Lost"].includes(leadStages[lead.id] || lead.stage || "Por contactar"));
   const liveStats = [
     ["Leads activos", String(activeLeads.length), "CRM conectado", Users, "blue", null],
     ["Nuevos leads", String(newLeads.length), periodLabel, Sparkles, "gold", null],
-    ["Clientes", String(crmClients.length), `${clients.length} con acceso al portal`, GraduationCap, "green", null],
+    ["Nuevos clientes", String(newClients.length), periodLabel, GraduationCap, "green", dashboardReportUrl("altas", period)],
     ["Ventas este año", holded ? `${Math.round(holded.currentYear.sales).toLocaleString("es-ES")} €` : "—", holded ? `${holded.currentYear.invoices} facturas en Holded` : "Holded no disponible", CircleDollarSign, "red", dashboardReportUrl("facturacion", period)],
   ] as const;
   const visibleDays = Math.max(1, Math.floor((today.getTime() - rangeStart.getTime()) / 86400000) + 1);
-  const chartData = period === "all" ? monthlySeries(rangeStart, today, contacts, crmClients) : dailySeries(rangeStart, visibleDays, contacts, crmClients);
+  const chartData = period === "all" ? monthlySeries(rangeStart, today, contacts, clients) : dailySeries(rangeStart, visibleDays, contacts, clients);
   const hotLeads = contacts.filter((lead) => lead.owner === currentUser && (lead.heat || 0) >= 80 && !["Cliente", "Lost"].includes(leadStages[lead.id] || lead.stage || "Por contactar"));
   const funnelStages: Array<[string, CrmStage]> = [["Por contactar", "Por contactar"], ["Contactados", "Contactado"], ["Llamadas", "Llamada programada"], ["Propuestas", "Propuesta enviada"], ["Clientes", "Cliente"]];
   const funnel = funnelStages.map(([label, stage]) => [label, contacts.filter((lead) => (leadStages[lead.id] || lead.stage || "Por contactar") === stage).length] as const);
@@ -492,23 +492,23 @@ function Dashboard({ snapshot, contacts, leadStages, currentUser, holded }: { sn
   );
 }
 
-function dailySeries(startDate: Date, days: number, contacts: Contact[], clients: Contact[]) {
+function dailySeries(startDate: Date, days: number, contacts: Contact[], clients: PortalClient[]) {
   return Array.from({ length: days }, (_, index) => {
     const start = new Date(startDate); start.setDate(startDate.getDate() + index);
     const end = new Date(start); end.setDate(start.getDate() + 1);
     const inDay = (value?: string) => Boolean(value && new Date(value) >= start && new Date(value) < end);
-    return { day: start.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }).replace(".", ""), leads: contacts.filter((lead) => inDay(lead.createdAt)).length, clients: clients.filter((client) => inDay(client.clientAt)).length };
+    return { day: start.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }).replace(".", ""), leads: contacts.filter((lead) => inDay(lead.createdAt)).length, clients: clients.filter((client) => inDay(client.created_at)).length };
   });
 }
 
-function monthlySeries(startDate: Date, endDate: Date, contacts: Contact[], clients: Contact[]) {
+function monthlySeries(startDate: Date, endDate: Date, contacts: Contact[], clients: PortalClient[]) {
   const first = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
   const months = (endDate.getFullYear() - first.getFullYear()) * 12 + endDate.getMonth() - first.getMonth() + 1;
   return Array.from({ length: months }, (_, index) => {
     const start = new Date(first.getFullYear(), first.getMonth() + index, 1);
     const end = new Date(first.getFullYear(), first.getMonth() + index + 1, 1);
     const inMonth = (value?: string) => Boolean(value && new Date(value) >= start && new Date(value) < end);
-    return { day: start.toLocaleDateString("es-ES", { month: "short", year: "2-digit" }).replace(".", ""), leads: contacts.filter((lead) => inMonth(lead.createdAt)).length, clients: clients.filter((client) => inMonth(client.clientAt)).length };
+    return { day: start.toLocaleDateString("es-ES", { month: "short", year: "2-digit" }).replace(".", ""), leads: contacts.filter((lead) => inMonth(lead.createdAt)).length, clients: clients.filter((client) => inMonth(client.created_at)).length };
   });
 }
 
@@ -522,9 +522,8 @@ function DashboardReport({ snapshot, contacts, leadStages, holded }: { snapshot:
   if (start) start.setHours(0, 0, 0, 0);
   const inRange = (date?: string | null) => Boolean(date && (!start || new Date(date) >= start) && new Date(date) <= today);
   const clients = snapshot?.clients || [];
-  const crmClients = contacts.filter((lead) => (leadStages[lead.id] || lead.stage) === "Cliente");
   const leadsInRange = contacts.filter((lead) => inRange(lead.createdAt));
-  const clientsInRange = crmClients.filter((client) => inRange(client.clientAt));
+  const clientsInRange = clients.filter((client) => inRange(client.created_at));
   const periodLabel = periodDays ? `Últimos ${periodDays} días` : "Todo el histórico";
   const stages: Array<[string, CrmStage]> = [["Por contactar", "Por contactar"], ["Contactados", "Contactado"], ["Llamadas programadas", "Llamada programada"], ["Propuestas enviadas", "Propuesta enviada"], ["Clientes", "Cliente"]];
   const title = type === "facturacion" ? "Informe de facturación anual" : type === "embudo" ? "Informe del embudo de captación" : "Informe de nuevos leads y clientes";
@@ -534,8 +533,8 @@ function DashboardReport({ snapshot, contacts, leadStages, holded }: { snapshot:
 
     {type === "altas" && <>
       <section className="report-summary"><article><span>Leads</span><strong>{leadsInRange.length}</strong><small>Registros del CRM creados en el periodo</small></article><article><span>Clientes</span><strong>{clientsInRange.length}</strong><small>Altas del Portal del Alumno en el periodo</small></article><article><span>Periodo</span><strong>{periodLabel}</strong><small>{start ? `${start.toLocaleDateString("es-ES")} – ${today.toLocaleDateString("es-ES")}` : "Sin límite de fecha inicial"}</small></article></section>
-      <ReportMethod text="La línea azul usa la fecha original de creación conservada desde Notion. La naranja cuenta los registros INSIDE por su Fecha Inside. En la vista histórica los puntos se agrupan por mes; en los periodos de 7, 15 o 30 días se agrupan por día." />
-      <ReportTable headers={["Tipo", "Nombre", "Email", "Fecha"]} rows={[...leadsInRange.map((lead) => ["Lead", lead.name, lead.email, formatReportDate(lead.createdAt)]), ...clientsInRange.map((client) => ["Cliente", client.name, client.email || "—", formatReportDate(client.clientAt)])]} />
+      <ReportMethod text="La línea azul usa la fecha original de creación conservada desde Notion. La naranja cuenta las nuevas altas generales del Portal del Alumno por su fecha de creación, sin limitarse al administrador que ha iniciado sesión. En la vista histórica los puntos se agrupan por mes; en los periodos de 7, 15 o 30 días se agrupan por día." />
+      <ReportTable headers={["Tipo", "Nombre", "Email", "Fecha"]} rows={[...leadsInRange.map((lead) => ["Lead", lead.name, lead.email, formatReportDate(lead.createdAt)]), ...clientsInRange.map((client) => ["Cliente", [client.nombre, client.apellidos].filter(Boolean).join(" ") || client.username || "—", client.email || "—", formatReportDate(client.created_at)])]} />
     </>}
 
     {type === "embudo" && <>

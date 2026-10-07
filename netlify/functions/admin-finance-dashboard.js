@@ -12,7 +12,7 @@ const {
   readTreasuryHistory,
 } = require('../../lib/finance-dashboard');
 
-const PERIODS = new Set(['30d', 'month', '3m', '365d', 'ytd']);
+const PERIODS = new Set(['30d', 'month', 'last_month', '3m', '365d', 'ytd']);
 
 async function requireAdmin(event) {
   const session = readSessionFromEvent(event);
@@ -69,17 +69,38 @@ exports.handler = async (event) => {
       ledgerEntries: expenseResult.entries,
       treasuryHistory: treasuryAvailable ? treasuryHistory : null,
     });
+    const expenseDiagnostics = expenseResult.diagnostics || {
+      status: expenseResult.available ? 'ok' : 'unavailable',
+      code: expenseResult.available ? null : 'holded_accounting_unavailable',
+      documentCount: 0,
+      classifiedDocuments: 0,
+      unclassifiedDocuments: 0,
+      entryCount: expenseResult.entries?.length || 0,
+    };
+    if (expenseDiagnostics.status !== 'ok') {
+      console.warn('admin-finance-dashboard Holded expenses', {
+        status: expenseDiagnostics.status,
+        code: expenseDiagnostics.code,
+        source: expenseResult.source,
+        documents: expenseDiagnostics.documentCount,
+        classified: expenseDiagnostics.classifiedDocuments,
+        unclassified: expenseDiagnostics.unclassifiedDocuments,
+        entries: expenseDiagnostics.entryCount,
+      });
+    }
     dashboard.sources = {
       holdedInvoices: true,
       holdedAccounting: expenseResult.available,
+      holdedExpenseDocuments: expenseResult.source === 'purchase_documents',
       holdedExpenseCashflow: expenseResult.source === 'cashflow_payments',
       portal: true,
       treasury: treasuryAvailable,
       ecb: treasuryAvailable,
     };
+    dashboard.expenseDiagnostics = expenseDiagnostics;
     dashboard.warnings = [
       ...(!expenseResult.available ? ['holded_accounting_unavailable'] : []),
-      ...(expenseResult.source === 'cashflow_payments' && expenseResult.skippedDocuments ? ['holded_cashflow_partial'] : []),
+      ...(expenseDiagnostics.code && expenseResult.available ? [expenseDiagnostics.code] : []),
       ...(!treasuryAvailable ? ['treasury_history_unavailable'] : []),
     ];
     return json(dashboard);

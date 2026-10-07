@@ -6,7 +6,17 @@ export type MetaMetrics = { spend: number; impressions: number; clicks: number; 
 export type MetaCampaign = MetaMetrics & { id: string; name: string; status: string };
 export type MetaSnapshot = { period: string; account: { id: string; name: string; currency: string; timezone: string }; summary: MetaMetrics; campaigns: MetaCampaign[]; daily: { date: string; spend: number; cpm: number }[]; syncedAt: string };
 export type PaymentAnalytics = { application: { paid: number; pending: number }; subscriptions: { paid: number; pending: number } | null; subscriptionsError?: string | null };
-export type FinancePeriod = '30d' | 'month' | '3m' | '365d' | 'ytd';
+export type FinancePeriod = '30d' | 'month' | 'last_month' | '3m' | '365d' | 'ytd';
+export type ExpenseDiagnostics = {
+  status: 'ok' | 'empty' | 'partial' | 'fallback' | 'unavailable';
+  code: string | null;
+  documentCount: number;
+  classifiedDocuments: number;
+  unclassifiedDocuments: number;
+  entryCount: number;
+  primaryError?: string | null;
+  fallbackError?: string | null;
+};
 export type FinanceDashboard = {
   period: FinancePeriod;
   rangeLabel: string;
@@ -16,10 +26,11 @@ export type FinanceDashboard = {
   kpis: { sales: number | null; invoices: number | null; contracted: number | null; students: number | null; cac: number | null; anomaly: boolean };
   buckets: { key: string; label: string; tick: string; sales: number; collected: number; pending: number; contracted: number; cumulativeContracted: number; cumulativeCollected: number; newClients: number; expenses: number; previousSales: number }[];
   collections: { sales: number | null; collected: number | null; emitted: number | null; contracted: number | null; invoices: number | null; pending: number | null; averageInvoice: number | null; averageTicket: number | null };
-  expenses: { operational: number | null; marketing: number | null; taxes: number | null; other: number | null; capex: number | null; payments: number | null; total: number | null };
+  expenses: { operational: number | null; marketing: number | null; taxes: number | null; purchaseTax?: number | null; salesTax?: number | null; netTax?: number | null; other: number | null; capex: number | null; payments: number | null; total: number | null };
   invoices: { id: string; number: string; customer: string; clientType: string | null; installment: string | null; date: string | null; base: number; tax: number; total: number; status: string; currency: string }[];
   cash: { available: boolean; points: { date: string; balance: number; source: string }[]; accounts: { id: string; name: string; type: string; currency: string; balance: number; rate_to_eur: number | null; balance_eur: number | null }[] };
   reports: { profitAndLoss: 'wip'; balance: 'wip' };
+  expenseDiagnostics?: ExpenseDiagnostics;
   sources?: Record<string, boolean>;
   warnings?: string[];
 };
@@ -56,6 +67,7 @@ const META_CACHE_MS = 30 * 60 * 1000;
 function previewBucketLength(period: FinancePeriod, now: Date) {
   if (period === '30d') return 30;
   if (period === 'month') return now.getDate();
+  if (period === 'last_month') return new Date(now.getFullYear(), now.getMonth(), 0).getDate();
   if (period === '3m') return 14;
   if (period === '365d') return 13;
   return ((now.getMonth() - 8 + 12) % 12) + 1;
@@ -100,6 +112,70 @@ function previewHolded(): HoldedSnapshot {
   };
 }
 
+function previewFinanceDashboard(period: FinancePeriod): FinanceDashboard {
+  const now = new Date();
+  const length = previewBucketLength(period, now);
+  let cumulativeContracted = 0;
+  let cumulativeCollected = 0;
+  const buckets = Array.from({ length }, (_, index) => {
+    const date = new Date(now);
+    date.setDate(now.getDate() - (length - index - 1));
+    const wave = index % 6;
+    const sales = wave === 1 || wave === 4 ? 2199 : wave === 3 ? 2799 : 0;
+    const collected = sales ? Math.round(sales * .55) : 0;
+    const contracted = sales ? sales + (wave === 3 ? 400 : 0) : 0;
+    const expenses = [0, 185, 0, 420, 95, 0][wave];
+    cumulativeContracted += contracted;
+    cumulativeCollected += collected;
+    return {
+      key: `preview-${index}`,
+      label: date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', ''),
+      tick: index % Math.max(1, Math.ceil(length / 6)) === 0 || index === length - 1 ? date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '') : '',
+      sales,
+      collected,
+      pending: Math.max(0, sales - collected),
+      contracted,
+      cumulativeContracted,
+      cumulativeCollected,
+      newClients: sales ? 1 : 0,
+      expenses,
+      previousSales: wave === 2 ? 1999 : 0,
+    };
+  });
+  const sales = buckets.reduce((total, bucket) => total + bucket.sales, 0);
+  const collected = buckets.reduce((total, bucket) => total + bucket.collected, 0);
+  const contracted = buckets.reduce((total, bucket) => total + bucket.contracted, 0);
+  const students = buckets.reduce((total, bucket) => total + bucket.newClients, 0);
+  const expenses = { operational: 1240, marketing: 860, taxes: 441, purchaseTax: 441, salesTax: 6245.33, netTax: 5804.33, other: 320, capex: 590, payments: 3010, total: 3451 };
+  const previewExpenseTotal = buckets.reduce((total, bucket) => total + bucket.expenses, 0);
+  if (previewExpenseTotal > 0) {
+    buckets.forEach((bucket) => { bucket.expenses = Math.round(bucket.expenses / previewExpenseTotal * expenses.total * 100) / 100; });
+    const compiledTotal = buckets.reduce((total, bucket) => total + bucket.expenses, 0);
+    const lastExpenseBucket = [...buckets].reverse().find((bucket) => bucket.expenses > 0);
+    if (lastExpenseBucket) lastExpenseBucket.expenses = Math.round((lastExpenseBucket.expenses + expenses.total - compiledTotal) * 100) / 100;
+  }
+  return {
+    period,
+    rangeLabel: 'Vista previa local · datos simulados',
+    granularity: period === '30d' || period === 'month' || period === 'last_month' ? 'day' : period === '3m' ? 'week' : 'month',
+    syncedAt: now.toISOString(),
+    available: true,
+    kpis: { sales, invoices: Math.max(1, students), contracted, students, cac: null, anomaly: false },
+    buckets,
+    collections: { sales, collected, emitted: sales, contracted, invoices: Math.max(1, students), pending: sales - collected, averageInvoice: students ? sales / students : null, averageTicket: students ? contracted / students : null },
+    expenses,
+    expenseDiagnostics: { status: 'partial', code: 'holded_expenses_unclassified', documentCount: 12, classifiedDocuments: 10, unclassifiedDocuments: 2, entryCount: 18 },
+    invoices: [
+      { id: 'preview-invoice-1', number: 'R-2026-104', customer: 'Lucía Torres', clientType: 'general', installment: 'Pago 1 de 3', date: now.toISOString().slice(0, 10), base: 1817.36, tax: 381.64, total: 2199, status: 'paid', currency: 'EUR' },
+      { id: 'preview-invoice-2', number: 'R-2026-103', customer: 'Carlos Vega', clientType: 'delft', installment: 'Pago 1 de 2', date: new Date(now.getTime() - 86400000 * 3).toISOString().slice(0, 10), base: 2313.22, tax: 485.78, total: 2799, status: 'partial', currency: 'EUR' },
+    ],
+    cash: { available: true, points: [{ date: '2026-07-31', balance: 34800, source: 'preview' }, { date: '2026-08-31', balance: 37250, source: 'preview' }, { date: '2026-09-30', balance: 41900, source: 'preview' }, { date: now.toISOString().slice(0, 10), balance: 43640, source: 'preview' }], accounts: [] },
+    reports: { profitAndLoss: 'wip', balance: 'wip' },
+    sources: { holdedInvoices: true, holdedAccounting: true, holdedExpenseDocuments: true, holdedExpenseCashflow: false, portal: true, treasury: true, ecb: true },
+    warnings: ['holded_expenses_unclassified'],
+  };
+}
+
 function cachedMeta(): MetaSnapshot | null {
   try {
     const stored = JSON.parse(localStorage.getItem(META_CACHE_KEY) || 'null');
@@ -139,11 +215,7 @@ export const integrationClient = {
     return payload as PaymentAnalytics;
   },
   financeDashboard: async (period: FinancePeriod): Promise<FinanceDashboard> => {
-    if (isLocalAdminPreview()) {
-      const now = new Date();
-      const labels = Array.from({ length: previewBucketLength(period, now) }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', sales: 0, collected: 0, pending: 0, contracted: 0, cumulativeContracted: 0, cumulativeCollected: 0, newClients: 0, expenses: 0, previousSales: 0 }));
-      return { period, rangeLabel: 'Vista previa local', granularity: period === '30d' || period === 'month' ? 'day' : period === '3m' ? 'week' : 'month', syncedAt: now.toISOString(), available: false, kpis: { sales: null, invoices: null, contracted: null, students: null, cac: null, anomaly: false }, buckets: labels, collections: { sales: null, collected: null, emitted: null, contracted: null, invoices: null, pending: null, averageInvoice: null, averageTicket: null }, expenses: { operational: null, marketing: null, taxes: null, other: null, capex: null, payments: null, total: null }, invoices: [], cash: { available: false, points: [], accounts: [] }, reports: { profitAndLoss: 'wip', balance: 'wip' }, sources: { holdedInvoices: false, holdedAccounting: false, portal: false, treasury: false, ecb: false }, warnings: [] };
-    }
+    if (isLocalAdminPreview()) return previewFinanceDashboard(period);
     const response = await fetch(`/api/admin/finance/dashboard?period=${encodeURIComponent(period)}`, { credentials: 'include' });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || 'No se pudieron cargar las finanzas');
@@ -161,7 +233,7 @@ export const integrationClient = {
         { key: 'other', label: 'Otros' },
         { key: 'schools', label: 'Colegios' },
       ];
-      return { period, rangeLabel: 'Vista previa local', granularity: period === '30d' || period === 'month' ? 'day' : period === '3m' ? 'week' : 'month', syncedAt: now.toISOString(), kpis: { contracted: 0, contracts: 0, leads: null, conversion: null, cac: null, lac: null }, buckets: Array.from({ length }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', leads: 0, contracts: 0, conversion: null })), channels: channels.map((channel) => ({ ...channel, leads: 0, contracts: 0, contracted: 0, percentage: null })), campaigns: [], marginsByChannel: channels.map((channel) => ({ ...channel, status: 'unavailable' as const, paid: null, spend: null, margin: null })), agents: ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, leads: 0, sales: 0, conversion: null })).concat([{ key: 'team', name: 'Media del equipo', leads: null, sales: null, conversion: null }]), teamAverage: null, sources: { portal: false, adminCrm: false, holdedMarketing: false, meta: false }, meta: { currency: 'EUR', spend: null }, team: previewCrmPerformance() };
+      return { period, rangeLabel: 'Vista previa local', granularity: period === '30d' || period === 'month' || period === 'last_month' ? 'day' : period === '3m' ? 'week' : 'month', syncedAt: now.toISOString(), kpis: { contracted: 0, contracts: 0, leads: null, conversion: null, cac: null, lac: null }, buckets: Array.from({ length }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', leads: 0, contracts: 0, conversion: null })), channels: channels.map((channel) => ({ ...channel, leads: 0, contracts: 0, contracted: 0, percentage: null })), campaigns: [], marginsByChannel: channels.map((channel) => ({ ...channel, status: 'unavailable' as const, paid: null, spend: null, margin: null })), agents: ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, leads: 0, sales: 0, conversion: null })).concat([{ key: 'team', name: 'Media del equipo', leads: null, sales: null, conversion: null }]), teamAverage: null, sources: { portal: false, adminCrm: false, holdedMarketing: false, meta: false }, meta: { currency: 'EUR', spend: null }, team: previewCrmPerformance() };
     }
     const response = await fetch(`/api/admin/sales/dashboard?period=${encodeURIComponent(period)}`, { credentials: 'include' });
     const payload = await response.json().catch(() => ({}));
