@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   CircleDollarSign,
+  Copy,
   Download,
   ExternalLink,
   FileText,
@@ -146,7 +147,7 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
   const list = useMemo(() => contacts.filter((contact) => {
     const stage = leadStages[contact.id] || contact.stage || "Por contactar";
     if (leadOwners[contact.id]) return false;
-    if (stage === "Cliente") return false;
+    if (["Cliente", "Contactado", "Lost"].includes(stage)) return false;
     if (!`${contact.name} ${contact.email} ${contact.phone} ${contact.source}`.toLowerCase().includes(query.trim().toLowerCase())) return false;
     if (stageFilter !== "all" && stage !== stageFilter) return false;
     if (sourceFilter !== "all" && contact.source !== sourceFilter) return false;
@@ -178,7 +179,7 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
         {selectedIds.size > 0 && <Button variant="outline" className="bulk-delete" disabled={deleting === "bulk"} onClick={async () => { if (!window.confirm(`¿Eliminar definitivamente ${selectedIds.size} leads seleccionados?`)) return; setDeleting("bulk"); try { await onDeleteLeads([...selectedIds]); notify(`${selectedIds.size} leads eliminados correctamente`); setSelectedIds(new Set()); } catch (error) { notify(error instanceof Error ? error.message : "No se pudieron eliminar los leads"); } finally { setDeleting(null); } }}><Trash2 />{deleting === "bulk" ? "Eliminando…" : `Eliminar (${selectedIds.size})`}</Button>}
         <Button onClick={() => setAddingLead(true)}><Plus />Añadir lead</Button>
       </div>
-      {filtersOpen && <section className="lead-filters panel"><label>Estado<select value={stageFilter} onChange={(event) => setStageFilter(event.target.value)}><option value="all">Todos los estados</option>{["Por contactar", "Contactado", "Llamada programada", "Llamada tenida", "Propuesta enviada", "En espera", "Lost"].map((stage) => <option key={stage}>{stage}</option>)}</select></label><label>Origen<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="all">Todos los orígenes</option>{sources.map((source) => <option key={source} value={source}>{source}</option>)}</select></label><label>Campaña<select value={campaignFilter} onChange={(event) => setCampaignFilter(event.target.value)}><option value="all">Todas las campañas</option>{campaigns.map((campaign) => <option key={campaign} value={campaign}>{campaign}</option>)}</select></label><button type="button" onClick={() => { setStageFilter("all"); setSourceFilter("all"); setCampaignFilter("all"); }}>Limpiar filtros</button></section>}
+      {filtersOpen && <section className="lead-filters panel"><label>Estado<select value={stageFilter} onChange={(event) => setStageFilter(event.target.value)}><option value="all">Todos los estados</option>{["Por contactar", "Llamada programada", "Llamada tenida", "Propuesta enviada", "En espera"].map((stage) => <option key={stage}>{stage}</option>)}</select></label><label>Origen<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="all">Todos los orígenes</option>{sources.map((source) => <option key={source} value={source}>{source}</option>)}</select></label><label>Campaña<select value={campaignFilter} onChange={(event) => setCampaignFilter(event.target.value)}><option value="all">Todas las campañas</option>{campaigns.map((campaign) => <option key={campaign} value={campaign}>{campaign}</option>)}</select></label><button type="button" onClick={() => { setStageFilter("all"); setSourceFilter("all"); setCampaignFilter("all"); }}>Limpiar filtros</button></section>}
       <section className="panel inbox-panel">
         <div className="data-table">
           <table>
@@ -283,9 +284,31 @@ function StudentProfile({ client, portalUrl }: { client?: PortalClient; portalUr
 function ContactDrawer({ contact, onClose, heat = contact.heat || 50, notes = contact.notes || "", onHeatChange, onNotesChange, leadMode = false }: { contact: Contact; onClose: () => void; heat?: number; notes?: string; onHeatChange?: (value: number) => void; onNotesChange?: (value: string) => void; leadMode?: boolean }) {
   const [localHeat, setLocalHeat] = useState(heat);
   const [localNotes, setLocalNotes] = useState(notes);
+  const [phoneCopyStatus, setPhoneCopyStatus] = useState("");
   const [message, setMessage] = useState("");
   const [messageStatus, setMessageStatus] = useState("");
   const [sending, setSending] = useState(false);
+  useEffect(() => setPhoneCopyStatus(""), [contact.id]);
+  async function copyLeadPhone() {
+    const phone = contact.phone?.trim();
+    if (!phone) return;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard API no disponible");
+      await navigator.clipboard.writeText(phone);
+      setPhoneCopyStatus("Copiado");
+    } catch {
+      const field = document.createElement("textarea");
+      field.value = phone;
+      field.style.position = "fixed";
+      field.style.opacity = "0";
+      document.body.appendChild(field);
+      field.select();
+      let copied = false;
+      try { copied = document.execCommand("copy"); } catch { copied = false; }
+      field.remove();
+      setPhoneCopyStatus(copied ? "Copiado" : "No se pudo copiar");
+    }
+  }
   async function sendMessage() {
     if (!message.trim()) return;
     setSending(true);
@@ -305,7 +328,7 @@ function ContactDrawer({ contact, onClose, heat = contact.heat || 50, notes = co
         <span>{leadMode ? "FICHA DEL LEAD" : "PERFIL DEL ALUMNO"}</span><h2>{contact.name}</h2><p>{contact.email} · {contact.phone}</p>
         <div className="detail-kpis"><article><small>{leadMode ? "Tipo" : "Progreso"}</small><strong>{leadMode ? contact.category || "—" : `${contact.probability}%`}</strong></article><article><small>Responsable</small><strong>{contact.owner}</strong></article></div>
         {!leadMode && <section className="whatsapp-detail"><h3><MessageCircle /> WhatsApp</h3><p>{contact.phone}</p><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Escribe un mensaje…" /><Button variant="outline" onClick={sendMessage} disabled={sending || !message.trim()}>{sending ? "Enviando…" : "Enviar por WhatsApp"}</Button>{messageStatus && <small>{messageStatus}</small>}</section>}
-        {leadMode && <section className="lead-information"><h3>Información del lead</h3><dl><div><dt>Teléfono</dt><dd>{contact.phone || "—"}</dd></div><div><dt>Origen</dt><dd>{contact.source || "—"}</dd></div><div><dt>Campaña</dt><dd>{contact.campaign && contact.campaign !== "Pendiente de identificar" ? contact.campaign : "Sin identificar"}</dd></div><div><dt>Estado</dt><dd>{contact.stage || "Por contactar"}</dd></div>{contact.stage === "Lost" && <><div><dt>Motivo Lost</dt><dd>{lostReasonLabel(contact.lostReason)}</dd></div>{contact.lostReasonDetail && <div><dt>Detalle</dt><dd>{contact.lostReasonDetail}</dd></div>}</>}<div><dt>Responsable</dt><dd>{contact.owner || "Sin asignar"}</dd></div><div><dt>Fecha de alta</dt><dd>{contact.createdAt ? new Date(contact.createdAt).toLocaleDateString("es-ES") : "—"}</dd></div></dl></section>}
+        {leadMode && <section className="lead-information"><h3>Información del lead</h3><dl><div><dt>Correo electrónico</dt><dd>{contact.email || "—"}</dd></div><div><dt>Teléfono</dt><dd className="lead-phone-value"><span>{contact.phone || "—"}</span><Button type="button" size="sm" variant="outline" aria-label={`Copiar teléfono ${contact.phone || ""}`} title="Copiar teléfono" onClick={() => void copyLeadPhone()} disabled={!contact.phone}>{phoneCopyStatus === "Copiado" ? <Check /> : <Copy />}{phoneCopyStatus || "Copiar"}</Button></dd></div><div><dt>Origen</dt><dd>{contact.source || "—"}</dd></div><div><dt>Campaña</dt><dd>{contact.campaign && contact.campaign !== "Pendiente de identificar" ? contact.campaign : "Sin identificar"}</dd></div><div><dt>Estado</dt><dd>{contact.stage || "Por contactar"}</dd></div>{contact.stage === "Lost" && <><div><dt>Motivo Lost</dt><dd>{lostReasonLabel(contact.lostReason)}</dd></div>{contact.lostReasonDetail && <div><dt>Detalle</dt><dd>{contact.lostReasonDetail}</dd></div>}</>}<div><dt>Responsable</dt><dd>{contact.owner || "Sin asignar"}</dd></div><div><dt>Fecha de alta</dt><dd>{contact.createdAt ? new Date(contact.createdAt).toLocaleDateString("es-ES") : "—"}</dd></div></dl></section>}
         <section className="heat-control"><h3><Flame /> Heat del lead <b>{localHeat}</b></h3><input type="range" min="0" max="100" value={localHeat} onChange={(event) => { const value = Number(event.target.value); setLocalHeat(value); onHeatChange?.(value); }} /><div><span>Frío</span><span>Caliente</span></div></section>
         <section className="lead-notes"><h3>Notas del equipo</h3><textarea value={localNotes} onChange={(event) => { setLocalNotes(event.target.value); onNotesChange?.(event.target.value); }} placeholder="Añade contexto, objeciones y próximos pasos…" /><small>Guardado automáticamente en este espacio de trabajo.</small></section>
         {!leadMode && <><section><h3>Información académica</h3><dl><div><dt>Universidad</dt><dd>{contact.university}</dd></div><div><dt>Curso</dt><dd>{contact.course}</dd></div><div><dt>País</dt><dd>{contact.country}</dd></div></dl></section><section><h3>Próxima acción</h3><p>{contact.nextAction}</p></section></>}
@@ -776,6 +799,10 @@ const lostReasonOptions: Array<{ value: LostReason; label: string }> = [
   { value: "other", label: "Otros" },
 ];
 const lostReasonLabel = (reason?: LostReason) => lostReasonOptions.find((option) => option.value === reason)?.label || "—";
+const leadCampaignLabel = (campaign?: string) => {
+  const value = campaign?.trim();
+  return value && value.toLowerCase() !== "pendiente de identificar" ? value : "Sin campaña identificada";
+};
 
 function CategoryPicker({ value, onChange }: { value: LeadCategory | ""; onChange: (value: LeadCategory) => void }) {
   const [open, setOpen] = useState(false);
@@ -787,6 +814,9 @@ function CategoryPicker({ value, onChange }: { value: LeadCategory | ""; onChang
 
 function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMoveLead, leadCategories: categories, onCategorizeLead, leadHeat, onSetLeadHeat, leadNotes, onSetLeadNotes, leadLostDates, portalSnapshot, portalConnected, onPortalRefresh, notify }: FeatureModuleProps) {
   const [query, setQuery] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<LeadCategory | "all">("all");
+  const [campaignFilter, setCampaignFilter] = useState("all");
   const [exportingClients, setExportingClients] = useState(false);
   const [selected, setSelected] = useState<Contact | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -802,6 +832,17 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
   const [lostReasonDetail, setLostReasonDetail] = useState("");
   const boardWrapRef = useRef<HTMLDivElement>(null);
   const owned = useMemo(() => contacts.filter((contact) => leadOwners[contact.id] === currentUser && `${contact.name} ${contact.email} ${contact.source}`.toLowerCase().includes(query.toLowerCase())), [contacts, currentUser, leadOwners, query]);
+  const campaigns = useMemo(() => Array.from(new Set(contacts
+    .filter((contact) => leadOwners[contact.id] === currentUser && (leadStages[contact.id] || contact.stage || "Por contactar") === "Por contactar")
+    .map((contact) => leadCampaignLabel(contact.campaign))))
+    .sort((a, b) => a.localeCompare(b, "es")), [contacts, currentUser, leadOwners, leadStages]);
+  const porContactarLeads = owned.filter((contact) => {
+    if ((leadStages[contact.id] || contact.stage || "Por contactar") !== "Por contactar") return false;
+    if (categoryFilter !== "all" && categories[contact.id] !== categoryFilter) return false;
+    const campaign = leadCampaignLabel(contact.campaign);
+    return campaignFilter === "all" || campaign === campaignFilter;
+  });
+  const activeCrmFilters = Number(categoryFilter !== "all") + Number(campaignFilter !== "all");
 
   function openContact(contact: Contact) {
     setSelected({ ...contact, owner: currentUser, category: categories[contact.id] || undefined, heat: leadHeat[contact.id], notes: leadNotes[contact.id] });
@@ -889,19 +930,22 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
   return (
     <div className="page">
       <Title name={title} sub={`Cartera comercial de ${currentUser}.`} eyebrow="CRM PERSONAL"><Badge variant="outline">{owned.length} REGISTROS</Badge></Title>
-      <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label><Button variant="outline"><Filter />Filtros</Button>{path === "/crm/clientes" && <Button variant="outline" disabled={exportingClients} onClick={() => void exportClientDatabase()}><Download />{exportingClients ? "Preparando…" : "Descargar base de datos"}</Button>}</div>
+      <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label>{path === "/crm" && <Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{activeCrmFilters > 0 && <span className="filter-count">{activeCrmFilters}</span>}</Button>}{path === "/crm/clientes" && <Button variant="outline" disabled={exportingClients} onClick={() => void exportClientDatabase()}><Download />{exportingClients ? "Preparando…" : "Descargar base de datos"}</Button>}</div>
 
       {path === "/crm" && (
+        <>
+        {filtersOpen && <section className="lead-filters panel crm-lead-filters"><label>Categoría<select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as LeadCategory | "all")}><option value="all">Todas las categorías</option>{leadCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label><label>Campaña<select value={campaignFilter} onChange={(event) => setCampaignFilter(event.target.value)}><option value="all">Todas las campañas</option>{campaigns.map((campaign) => <option key={campaign} value={campaign}>{campaign}</option>)}</select></label><button type="button" onClick={() => { setCategoryFilter("all"); setCampaignFilter("all"); }}>Limpiar filtros</button></section>}
         <div className="qualification-grid">
-          {owned.filter((contact) => leadStages[contact.id] === "Por contactar").map((contact) => (
+          {porContactarLeads.map((contact) => (
             <article className="qualification-card" key={contact.id}>
               <button className="card-main" onClick={() => openContact(contact)}><small>{contact.source}</small><h3>{contact.name}</h3><p>{contact.email}</p><span><Flame /> Heat {leadHeat[contact.id]}</span></button>
               <label>Categoría obligatoria<CategoryPicker value={categories[contact.id] || ""} onChange={(category) => onCategorizeLead(contact.id, category)} /></label>
               <Button disabled={!categories[contact.id]} onClick={() => { onMoveLead(contact.id, "Contactado"); notify(`${contact.name} ha pasado a Contactado`); }}>Pasar a contactado<ArrowRight /></Button>
             </article>
           ))}
-          {!owned.some((contact) => leadStages[contact.id] === "Por contactar") && <div className="empty compact"><UserCheck /><h2>No hay leads por contactar</h2><p>Los nuevos leads asignados a {currentUser} aparecerán aquí.</p></div>}
+          {porContactarLeads.length === 0 && <div className="empty compact"><UserCheck /><h2>{owned.some((contact) => (leadStages[contact.id] || contact.stage || "Por contactar") === "Por contactar") ? "No hay resultados con esos filtros" : "No hay leads por contactar"}</h2><p>{activeCrmFilters ? <button type="button" onClick={() => { setCategoryFilter("all"); setCampaignFilter("all"); }}>Quitar filtros</button> : `Los nuevos leads asignados a ${currentUser} aparecerán aquí.`}</p></div>}
         </div>
+        </>
       )}
 
       {path === "/crm/contactados" && (

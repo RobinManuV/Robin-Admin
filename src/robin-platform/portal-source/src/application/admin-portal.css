@@ -153,3 +153,143 @@
 }
 @media (prefers-reduced-motion: reduce) { .admin-workspace *, .admin-workspace *::before, .admin-workspace *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 @media (max-height: 600px) { .admin-client-context { position: static; } }
+
+/* Robin students: familiar brand colors, with a bold product dashboard layout. */
+.robin-students-admin .admin-workspace.is-embedded{--admin-navy:#123c70;--admin-gold:#f27a32;min-height:calc(100vh - 5rem);background:#f3f6fb;color:#17345a}
+.robin-students-admin .admin-workspace.is-embedded .admin-workarea{max-width:none;padding:30px clamp(18px,3.2vw,48px) 90px}
+.robin-students-admin .admin-workspace.is-embedded .admin-page-heading{display:none!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-content{color:#17345a}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis{gap:18px;margin-bottom:26px}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div{min-height:174px;padding:25px!important;border:0;border-radius:22px!important;background:#fff!important;box-shadow:0 12px 32px #153e7014,0 2px 6px #153e700a!important;position:relative;overflow:hidden}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:before{inset:auto 20px 0!important;width:54px;height:5px!important;border-radius:8px 8px 0 0;background:#f27a32!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:first-child{background:#123c70!important;color:#fff;border-radius:22px 22px 22px 8px!important;box-shadow:0 18px 36px #123c7033!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:first-child:before{background:#ff9b59!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:first-child>div{color:#d7e4f5!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:first-child>div:nth-child(2){color:#fff!important;font-size:42px}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div>div{color:#7184a0!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div>div:nth-child(2){color:#123c70;font-size:40px;line-height:1.05;margin:17px 0 7px;letter-spacing:-.05em}
+.robin-students-admin .admin-workspace.is-embedded .ui-card{background:#fff!important;border:1px solid #e3eaf4!important;border-radius:20px!important;box-shadow:0 14px 35px #153e7010!important;color:#17345a}
+.robin-students-admin .admin-workspace.is-embedded .ui-card-header{border-color:#edf1f7!important;padding:22px 25px!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card-content{padding:23px 25px!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card-title{color:#123c70!important;font-family:Inter,ui-sans-serif,system-ui,sans-serif!important;font-size:16px;font-weight:760;letter-spacing:-.02em}
+.robin-students-admin .admin-workspace.is-embedded .ui-card .text-slate-500,.robin-students-admin .admin-workspace.is-embedded .ui-card .text-slate-600,.robin-students-admin .admin-workspace.is-embedded .ui-card .text-slate-700,.robin-students-admin .admin-workspace.is-embedded .ui-card .text-slate-800,.robin-students-admin .admin-workspace.is-embedded .ui-card .text-slate-900{color:#687c98!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card .bg-white,.robin-students-admin .admin-workspace.is-embedded .ui-card .bg-slate-50{background:#f3f6fb!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card :is(input,select,textarea){background:#fff!important;border-color:#d8e2ef!important;color:#17345a!important;border-radius:12px!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card :is(button,a){border-radius:12px;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+.robin-students-admin .admin-workspace.is-embedded .ui-card button:hover{transform:translateY(-2px);box-shadow:0 8px 18px #123c7020!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-alert-row{background:#fff!important;border-color:#e3eaf4!important;box-shadow:0 9px 24px #153e700c!important;border-radius:16px!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-alert-icon{background:#fff0e5;color:#ed7029;border-radius:12px}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-context{background:#f3f6fbf2;border-color:#dfe7f1;box-shadow:0 10px 25px #153e7009}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-identity h1{color:#123c70}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-identity p,.robin-students-admin .admin-workspace.is-embedded .admin-breadcrumb{color:#72839b}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-avatar{background:#123c70;color:#fff;border-radius:16px;box-shadow:0 7px 16px #123c7025}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-tabs button[aria-current]{color:#123c70;background:#fff;border-bottom-color:#f27a32}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-phase>span{background:#fff0e5;color:#cc5c1c;border-radius:999px}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-phase p{color:#687c98}
+.robin-students-admin .admin-workspace.is-embedded .admin-footer,.robin-students-admin .admin-workspace.is-embedded footer{color:#8292a8}
+.shell:has(.robin-students-admin){background:#f3f6fb;color:#17345a}
+.shell:has(.robin-students-admin) .work{background:#f3f6fb!important}
+.shell:has(.robin-students-admin) .top{background:#fff;border-bottom:1px solid #e4ebf4;color:#123c70;box-shadow:0 5px 18px #123c7008}
+.shell:has(.robin-students-admin) .workspace-tabs a{color:#6f819a}
+.shell:has(.robin-students-admin) .workspace-tabs a.active{color:#123c70;border-bottom-color:#f27a32}
+.shell:has(.robin-students-admin) .top-actions .authenticated-user{color:#17345a}
+.shell:has(.robin-students-admin) .top-actions>button{background:#f27a32;border-color:#f27a32;color:#fff;box-shadow:0 7px 16px #f27a3233}
+.shell:has(.robin-students-admin) .side{background:#123c70;color:#e9f1fa;border-right:0;box-shadow:12px 0 35px #123c7014}
+.shell:has(.robin-students-admin) .side .brand{background:#fff;border-color:#fff;border-radius:15px}
+.shell:has(.robin-students-admin) .side nav a{border-radius:12px}
+.shell:has(.robin-students-admin) .side nav a.active{background:#fff;color:#123c70;box-shadow:0 8px 20px #061d3c35}
+.shell:has(.robin-students-admin) .context-title{border-color:#ffffff30}
+.shell:has(.robin-students-admin) .context-title strong{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-weight:750;color:#fff}
+.shell:has(.robin-students-admin) .profile{border-color:#ffffff30}
+.shell:has(.robin-students-admin) .profile>i{background:#f27a32;color:#fff}
+.shell:has(.robin-students-admin) .profile strong{color:#fff}
+.robin-students-admin .admin-workspace.is-embedded,.robin-students-admin .admin-workspace.is-embedded .admin-layout,.robin-students-admin .admin-workspace.is-embedded .admin-workarea,.robin-students-admin .admin-workspace.is-embedded .admin-content{background:#f3f6fb!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row,.robin-students-admin .admin-workspace.is-embedded .admin-client-row>button,.robin-students-admin .admin-workspace.is-embedded .admin-client-row>a{background:#fff!important;border-color:#e0e8f2!important;color:#17345a!important;border-radius:16px!important;box-shadow:0 9px 24px #153e700c!important;transition:transform .18s ease,box-shadow .18s ease}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row h3,.robin-students-admin .admin-workspace.is-embedded .admin-client-row strong{color:#123c70!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row p,.robin-students-admin .admin-workspace.is-embedded .admin-client-row small{color:#7184a0!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row:hover{border-color:#f27a32!important;transform:translateY(-3px);box-shadow:0 16px 34px #123c7018!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card:has(.admin-client-row){border-radius:26px!important;box-shadow:0 22px 55px #123c7015!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card:has(.admin-client-row) .ui-card-header{padding:25px 28px!important;border-bottom:1px solid #edf1f7}
+.robin-students-admin .admin-workspace.is-embedded .ui-card:has(.admin-client-row) .ui-card-content{padding:23px 28px 28px!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card:has(.admin-client-row) .ui-card-content>.relative{margin-bottom:20px}
+.robin-students-admin .admin-workspace.is-embedded .ui-card:has(.admin-client-row) .ui-card-content>div:has(>.admin-client-row){display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row{min-height:104px;padding:17px!important;gap:14px!important;border:1px solid #e0e8f2!important;border-radius:18px 18px 18px 7px!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row>div:first-child{width:50px;height:50px;border-radius:16px;background:linear-gradient(145deg,#123c70,#2a65a4)!important;box-shadow:0 7px 14px #123c7025}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row:hover{border-color:#f27a32!important;transform:translateY(-3px);box-shadow:0 16px 34px #123c7018!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card:has(.admin-client-row) .ui-card-header button{background:#f27a32!important;border:1px solid #f27a32!important;color:white!important;border-radius:12px!important;box-shadow:0 8px 16px #f27a3230}
+.robin-students-admin .admin-workspace.is-embedded .ui-card:has(.admin-client-row) .ui-card-header button:hover{transform:translateY(-2px);box-shadow:0 12px 22px #f27a3240}
+@media(max-width:600px){.robin-students-admin .admin-workspace.is-embedded .admin-workarea{padding:18px 13px 84px}.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div{min-height:125px;padding:18px!important}.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div>div:nth-child(2){font-size:31px}.robin-students-admin .admin-workspace.is-embedded .ui-card-header,.robin-students-admin .admin-workspace.is-embedded .ui-card-content{padding:16px!important}}
+/* Match the shared home dashboard: quiet surfaces, navy type and restrained gold accents. */
+.robin-students-admin .admin-workspace.is-embedded,.robin-students-admin .admin-workspace.is-embedded .admin-layout,.robin-students-admin .admin-workspace.is-embedded .admin-workarea,.robin-students-admin .admin-workspace.is-embedded .admin-content{background:#f4f6f9!important;color:#17263d!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-workarea{max-width:1480px;margin:0 auto;padding:32px clamp(22px,3vw,48px) 90px}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis{gap:14px;margin-bottom:16px;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div{min-height:124px;padding:17px!important;border:1px solid #e0e6ed!important;border-radius:13px!important;background:#fff!important;color:#1d385d!important;box-shadow:none!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:before{inset:0 0 auto!important;width:auto!important;height:3px!important;border-radius:0;background:#d5dce7!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:nth-child(2):before{background:#d39a40!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:nth-child(3):before{background:#4d8d74!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:first-child{background:#fff!important;border-color:#e0e6ed!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div>div{color:#78879a!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div>div:nth-child(2),.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:first-child>div:nth-child(2){color:#1d385d!important;font:700 1.65rem Georgia,serif!important;letter-spacing:0;margin:8px 0 3px}
+.robin-students-admin .admin-workspace.is-embedded .ui-card{background:#fff!important;border:1px solid #dfe6ee!important;border-radius:14px!important;box-shadow:none!important;color:#17263d!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card-header{padding:19px 21px!important;border-color:#edf0f3!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card-content{padding:19px 21px!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card-title{color:#1d395f!important;font:700 1.05rem Georgia,serif!important;letter-spacing:0}
+.robin-students-admin .admin-workspace.is-embedded .ui-card .text-slate-500,.robin-students-admin .admin-workspace.is-embedded .ui-card .text-slate-600,.robin-students-admin .admin-workspace.is-embedded .ui-card .text-slate-700,.robin-students-admin .admin-workspace.is-embedded .ui-card .text-slate-800,.robin-students-admin .admin-workspace.is-embedded .ui-card .text-slate-900{color:#617187!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card .bg-white,.robin-students-admin .admin-workspace.is-embedded .ui-card .bg-slate-50{background:#f8fafc!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card :is(input,select,textarea){background:#f8fafc!important;border-color:#d9e2eb!important;color:#244367!important;border-radius:10px!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card :is(button,a){border-radius:9px;box-shadow:none!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card button:hover{transform:none;box-shadow:none!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row,.robin-students-admin .admin-workspace.is-embedded .admin-client-row>button,.robin-students-admin .admin-workspace.is-embedded .admin-client-row>a{min-height:94px;background:#fff!important;border:1px solid #e0e6ed!important;border-radius:12px!important;box-shadow:none!important;transform:none!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row:hover{border-color:#d39a40!important;background:#fbfcfd!important;box-shadow:0 3px 12px #18375e08!important;transform:translateY(-1px)!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card:has(.admin-client-row) .ui-card-header button{background:#1f416f!important;border-color:#1f416f!important;color:#fff!important;border-radius:8px!important;box-shadow:none!important}
+.robin-students-admin .admin-workspace.is-embedded .ui-card:has(.admin-client-row) .ui-card-header button:hover{background:#d39a40!important;border-color:#d39a40!important}
+.shell:has(.robin-students-admin) .side{background:linear-gradient(180deg,#102b4b,#0c213a);color:#dbe6f2;box-shadow:none}
+.shell:has(.robin-students-admin) .side nav a{border-radius:.72rem;color:#aebfd2}
+.shell:has(.robin-students-admin) .side nav a:hover,.shell:has(.robin-students-admin) .side nav a.active{background:#ffffff12;color:#fff;box-shadow:inset 3px 0 #dda348}
+.shell:has(.robin-students-admin) .side .brand{border-radius:0;border-bottom:1px solid #ffffff14}
+.shell:has(.robin-students-admin) .context-title{border-color:#ffffff10}
+.shell:has(.robin-students-admin) .profile{border-color:#ffffff17}
+.shell:has(.robin-students-admin) .profile>i{background:#dca149;color:#17304e}
+.shell:has(.robin-students-admin) .work,.shell:has(.robin-students-admin) .top{background:#fff!important;color:#17263d}
+.shell:has(.robin-students-admin) .top-actions>button{background:#fff;border:1px solid #e0e6ed;color:#53647a;box-shadow:none;border-radius:.58rem}
+.shell:has(.robin-students-admin) .workspace-tabs a.active{color:#29395f;border-bottom-color:#f4be4f}
+@media(max-width:600px){.robin-students-admin .admin-workspace.is-embedded .admin-workarea{padding:22px 14px 80px}.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div{min-height:108px;padding:15px!important}.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div>div:nth-child(2){font-size:1.35rem!important}.robin-students-admin .admin-workspace.is-embedded .ui-card-header,.robin-students-admin .admin-workspace.is-embedded .ui-card-content{padding:16px!important}}
+.robin-students-admin .admin-workspace.is-embedded,.robin-students-admin .admin-workspace.is-embedded .admin-layout,.robin-students-admin .admin-workspace.is-embedded .admin-workarea,.robin-students-admin .admin-workspace.is-embedded .admin-content{background:#f1f7ff!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:first-child{background:#eaf2fb!important;border-color:#dce8f5!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:first-child>div:first-child,.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:first-child>div:nth-child(2),.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis>div:first-child>div:nth-child(3){color:#1f416f!important;opacity:1!important}
+.robin-students-admin .admin-workspace.is-embedded :is(button,[role="button"]),.shell:has(.robin-students-admin) :is(button,[role="button"]){appearance:none;border-style:solid!important;border-width:1px!important;border-color:#d9e2eb!important;box-shadow:none!important;filter:none!important;transform:none!important;background-image:none!important;transition:color .15s,background-color .15s,border-color .15s!important}
+.robin-students-admin .admin-workspace.is-embedded :is(button,[role="button"]):hover,.robin-students-admin .admin-workspace.is-embedded :is(button,[role="button"]):active,.shell:has(.robin-students-admin) :is(button,[role="button"]):hover,.shell:has(.robin-students-admin) :is(button,[role="button"]):active{box-shadow:none!important;filter:none!important;transform:none!important}
+.robin-students-admin .admin-workspace.is-embedded :is(button,[role="button"]){border-radius:8px}
+.robin-students-admin .admin-assistant-launcher>span,.robin-students-admin .admin-assistant-launcher img{box-shadow:none!important;transform:none!important}
+.shell:has(.robin-students-admin) .work{background:#f1f7ff!important}
+@media(min-width:1200px){.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
+.robin-students-admin .admin-workspace.is-embedded .admin-activity-row{display:flex;min-height:42px;padding:10px 11px!important;border:1px solid #e0e6ed;border-radius:10px;background:#fff!important;box-shadow:none!important;transform:none!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-activity-row:hover{background:#fff!important;border-color:#d9e2eb!important;box-shadow:none!important;transform:none!important}
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row .truncate{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}
+.robin-students-admin .admin-workspace.is-embedded .ui-card input[aria-label="Buscar en mis clientes"],.robin-students-admin .admin-workspace.is-embedded .ui-card input[aria-label="Buscar en mis clientes"]:focus{background:#f8fafc!important;border-color:#d9e2eb!important;box-shadow:none!important;filter:none!important;outline:none!important;transform:none!important}
+.robin-students-admin .robin-notifications-view .ui-card{background:#fff!important;box-shadow:none!important;transform:none!important}
+.robin-students-admin .robin-notifications-view .ui-card :is(.bg-slate-50,.bg-slate-100,[class*="bg-slate-50/"]){background:#fff!important}
+.robin-students-admin .robin-notifications-view .ui-card :is(.rounded-xl.border,.rounded-lg.border){background:#fff!important;border-color:#e0e6ed!important;box-shadow:none!important;transform:none!important}
+.robin-students-admin .robin-notifications-view .ui-card :is(button,input,textarea,select),.robin-students-admin .robin-notifications-view .ui-card :is(button,input,textarea,select):focus{box-shadow:none!important;filter:none!important;transform:none!important}
+.robin-students-admin .admin-assistant-launcher>span{display:none!important}
+.robin-students-admin .admin-assistant-launcher,.shell:has(.robin-students-admin) .admin-assistant-launcher{display:grid;width:65px;height:65px;padding:0!important;border:0!important;border-radius:50%!important;background:transparent!important;box-shadow:none!important;place-items:center;outline:none}
+.robin-students-admin .admin-assistant-launcher img{display:block;width:65px;height:65px;box-shadow:none!important}
+.robin-students-admin .robin-notifications-view .max-h-64{background:#fff!important}
+.robin-students-admin .robin-notifications-view .max-h-64>button,.robin-students-admin .robin-notifications-view .max-h-64>button:hover{background:#fff!important}
+.robin-students-admin .faq-manager-actions{display:flex;justify-content:flex-start;position:relative;z-index:5;margin:0 0 12px}
+.robin-students-admin .faq-manager-actions button{display:inline-flex!important;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px!important;border:1px solid #1f416f!important;border-radius:8px!important;background:#1f416f!important;color:#fff!important;visibility:visible!important;opacity:1!important;box-shadow:none!important;transform:none!important}
+/* Notifications: flat surfaces and a cool, matte blue tint instead of slate gray. */
+.robin-students-admin .robin-notifications-view .ui-card :is(.bg-slate-50,.bg-slate-100,[class*="bg-slate-50/"],[class*="bg-slate-100/"]){background:#eaf2fb!important;background-image:none!important}
+.robin-students-admin .robin-notifications-view .ui-card :is(.rounded-xl.border,.rounded-lg.border){background:#eaf2fb!important;background-image:none!important;border-color:#d9e6f4!important;box-shadow:none!important;filter:none!important;transform:none!important}
+.robin-students-admin .robin-notifications-view .ui-card :is(input,textarea,select){background:#eaf2fb!important;background-image:none!important;border-color:#d9e6f4!important;box-shadow:none!important;filter:none!important;transform:none!important}
+.robin-students-admin .robin-notifications-view .ui-card :is(button,[role="button"]),.robin-students-admin .robin-notifications-view .ui-card :is(button,[role="button"]):hover,.robin-students-admin .robin-notifications-view .ui-card :is(button,[role="button"]):focus,.robin-students-admin .robin-notifications-view .ui-card :is(button,[role="button"]):active{box-shadow:none!important;filter:none!important;transform:none!important;background-image:none!important}
+.robin-students-admin .robin-notifications-view .ui-card .max-h-64,.robin-students-admin .robin-notifications-view .ui-card .max-h-64>button,.robin-students-admin .robin-notifications-view .ui-card .max-h-64>button:hover{background:#eaf2fb!important}
+.robin-students-admin .robin-notifications-view .ui-card-header>div:first-child>div:first-child{background:#eaf2fb!important;color:#31598a!important;box-shadow:none!important;filter:none!important;transform:none!important}
+.robin-students-admin .robin-notifications-view .notification-selection-count{display:inline-flex;align-items:center;margin-left:5px;padding:3px 8px;border:1px solid #d2e2f3;border-radius:999px;background:#eaf2fb;color:#31598a;font-size:10px;font-weight:700;letter-spacing:0;text-transform:none}
+.robin-students-admin .robin-notifications-view .notification-sent-item{background:#eaf2fb!important;border-color:#d9e6f4!important;box-shadow:none!important;transform:none!important}
+.robin-students-admin .robin-notifications-view .notification-sent-item>button,.robin-students-admin .robin-notifications-view .notification-sent-item>button:hover{background:#eaf2fb!important;color:#244367!important}
+.robin-students-admin .robin-notifications-view .notification-refresh-button{display:inline-flex!important;align-items:center;gap:6px;padding:7px 10px!important;border:1px solid #d2e2f3!important;border-radius:8px!important;background:#eaf2fb!important;color:#31598a!important;opacity:1!important;visibility:visible!important}
+.robin-students-admin .robin-notifications-view .notification-recipient-check{width:20px!important;height:20px!important;flex:0 0 20px;background:#fff!important;border:1px solid #8da8c5!important;border-radius:5px!important}
+.robin-students-admin .robin-notifications-view .notification-recipient-check[data-selected="true"]{background:#1f416f!important;border-color:#1f416f!important}
+.robin-students-admin .assign-client-modal .assign-client-row{min-width:0;overflow:visible}
+.robin-students-admin .assign-client-modal .assign-client-action{display:inline-flex!important;visibility:visible!important;opacity:1!important;flex:0 0 auto;min-width:max-content;white-space:nowrap;padding:7px 11px!important;border:1px solid #1f416f!important;border-radius:8px!important;background:#1f416f!important;background-image:none!important;color:#fff!important}

@@ -177,3 +177,114 @@
 @media (prefers-reduced-motion: reduce) {
   .student-portal *, .student-portal *::before, .student-portal *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Robin Plan: brand colors with a shifted, layered management dashboard. */
+.robin-subscriptions-admin .student-portal.subscription-admin.is-embedded{--student-navy:#123c70;--student-gold:#f27a32;--student-cream:#f3f6fb;min-height:calc(100vh - 5rem);background:#f3f6fb;color:#17345a;font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+.robin-subscriptions-admin .student-layout{max-width:none;padding:30px clamp(18px,3.2vw,48px) 70px;display:block}
+.robin-subscriptions-admin .student-main{max-width:1500px;margin:0 auto}
+.robin-subscriptions-admin .student-page-heading{display:none!important}
+.robin-subscriptions-admin .student-main>.space-y-5{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(19rem,.85fr);gap:20px;align-items:start}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;overflow:visible;background:transparent}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div{min-height:166px;padding:22px!important;border:1px solid #e5ebf3;border-radius:20px!important;background:#fff!important;box-shadow:0 12px 30px #123c7012!important;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:hover{transform:translateY(-4px);box-shadow:0 20px 35px #123c701e!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:first-child{background:#123c70!important;border-color:#123c70;border-radius:20px 20px 20px 7px!important;box-shadow:0 17px 35px #123c7035!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:nth-child(2){border-top:5px solid #f27a32}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:nth-child(3){border-top:5px solid #123c70}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:nth-child(4){border-top:5px solid #d9e3f0}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div :is(.text-white,.text-white\/80,.text-white\/70){color:#7184a0!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:first-child :is(.text-white,.text-white\/80,.text-white\/70){color:#dce9f8!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div>div:nth-child(2){font:750 clamp(36px,4vw,54px)/.98 Inter,ui-sans-serif,system-ui,sans-serif!important;letter-spacing:-.065em;margin-top:22px;color:#123c70!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:first-child>div:nth-child(2){color:#fff!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:not(:first-child){display:grid;grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start;min-width:0}
+.robin-subscriptions-admin .student-portal .ui-card{background:#fff;border:1px solid #e3eaf4;border-radius:20px;box-shadow:0 14px 35px #153e7010;color:#17345a}
+.robin-subscriptions-admin .student-portal .ui-card-header{padding:22px 24px;border-color:#edf1f7}
+.robin-subscriptions-admin .student-portal .ui-card-header>div:first-child>div:first-child{background:#fff0e5!important;border-radius:12px;box-shadow:none!important;color:#ed7029!important}
+.robin-subscriptions-admin .student-portal .ui-card-title{color:#123c70!important;font:760 17px/1.2 Inter,ui-sans-serif,system-ui,sans-serif!important;letter-spacing:-.025em}
+.robin-subscriptions-admin .student-portal .ui-card-content{padding:21px 24px}
+.robin-subscriptions-admin .student-main .text-slate-400,.robin-subscriptions-admin .student-main .text-slate-500,.robin-subscriptions-admin .student-main .text-slate-600,.robin-subscriptions-admin .student-main .text-slate-700,.robin-subscriptions-admin .student-main .text-slate-800{color:#687c98!important}
+.robin-subscriptions-admin .student-main .ui-card button{border-radius:12px;transition:transform .18s ease,box-shadow .18s ease}
+.robin-subscriptions-admin .student-main .ui-card button[style*="background"]{background:#123c70!important}
+.robin-subscriptions-admin .student-main .ui-card button:hover{transform:translateY(-2px);box-shadow:0 8px 18px #123c7020}
+.robin-subscriptions-admin .student-footer{border-color:#dce5f0;color:#7184a0}
+.shell:has(.robin-subscriptions-admin){background:#f3f6fb;color:#17345a}
+.shell:has(.robin-subscriptions-admin) .work{background:#f3f6fb!important}
+.shell:has(.robin-subscriptions-admin) .top{background:#fff;border-bottom:1px solid #e4ebf4;color:#123c70;box-shadow:0 5px 18px #123c7008}
+.shell:has(.robin-subscriptions-admin) .workspace-tabs a{color:#6f819a}
+.shell:has(.robin-subscriptions-admin) .workspace-tabs a.active{color:#123c70;border-bottom-color:#f27a32}
+.shell:has(.robin-subscriptions-admin) .top-actions .authenticated-user{color:#17345a}
+.shell:has(.robin-subscriptions-admin) .top-actions>button{background:#f27a32;border-color:#f27a32;color:#fff;box-shadow:0 7px 16px #f27a3233}
+.shell:has(.robin-subscriptions-admin) .side{background:#123c70;color:#e9f1fa;box-shadow:12px 0 35px #123c7014}
+.shell:has(.robin-subscriptions-admin) .side .brand{background:#fff;border-color:#fff;border-radius:15px}
+.shell:has(.robin-subscriptions-admin) .side nav a{border-radius:12px}
+.shell:has(.robin-subscriptions-admin) .side nav a.active{background:#fff;color:#123c70;box-shadow:0 8px 20px #061d3c35}
+.shell:has(.robin-subscriptions-admin) .context-title{border-color:#ffffff30}
+.shell:has(.robin-subscriptions-admin) .context-title strong{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#fff}
+.shell:has(.robin-subscriptions-admin) .context-title small{color:#ffb37d}
+.shell:has(.robin-subscriptions-admin) .profile{border-color:#ffffff30}
+.shell:has(.robin-subscriptions-admin) .profile>i{background:#f27a32;color:#fff}
+.shell:has(.robin-subscriptions-admin) .profile strong{color:#fff}
+.robin-subscriptions-admin .student-portal.subscription-admin.is-embedded,.robin-subscriptions-admin .student-portal.subscription-admin.is-embedded .student-layout,.robin-subscriptions-admin .student-portal.subscription-admin.is-embedded .student-main{background:#f3f6fb!important}
+.robin-subscriptions-admin .student-layout{display:block!important;grid-template-columns:none!important;max-width:none!important}
+@media(max-width:850px){.robin-subscriptions-admin .student-main>.space-y-5{grid-template-columns:1fr}.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child{grid-template-columns:repeat(2,minmax(0,1fr))}.robin-subscriptions-admin .student-main>.space-y-5>.grid:not(:first-child){grid-template-columns:1fr}}
+@media(max-width:560px){.robin-subscriptions-admin .student-layout{padding:17px 13px 72px}.robin-subscriptions-admin .student-main>.space-y-5{gap:13px}.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child{gap:10px}.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div{padding:15px!important;min-height:112px}.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div>div:nth-child(2){font-size:34px!important;margin-top:13px}.robin-subscriptions-admin .student-portal .ui-card-header,.robin-subscriptions-admin .student-portal .ui-card-content{padding:16px!important}}
+/* Match the shared home dashboard visual language and spacing. */
+.robin-subscriptions-admin .student-portal.subscription-admin.is-embedded,.robin-subscriptions-admin .student-portal.subscription-admin.is-embedded .student-layout,.robin-subscriptions-admin .student-portal.subscription-admin.is-embedded .student-main{background:#f4f6f9!important;color:#17263d!important}
+.robin-subscriptions-admin .student-layout{max-width:1480px!important;padding:32px clamp(22px,3vw,48px) 80px!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child{gap:12px!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div{min-height:124px;padding:17px!important;border:1px solid #e0e6ed!important;border-radius:13px!important;background:#fff!important;box-shadow:none!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:first-child{border-color:#e0e6ed!important;background:#fff!important;border-radius:13px!important;box-shadow:none!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:before{content:"";position:absolute;inset:0 0 auto;width:auto;height:3px;background:#d5dce7;border-radius:0}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:nth-child(2):before{background:#d39a40}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:nth-child(3):before{background:#4d8d74}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div>div{color:#78879a!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div>div:nth-child(2),.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:first-child>div:nth-child(2){color:#1d385d!important;font:700 1.65rem Georgia,serif!important;letter-spacing:0;margin:8px 0 3px}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:hover{transform:none;box-shadow:none!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:first-child :is(.text-white,.text-white\/80,.text-white\/70){color:#78879a!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:first-child svg{color:#31598a!important}
+.robin-subscriptions-admin .student-portal .ui-card{background:#fff!important;border:1px solid #dfe6ee!important;border-radius:14px!important;box-shadow:none!important;color:#17263d!important}
+.robin-subscriptions-admin .student-portal .ui-card-header{padding:19px 21px!important;border-color:#edf0f3!important}
+.robin-subscriptions-admin .student-portal .ui-card-header>div:first-child>div:first-child{background:#edf3fa!important;color:#31598a!important;border-radius:10px!important}
+.robin-subscriptions-admin .student-portal .ui-card-title{color:#1d395f!important;font:700 1.05rem Georgia,serif!important;letter-spacing:0}
+.robin-subscriptions-admin .student-portal .ui-card-content{padding:19px 21px!important}
+.robin-subscriptions-admin .student-main .text-slate-400,.robin-subscriptions-admin .student-main .text-slate-500,.robin-subscriptions-admin .student-main .text-slate-600,.robin-subscriptions-admin .student-main .text-slate-700,.robin-subscriptions-admin .student-main .text-slate-800{color:#617187!important}
+.robin-subscriptions-admin .student-main .ui-card button{border-radius:8px;box-shadow:none!important;transform:none}
+.robin-subscriptions-admin .student-main .ui-card button[style*="background"]{background:#1f416f!important;color:#fff!important}
+.robin-subscriptions-admin .student-main .ui-card button:hover{background:#d39a40!important;box-shadow:none!important}
+.shell:has(.robin-subscriptions-admin) .side{background:linear-gradient(180deg,#102b4b,#0c213a);color:#dbe6f2;box-shadow:none}
+.shell:has(.robin-subscriptions-admin) .side nav a{border-radius:.72rem;color:#aebfd2}
+.shell:has(.robin-subscriptions-admin) .side nav a:hover,.shell:has(.robin-subscriptions-admin) .side nav a.active{background:#ffffff12;color:#fff;box-shadow:inset 3px 0 #dda348}
+.shell:has(.robin-subscriptions-admin) .side .brand{border-radius:0;border-bottom:1px solid #ffffff14}
+.shell:has(.robin-subscriptions-admin) .context-title{border-color:#ffffff10}
+.shell:has(.robin-subscriptions-admin) .profile{border-color:#ffffff17}
+.shell:has(.robin-subscriptions-admin) .profile>i{background:#dca149;color:#17304e}
+.shell:has(.robin-subscriptions-admin) .work,.shell:has(.robin-subscriptions-admin) .top{background:#fff!important;color:#17263d}
+.shell:has(.robin-subscriptions-admin) .top-actions>button{background:#fff;border:1px solid #e0e6ed;color:#53647a;box-shadow:none;border-radius:.58rem}
+.shell:has(.robin-subscriptions-admin) .workspace-tabs a.active{color:#29395f;border-bottom-color:#f4be4f}
+@media(max-width:560px){.robin-subscriptions-admin .student-layout{padding:22px 14px 76px!important}.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div{min-height:108px;padding:15px!important}.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div>div:nth-child(2){font-size:1.35rem!important}.robin-subscriptions-admin .student-portal .ui-card-header,.robin-subscriptions-admin .student-portal .ui-card-content{padding:16px!important}}
+.robin-subscriptions-admin .student-portal.subscription-admin.is-embedded,.robin-subscriptions-admin .student-portal.subscription-admin.is-embedded .student-layout,.robin-subscriptions-admin .student-portal.subscription-admin.is-embedded .student-main{background:#f1f7ff!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div{box-shadow:none!important;transform:none!important;background:#fff!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:first-child{background:#eaf2fb!important;border-color:#dce8f5!important}
+.robin-subscriptions-admin .student-main>.space-y-5>.grid:first-child>div:hover{box-shadow:none!important;transform:none!important}
+.robin-subscriptions-admin :is(button,[role="button"]),.shell:has(.robin-subscriptions-admin) :is(button,[role="button"]){appearance:none;border-style:solid!important;border-width:1px!important;border-color:#d9e2eb!important;box-shadow:none!important;filter:none!important;transform:none!important;background-image:none!important;transition:color .15s,background-color .15s,border-color .15s!important}
+.robin-subscriptions-admin :is(button,[role="button"]):hover,.robin-subscriptions-admin :is(button,[role="button"]):active,.shell:has(.robin-subscriptions-admin) :is(button,[role="button"]):hover,.shell:has(.robin-subscriptions-admin) :is(button,[role="button"]):active{box-shadow:none!important;filter:none!important;transform:none!important}
+.robin-subscriptions-admin :is(button,[role="button"]){border-radius:8px}
+.robin-subscriptions-admin .student-chat-launcher,.robin-subscriptions-admin .student-chat-launcher:hover,.robin-subscriptions-admin .student-chat-mascot,.robin-subscriptions-admin .student-chat-launcher:hover .student-chat-mascot,.robin-subscriptions-admin .student-chat-label{box-shadow:none!important;transform:none!important}
+.shell:has(.robin-subscriptions-admin) .work{background:#f1f7ff!important}
+.robin-subscriptions-admin .robin-notifications-view .ui-card{background:#fff!important;box-shadow:none!important;transform:none!important}
+.robin-subscriptions-admin .robin-notifications-view .ui-card :is(.bg-slate-50,.bg-slate-100,[class*="bg-slate-50/"]){background:#fff!important}
+.robin-subscriptions-admin .robin-notifications-view .ui-card :is(.rounded-xl.border,.rounded-lg.border){background:#fff!important;border-color:#e0e6ed!important;box-shadow:none!important;transform:none!important}
+.robin-subscriptions-admin .robin-notifications-view .ui-card :is(button,input,textarea,select),.robin-subscriptions-admin .robin-notifications-view .ui-card :is(button,input,textarea,select):focus{box-shadow:none!important;filter:none!important;transform:none!important}
+.robin-subscriptions-admin .robin-notifications-view .max-h-56 label:hover{background:#fff!important}
+.robin-subscriptions-admin .faq-manager-actions{display:flex;justify-content:flex-start;position:relative;z-index:5;margin:0 0 12px}
+.robin-subscriptions-admin .faq-manager-actions button{display:inline-flex!important;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px!important;border:1px solid #1f416f!important;border-radius:8px!important;background:#1f416f!important;color:#fff!important;visibility:visible!important;opacity:1!important;box-shadow:none!important;transform:none!important}
+/* Notifications: flat surfaces and a cool, matte blue tint instead of slate gray. */
+.robin-subscriptions-admin .robin-notifications-view .ui-card :is(.bg-slate-50,.bg-slate-100,[class*="bg-slate-50/"],[class*="bg-slate-100/"]){background:#eaf2fb!important;background-image:none!important}
+.robin-subscriptions-admin .robin-notifications-view .ui-card :is(.rounded-xl.border,.rounded-lg.border){background:#eaf2fb!important;background-image:none!important;border-color:#d9e6f4!important;box-shadow:none!important;filter:none!important;transform:none!important}
+.robin-subscriptions-admin .robin-notifications-view .ui-card :is(input,textarea,select){background:#eaf2fb!important;background-image:none!important;border-color:#d9e6f4!important;box-shadow:none!important;filter:none!important;transform:none!important}
+.robin-subscriptions-admin .robin-notifications-view .ui-card :is(button,[role="button"]),.robin-subscriptions-admin .robin-notifications-view .ui-card :is(button,[role="button"]):hover,.robin-subscriptions-admin .robin-notifications-view .ui-card :is(button,[role="button"]):focus,.robin-subscriptions-admin .robin-notifications-view .ui-card :is(button,[role="button"]):active{box-shadow:none!important;filter:none!important;transform:none!important;background-image:none!important}
+.robin-subscriptions-admin .robin-notifications-view .ui-card .max-h-56,.robin-subscriptions-admin .robin-notifications-view .ui-card .max-h-56 label,.robin-subscriptions-admin .robin-notifications-view .ui-card .max-h-56 label:hover{background:#eaf2fb!important}
+.robin-subscriptions-admin .robin-notifications-view .ui-card-header>div:first-child>div:first-child{background:#eaf2fb!important;color:#31598a!important;box-shadow:none!important;filter:none!important;transform:none!important}
+.robin-subscriptions-admin .robin-notifications-view .notification-selection-count{display:inline-flex;align-items:center;margin-left:5px;padding:3px 8px;border:1px solid #d2e2f3;border-radius:999px;background:#eaf2fb;color:#31598a;font-size:10px;font-weight:700;letter-spacing:0;text-transform:none}
+.robin-subscriptions-admin .robin-notifications-view .notification-recipient-checkbox{appearance:auto!important;-webkit-appearance:checkbox!important;display:inline-block!important;flex:0 0 16px;width:16px!important;height:16px!important;margin:0 2px 0 0!important;accent-color:#1f416f;opacity:1!important;visibility:visible!important;background:#fff!important;border:1px solid #7593b4!important;box-shadow:none!important}
+.robin-subscriptions-admin .robin-notifications-view .notification-sent-item{background:#eaf2fb!important;border-color:#d9e6f4!important;box-shadow:none!important;transform:none!important}
+.robin-subscriptions-admin .robin-notifications-view .notification-sent-item>div>button{background:#eaf2fb!important;background-image:none!important;color:#31598a!important;border-color:#d9e6f4!important;box-shadow:none!important}
