@@ -832,6 +832,12 @@ function EmailComposer({ contacts, notify, onClose }: { contacts: Contact[]; not
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [templateBusy, setTemplateBusy] = useState(false);
+  const [gmailReady, setGmailReady] = useState(false);
+  const [gmailReason, setGmailReason] = useState("Comprobando acceso a Gmail…");
+  const [workspaceReady, setWorkspaceReady] = useState(false);
+  const [workspaceReason, setWorkspaceReason] = useState("Comprobando base de datos…");
+  const [sending, setSending] = useState(false);
+  const [sendProgress, setSendProgress] = useState("");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const campaigns = useMemo(() => [...new Set(contacts.map((contact) => contact.campaign).filter((campaign) => campaign && campaign !== "—" && campaign !== "Pendiente de identificar"))].sort((a, b) => a.localeCompare(b, "es")), [contacts]);
   const filtered = useMemo(() => contacts.filter((contact) => (campaignFilter === "all" || contact.campaign === campaignFilter) && `${contact.name} ${contact.email} ${contact.phone}`.toLowerCase().includes(query.trim().toLowerCase())), [contacts, campaignFilter, query]);
@@ -843,10 +849,17 @@ function EmailComposer({ contacts, notify, onClose }: { contacts: Contact[]; not
     let active = true;
     adminDataClient.getCrmEmailWorkspace().then(({ draft, templates: savedTemplates }) => {
       if (!active) return;
+      setWorkspaceReady(true);
+      setWorkspaceReason("");
       setTemplates(savedTemplates);
       if (draft) { setSubject(draft.subject); setBody(draft.body); setSelectedIds(draft.recipientIds); setCampaignFilter(draft.campaignFilter || "all"); }
-    }).catch((error) => { if (active) notify(error instanceof Error ? error.message : "No se pudo cargar el espacio de correo"); })
+    }).catch((error) => { if (active) { setWorkspaceReady(false); setWorkspaceReason(error instanceof Error ? error.message : "No se pudo cargar el espacio de correo."); notify(error instanceof Error ? error.message : "No se pudo cargar el espacio de correo"); } })
       .finally(() => { if (active) setLoading(false); });
+    adminDataClient.getCrmGmailStatus().then((status) => {
+      if (!active) return;
+      setGmailReady(status.ready);
+      setGmailReason(status.ready ? `Conectado a Gmail${status.sender ? ` · ${status.sender}` : ""}` : status.reason || "Gmail no está disponible.");
+    }).catch((error) => { if (active) { setGmailReady(false); setGmailReason(error instanceof Error ? error.message : "No se pudo comprobar Gmail."); } });
     return () => { active = false; };
   }, []);
 
@@ -871,6 +884,46 @@ function EmailComposer({ contacts, notify, onClose }: { contacts: Contact[]; not
     try { await adminDataClient.saveCrmEmailDraft({ subject, body, recipientIds: selectedIds, campaignFilter }); notify("Borrador guardado en la base de datos"); }
     catch (error) { notify(error instanceof Error ? error.message : "No se pudo guardar el borrador"); }
     finally { setSaving(false); }
+  }
+
+  async function sendEmail() {
+    const recipients = selectedContacts.filter((contact) => contact.email);
+    if (!gmailReady || !workspaceReady || !recipients.length || !subject.trim() || !body.trim()) return;
+    if (!window.confirm(`¿Enviar este correo a ${recipients.length} destinatarios? Cada persona recibirá un mensaje individual.`)) return;
+    setSending(true);
+    let sentCount = 0;
+    let skippedCount = 0;
+    let failedCount = 0;
+    try {
+      const batches = Array.from({ length: Math.ceil(recipients.length / 10) }, (_, index) => recipients.slice(index * 10, (index + 1) * 10));
+      for (let index = 0; index < batches.length; index += 1) {
+        setSendProgress(`Enviando lote ${index + 1} de ${batches.length}…`);
+        const result = await adminDataClient.sendCrmEmail({ recipientIds: batches[index].map((contact) => contact.id), subject, body });
+        sentCount += result.sent.length;
+        skippedCount += result.skipped.length;
+        failedCount += result.failed.length;
+        if (result.failed.some((item) => /permiso|autorizar|Gmail API/i.test(item.reason))) break;
+      }
+      if (sentCount) {
+        try {
+          const matchingTemplate = templates.find((template) => template.subject === subject && template.body === body);
+          if (!matchingTemplate) {
+            const timestamp = new Date().toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" });
+            const saved = await adminDataClient.saveCrmEmailTemplate({ name: (subject.trim() || `Correo enviado ${timestamp}`).slice(0, 120), subject, body });
+            setTemplates((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
+          }
+        } catch (_) {
+          notify(`Enviados: ${sentCount}. No se pudo guardar el correo como plantilla; comprueba la migración de la base de datos.`);
+          return;
+        }
+      }
+      notify(`Enviados: ${sentCount}${skippedCount ? ` · omitidos: ${skippedCount}` : ""}${failedCount ? ` · con error: ${failedCount}` : ""}${sentCount ? " · guardado en Plantillas" : ""}`);
+    } catch (error) {
+      notify(`${error instanceof Error ? error.message : "No se pudo completar el envío"}${sentCount ? ` · correos enviados antes del error: ${sentCount}` : ""}`);
+    } finally {
+      setSending(false);
+      setSendProgress("");
+    }
   }
 
   async function saveTemplate(updateExisting = false) {
@@ -898,11 +951,11 @@ function EmailComposer({ contacts, notify, onClose }: { contacts: Contact[]; not
   }
 
   return <div className="email-composer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="email-composer" role="dialog" aria-modal="true" aria-labelledby="email-composer-title">
-    <header><div><h2 id="email-composer-title">Correo electrónico</h2><p>Prepara un borrador personalizado. El envío con Gmail se conectará después.</p></div><button className="email-composer-close" type="button" aria-label="Cerrar" onClick={onClose}><X /></button></header>
+    <header><div><h2 id="email-composer-title">Correo electrónico</h2><p>{gmailReason}{!workspaceReady && workspaceReason ? ` · ${workspaceReason}` : ""}</p></div><button className="email-composer-close" type="button" aria-label="Cerrar" onClick={onClose}><X /></button></header>
     <section className="email-templates-panel"><div className="email-templates-heading"><div><h3>Plantillas</h3><p>Carga una plantilla para editarla o guárdala para reutilizarla.</p></div><label>Nombre<input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Ej. Seguimiento webinar" /></label><Button type="button" variant="outline" disabled={templateBusy} onClick={() => void saveTemplate()}>Guardar como plantilla</Button>{selectedTemplateId && <Button type="button" disabled={templateBusy} onClick={() => void saveTemplate(true)}>Actualizar plantilla</Button>}</div><div className="email-template-list">{templates.map((template) => <article className={`email-template-item ${selectedTemplateId === template.id ? "active" : ""}`} key={template.id}><button type="button" className="email-template-load" onClick={() => loadTemplate(template)}><strong>{template.name}</strong><small>{template.subject || "Sin asunto"}</small></button><button type="button" className="email-template-delete" aria-label={`Eliminar ${template.name}`} disabled={templateBusy} onClick={() => void deleteTemplate(template.id)}><X /></button></article>)}{!templates.length && <span className="email-template-empty">Aún no hay plantillas guardadas.</span>}</div></section>
     <div className="email-composer-grid"><section className="email-recipient-panel"><h3>Destinatarios</h3><div className="email-recipient-controls"><label>Buscar<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre, email o teléfono" /></label><label>Campaña<select value={campaignFilter} onChange={(event) => setCampaignFilter(event.target.value)}><option value="all">Todas las campañas</option>{campaigns.map((campaign) => <option key={campaign}>{campaign}</option>)}</select></label></div><div className="email-recipient-summary"><span>{selectedIds.length} seleccionados · {filtered.length} visibles</span><button type="button" onClick={() => setSelectedIds((current) => [...new Set([...current, ...filtered.map((item) => item.id)])])}>Seleccionar visibles</button><button type="button" onClick={() => setSelectedIds([])}>Limpiar</button></div><div className="email-recipient-list">{loading ? <p className="email-recipient-empty">Cargando…</p> : filtered.map((contact) => <label className="email-recipient-row" key={contact.id}><input type="checkbox" checked={selectedIds.includes(contact.id)} onChange={(event) => setSelectedIds((current) => event.target.checked ? [...new Set([...current, contact.id])] : current.filter((id) => id !== contact.id))} /><span><strong>{contact.name}</strong><small>{contact.email || "Sin correo electrónico"} · {contact.campaign || "Sin campaña"}</small></span></label>)}{!loading && !filtered.length && <p className="email-recipient-empty">No hay destinatarios con esos filtros.</p>}</div></section>
-      <section className="email-message-panel"><h3>Mensaje</h3><label className="email-subject">Asunto<input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Asunto del correo" /></label><label className="email-subject">Cuerpo<textarea ref={bodyRef} className="email-body-editor" value={body} onChange={(event) => changeBody(event.target.value, event.target.selectionStart)} onKeyDown={(event) => { if (fieldQuery == null || !mergeOptions.length) return; if (event.key === "Escape") setFieldQuery(null); if (event.key === "Enter" || event.key === "Tab") { event.preventDefault(); insertField(mergeOptions[0].key); } }} placeholder="Escribe el correo. Teclea # para insertar una columna." /></label>{fieldQuery != null && <div className="email-merge-list" role="listbox" aria-label="Columnas de crm_leads">{mergeOptions.map((field) => <button type="button" role="option" key={field.key} onMouseDown={(event) => event.preventDefault()} onClick={() => insertField(field.key)}>#{field.key} · {field.label}</button>)}{!mergeOptions.length && <small>No hay columnas que coincidan.</small>}</div>}<p className="email-merge-hint">Los campos corresponden a columnas de la base de leads y se podrán sustituir individualmente al conectar el envío.</p></section></div>
-    <footer className="email-composer-footer"><span>{selectedContacts.filter((contact) => contact.email).length} de {selectedContacts.length} destinatarios seleccionados tienen email.</span><div><Button type="button" variant="outline" onClick={onClose}>Cerrar</Button><Button type="button" disabled={saving || loading} onClick={() => void saveDraft()}>{saving ? "Guardando…" : "Guardar borrador"}</Button><button className="email-send-placeholder" type="button" disabled>Enviar correo · próximamente</button></div></footer>
+      <section className="email-message-panel"><h3>Mensaje</h3><label className="email-subject">Asunto<input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Asunto del correo" /></label><label className="email-subject">Cuerpo<textarea ref={bodyRef} className="email-body-editor" value={body} onChange={(event) => changeBody(event.target.value, event.target.selectionStart)} onKeyDown={(event) => { if (fieldQuery == null || !mergeOptions.length) return; if (event.key === "Escape") setFieldQuery(null); if (event.key === "Enter" || event.key === "Tab") { event.preventDefault(); insertField(mergeOptions[0].key); } }} placeholder="Escribe el correo. Teclea # para insertar una columna." /></label>{fieldQuery != null && <div className="email-merge-list" role="listbox" aria-label="Columnas de crm_leads">{mergeOptions.map((field) => <button type="button" role="option" key={field.key} onMouseDown={(event) => event.preventDefault()} onClick={() => insertField(field.key)}>#{field.key} · {field.label}</button>)}{!mergeOptions.length && <small>No hay columnas que coincidan.</small>}</div>}<p className="email-merge-hint">Los campos se sustituirán con los datos de cada destinatario al enviar.</p></section></div>
+    <footer className="email-composer-footer"><span>{selectedContacts.filter((contact) => contact.email).length} de {selectedContacts.length} destinatarios seleccionados tienen email.{sendProgress && <small className="email-send-progress">{sendProgress}</small>}</span><div><Button type="button" variant="outline" disabled={sending} onClick={onClose}>Cerrar</Button><Button type="button" disabled={!workspaceReady || saving || loading || sending} onClick={() => void saveDraft()}>{saving ? "Guardando…" : "Guardar borrador"}</Button><Button type="button" disabled={!gmailReady || !workspaceReady || !selectedContacts.some((contact) => contact.email) || !subject.trim() || !body.trim() || loading || sending} onClick={() => void sendEmail()}>{sending ? "Enviando…" : "Enviar correo"}</Button></div></footer>
   </section></div>;
 }
 

@@ -127,6 +127,17 @@ export const adminDataClient = {
     if (!response.ok) throw new Error("No se pudieron cargar borradores y plantillas de correo");
     return response.json();
   },
+  async getCrmGmailStatus(): Promise<{ ready: boolean; reason?: string; sender?: string }> {
+    const response = await fetch("/api/admin/crm/email?action=gmail-status", { credentials: "include" });
+    if (!response.ok) throw new Error("No se pudo comprobar la conexión con Gmail");
+    return response.json();
+  },
+  async sendCrmEmail(input: { recipientIds: string[]; subject: string; body: string }): Promise<{ sent: Array<{ id: string; email: string; messageId: string }>; skipped: Array<{ id: string; reason: string }>; failed: Array<{ id: string; email: string; reason: string }> }> {
+    const response = await fetch("/api/admin/crm/email?action=send", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "No se pudo enviar el correo");
+    return payload;
+  },
   async saveCrmEmailDraft(draft: CrmEmailDraft): Promise<void> {
     const response = await fetch("/api/admin/crm/email", { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) });
     if (!response.ok) throw new Error("No se pudo guardar el borrador en la base de datos");
