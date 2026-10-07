@@ -13,3 +13,5 @@ navegador.
   comerciales atómicos y sesiones activas del equipo.
 - `202610010001_create_web_analytics.sql`: eventos anónimos de la web pública,
   agregados del panel, mapas de calor y retención de 14 meses.
+- `202610060001_create_crm_email_workspace.sql`: borradores y plantillas de
+  correo del CRM, accesibles únicamente a través de funciones autenticadas.

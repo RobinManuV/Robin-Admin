@@ -13,6 +13,8 @@ function isLocalAdminPreview() {
 }
 
 export type EditableMetricRecord = { id: string; label: string; value: string; detail: string; group?: string };
+export type CrmEmailDraft = { subject: string; body: string; recipientIds: string[]; campaignFilter: string };
+export type CrmEmailTemplate = { id: string; name: string; subject: string; body: string; updatedAt?: string };
 type LeadPatch = { owner?: string; source?: string; category?: LeadCategory | ""; stage?: CrmStage; heat?: number; notes?: string; lostAt?: string; lostReason?: LostReason | ""; lostReasonDetail?: string };
 
 function statusFor(stage: CrmStage): Contact["status"] {
@@ -54,6 +56,10 @@ function fieldValue(fields: Record<string, unknown>, ...patterns: RegExp[]) {
   return "";
 }
 
+function databaseFieldValues(row: Record<string, any>): Record<string, string> {
+  return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, value == null ? "" : Array.isArray(value) ? value.join(", ") : typeof value === "object" ? JSON.stringify(value) : String(value)]));
+}
+
 function toContact(row: Record<string, any>): Contact {
   const fields = normalizedFields(row);
   const fullName = fieldValue(fields, /^(full_?name|nombre_?(completo|y_?apellidos?)|name|nombre)$/);
@@ -70,9 +76,11 @@ function toContact(row: Record<string, any>): Contact {
     .filter(([key, value]) => value != null && String(value).trim() && !/(name|nombre|apellido|mail|correo|phone|telefono|movil)/i.test(key))
     .map(([key, value]) => `${key.replace(/_/g, " ")}: ${String(value).trim()}`)
     .join("\n");
-  const storedCampaign = String(row.campaign_notion_urls?.[0] || "");
-  const campaign = row.source_payload?.campaign_name || row.source_payload?.form_name || (!storedCampaign.startsWith("meta-ad:") ? storedCampaign : "") || "Pendiente de identificar";
-  return { id: row.id, name, initials: name.split(/\s+/).slice(0, 2).map((part: string) => part[0] || "").join("").toUpperCase(), email: row.email || fieldValue(fields, /^e?mail$/, /^correo/) || "", phone: row.phone || fieldValue(fields, /phone/, /telefono/, /movil/) || "", country: "", university: row.school_name || "", course: "", product: "Aplicación", status: statusFor(stage), source: sourceFor(row), campaign, owner: row.owner_names?.[0] || "", probability: Number(row.heat || 0), nextAction: "", lastContact: row.contact_at || "—", value: 0, tags: [], category: category as LeadCategory | undefined, heat: Number(row.heat ?? 50), notes: row.comment || row.body_text || row.summary || formNotes || remainingFormDetails || "", stage, lostAt: row.lost_at || undefined, lostReason: row.source_payload?.lost_reason || undefined, lostReasonDetail: row.source_payload?.lost_reason_detail || undefined, createdAt: row.source_created_at || row.created_at || undefined, clientAt: row.inside_at || undefined };
+  const storedCampaign = String(row.campaign_notion_urls?.[0] || "").trim();
+  const payloadCampaign = String(row.source_payload?.campaign_name || row.source_payload?.form_name || "").trim();
+  const isNotionUrl = (value: string) => /^https?:\/\/(?:www\.)?notion\.(?:so|site|com)\//i.test(value);
+  const campaign = [payloadCampaign, storedCampaign].find((value) => value && !value.startsWith("meta-ad:") && !isNotionUrl(value)) || "Pendiente de identificar";
+  return { id: row.id, name, initials: name.split(/\s+/).slice(0, 2).map((part: string) => part[0] || "").join("").toUpperCase(), email: row.email || fieldValue(fields, /^e?mail$/, /^correo/) || "", phone: row.phone || fieldValue(fields, /phone/, /telefono/, /movil/) || "", country: "", university: row.school_name || "", course: "", product: "Aplicación", status: statusFor(stage), source: sourceFor(row), campaign, owner: row.owner_names?.[0] || "", probability: Number(row.heat || 0), nextAction: "", lastContact: row.contact_at || "—", value: 0, tags: [], databaseFields: databaseFieldValues(row), category: category as LeadCategory | undefined, heat: Number(row.heat ?? 50), notes: row.comment || row.body_text || row.summary || formNotes || remainingFormDetails || "", stage, lostAt: row.lost_at || undefined, lostReason: row.source_payload?.lost_reason || undefined, lostReasonDetail: row.source_payload?.lost_reason_detail || undefined, createdAt: row.source_created_at || row.created_at || undefined, clientAt: row.inside_at || undefined };
 }
 
 export const adminDataClient = {
@@ -113,6 +121,25 @@ export const adminDataClient = {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error === "name_required" ? "El nombre es obligatorio" : "No se pudo crear el lead");
     return toContact(payload.lead);
+  },
+  async getCrmEmailWorkspace(): Promise<{ draft: CrmEmailDraft | null; templates: CrmEmailTemplate[] }> {
+    const response = await fetch("/api/admin/crm/email", { credentials: "include" });
+    if (!response.ok) throw new Error("No se pudieron cargar borradores y plantillas de correo");
+    return response.json();
+  },
+  async saveCrmEmailDraft(draft: CrmEmailDraft): Promise<void> {
+    const response = await fetch("/api/admin/crm/email", { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) });
+    if (!response.ok) throw new Error("No se pudo guardar el borrador en la base de datos");
+  },
+  async saveCrmEmailTemplate(template: Partial<CrmEmailTemplate> & Pick<CrmEmailTemplate, "name" | "subject" | "body">): Promise<CrmEmailTemplate> {
+    const response = await fetch("/api/admin/crm/email", { method: template.id ? "PATCH" : "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(template) });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "No se pudo guardar la plantilla");
+    return payload.template;
+  },
+  async deleteCrmEmailTemplate(id: string): Promise<void> {
+    const response = await fetch("/api/admin/crm/email", { method: "DELETE", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) });
+    if (!response.ok) throw new Error("No se pudo eliminar la plantilla");
   },
   subscribe(onChange: () => void) {
     const timer = window.setInterval(onChange, 30_000);
