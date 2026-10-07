@@ -986,7 +986,6 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
   const [campaignFilter, setCampaignFilter] = useState("all");
   const [exportingClients, setExportingClients] = useState(false);
   const [selected, setSelected] = useState<Contact | null>(null);
-  const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [lostCategory, setLostCategory] = useState("");
@@ -1097,8 +1096,8 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
   const title = path === "/crm/contactados" ? "Pipeline de contactados" : path === "/crm/clientes" ? "Clientes" : path === "/crm/lost" ? "Lost" : "Por contactar";
   return (
     <div className="page">
-      <Title name={title} sub={`Cartera comercial de ${currentUser}.`} eyebrow="CRM PERSONAL"><div className="crm-title-actions"><Badge variant="outline">{owned.length} REGISTROS</Badge>{path === "/crm" && <Button variant="outline" onClick={() => setEmailComposerOpen(true)}><Mail />Correo electrónico</Button>}</div></Title>
-      <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label>{path === "/crm" && <Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{activeCrmFilters > 0 && <span className="filter-count">{activeCrmFilters}</span>}</Button>}{path === "/crm/clientes" && <Button variant="outline" disabled={exportingClients} onClick={() => void exportClientDatabase()}><Download />{exportingClients ? "Preparando…" : "Descargar base de datos"}</Button>}</div>
+      <Title name={title} sub={`Cartera comercial de ${currentUser}.`} eyebrow="CRM PERSONAL"><Badge variant="outline">{owned.length} REGISTROS</Badge></Title>
+      <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label>{path === "/crm" && <><Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{activeCrmFilters > 0 && <span className="filter-count">{activeCrmFilters}</span>}</Button><Button variant="outline" onClick={() => setEmailComposerOpen(true)}><Mail />Correo electrónico</Button></>}{path === "/crm/clientes" && <Button variant="outline" disabled={exportingClients} onClick={() => void exportClientDatabase()}><Download />{exportingClients ? "Preparando…" : "Descargar base de datos"}</Button>}</div>
 
       {path === "/crm" && (
         <>
@@ -1106,8 +1105,7 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
         <div className="qualification-grid">
           {porContactarLeads.map((contact) => (
             <article className={`qualification-card ${contact.formName === "colegios" ? "school-lead" : ""}`} key={contact.id}>
-              <div className="qualification-card-topline"><small className={contact.formName === "colegios" ? "school-lead-label" : ""}>{contact.formName === "colegios" ? "COLEGIOS" : contact.source}</small><button type="button" className="delete-lead" disabled={deletingCardId === contact.id} aria-label={`Eliminar ${contact.name}`} onClick={async (event) => { event.stopPropagation(); if (!window.confirm(`¿Eliminar definitivamente a ${contact.name} del CRM?`)) return; setDeletingCardId(contact.id); try { await onDeleteLead(contact.id); notify(`${contact.name} eliminado correctamente`); } catch (error) { notify(error instanceof Error ? error.message : "No se pudo eliminar el lead"); } finally { setDeletingCardId(null); } }}><Trash2 />{deletingCardId === contact.id ? "Eliminando…" : "Eliminar"}</button></div>
-              <button className="card-main" onClick={() => openContact(contact)}><h3>{contact.name}</h3><p>{contact.email}</p><span><Flame /> Heat {leadHeat[contact.id]}</span></button>
+              <button className="card-main" onClick={() => openContact(contact)}><small className={contact.formName === "colegios" ? "school-lead-label" : ""}>{contact.formName === "colegios" ? "COLEGIOS" : contact.source}</small><h3>{contact.name}</h3><p>{contact.email}</p><span><Flame /> Heat {leadHeat[contact.id]}</span></button>
               <label>Categoría obligatoria<CategoryPicker value={categories[contact.id] || ""} onChange={(category) => onCategorizeLead(contact.id, category)} /></label>
               <Button disabled={!categories[contact.id]} onClick={() => { onMoveLead(contact.id, "Contactado"); notify(`${contact.name} ha pasado a Contactado`); }}>Pasar a contactado<ArrowRight /></Button>
             </article>
