@@ -446,7 +446,7 @@ function FinanceOverview() {
     { label: "Ventas", source: "holded" as const, value: money(data.kpis.sales), detail: data.kpis.invoices == null ? "—" : `${data.kpis.invoices} facturas emitidas`, icon: CircleDollarSign },
     { label: "Contratado", source: "portal" as const, value: money(data.kpis.contracted), detail: "Todas las cuotas previstas del plan", icon: FileText, alert: data.kpis.anomaly },
     { label: "Alumnos", source: "portal" as const, value: plainNumber(data.kpis.students), detail: "Contratos firmados en el periodo", icon: GraduationCap },
-    { label: "Gastos", source: "holded" as const, value: hasAccounting ? money(data.expenses.total) : "—", detail: "Facturas de compra, incluido IVA", icon: BarChart3 },
+    { label: "CAC", source: "both" as const, value: hasAccounting ? money(data.kpis.cac) : "—", detail: "Marketing Holded ÷ nuevos alumnos", icon: BarChart3 },
   ];
   const cashPoints = data.cash.points.map((point) => ({ ...point, label: new Date(`${point.date}T12:00:00`).toLocaleDateString("es-ES", { month: "short", year: "2-digit" }) }));
   const currentCash = cashPoints.at(-1)?.balance ?? null;

@@ -160,7 +160,7 @@ function previewFinanceDashboard(period: FinancePeriod): FinanceDashboard {
     granularity: period === '30d' || period === 'month' || period === 'last_month' ? 'day' : period === '3m' ? 'week' : 'month',
     syncedAt: now.toISOString(),
     available: true,
-    kpis: { sales, invoices: Math.max(1, students), contracted, students, cac: null, anomaly: false },
+    kpis: { sales, invoices: Math.max(1, students), contracted, students, cac: students ? Math.round(expenses.marketing / students) : null, anomaly: false },
     buckets,
     collections: { sales, collected, emitted: sales, contracted, invoices: Math.max(1, students), pending: sales - collected, averageInvoice: students ? sales / students : null, averageTicket: students ? contracted / students : null },
     expenses,

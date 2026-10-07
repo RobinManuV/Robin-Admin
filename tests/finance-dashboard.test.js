@@ -111,3 +111,17 @@ test('calculates VAT payable as sales VAT minus purchase VAT', async () => {
   assert.equal(dashboard.expenses.total, 121);
   assert.equal(dashboard.buckets.reduce((total, bucket) => total + bucket.expenses, 0), 121);
 });
+
+test('keeps posted Holded ledger rows and the account used to request them', () => {
+  const totals = summarizeExpenses([{
+    entry_number: 'ledger-1',
+    date: Math.floor(new Date('2026-09-18T00:00:00.000Z').getTime() / 1000),
+    requested_account: '62700002',
+    status: 'posted',
+    amount: 350,
+  }], bounds);
+
+  assert.equal(totals.marketing, 350);
+  assert.equal(totals.payments, 350);
+  assert.equal(totals.total, 350);
+});
