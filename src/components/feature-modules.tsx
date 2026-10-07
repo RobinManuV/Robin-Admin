@@ -418,6 +418,7 @@ function expenseDiagnosticCopy(data: FinanceDashboard) {
 function FinanceOverview() {
   const [period, setPeriod] = useState<FinancePeriod>("ytd");
   const [data, setData] = useState<FinanceDashboard | null>(null);
+  const [salesData, setSalesData] = useState<SalesDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [invoiceLimit, setInvoiceLimit] = useState(5);
@@ -427,9 +428,16 @@ function FinanceOverview() {
     setLoading(true);
     setError("");
     setInvoiceLimit(5);
-    integrationClient.financeDashboard(period)
-      .then((result) => { if (active) setData(result); })
-      .catch((reason) => { if (active) { setData(null); setError(reason instanceof Error ? reason.message : "No se pudieron cargar las finanzas"); } })
+    Promise.allSettled([integrationClient.financeDashboard(period), integrationClient.salesDashboard(period)])
+      .then(([financeResult, salesResult]) => {
+        if (!active) return;
+        if (financeResult.status === "fulfilled") setData(financeResult.value);
+        else {
+          setData(null);
+          setError(financeResult.reason instanceof Error ? financeResult.reason.message : "No se pudieron cargar las finanzas");
+        }
+        setSalesData(salesResult.status === "fulfilled" ? salesResult.value : null);
+      })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [period]);
@@ -449,7 +457,7 @@ function FinanceOverview() {
     { label: "Ventas", source: "holded" as const, value: money(data.kpis.sales), detail: data.kpis.invoices == null ? "—" : `${data.kpis.invoices} facturas emitidas`, icon: CircleDollarSign },
     { label: "Contratado", source: "portal" as const, value: money(data.kpis.contracted), detail: "Todas las cuotas previstas del plan", icon: FileText, alert: data.kpis.anomaly },
     { label: "Alumnos", source: "portal" as const, value: plainNumber(data.kpis.students), detail: "Contratos firmados en el periodo", icon: GraduationCap },
-    { label: "CAC", source: "both" as const, value: hasAccounting ? money(data.kpis.cac) : "—", detail: "Marketing Holded ÷ nuevos alumnos", icon: BarChart3 },
+    { label: "CAC", source: "meta" as const, value: salesData?.sources.meta ? money(salesData.kpis.cac) : "—", detail: "Inversión Meta Ads ÷ nuevos alumnos del Portal", icon: BarChart3 },
   ];
   const cashPoints = data.cash.points.map((point) => ({ ...point, label: new Date(`${point.date}T12:00:00`).toLocaleDateString("es-ES", { month: "short", year: "2-digit" }) }));
   const currentCash = cashPoints.at(-1)?.balance ?? null;
@@ -478,7 +486,7 @@ function FinanceOverview() {
     {expenseStatus && <div className={`finance-expense-status ${expenseStatus.tone}`}><AlertTriangle /><span><strong>{expenseStatus.title}</strong>{expenseStatus.text}</span></div>}
     {hasOtherWarnings ? <div className="finance-source-warning"><AlertTriangle /><span>Hay otras fuentes temporalmente no disponibles. Sus importes se muestran como “—”.</span></div> : null}
 
-    <section className="finance-kpis">{kpis.map(({ label, source, value, detail, icon: Icon, alert }) => <article key={label} className={alert ? "is-alert" : ""}><i><Icon /></i><div><span>{label}<SourceTag source={source}>{source === "both" ? "Holded + Portal" : source === "holded" ? "Holded" : "Portal"}</SourceTag></span><strong>{value}</strong><small>{detail}</small></div></article>)}</section>
+    <section className="finance-kpis">{kpis.map(({ label, source, value, detail, icon: Icon, alert }) => <article key={label} className={alert ? "is-alert" : ""}><i><Icon /></i><div><span>{label}<SourceTag source={source}>{source === "both" ? "Holded + Portal" : source === "holded" ? "Holded" : source === "meta" ? "Meta Ads + Portal" : "Portal"}</SourceTag></span><strong>{value}</strong><small>{detail}</small></div></article>)}</section>
 
     <div className="finance-two-columns">
       <section className="panel finance-chart"><ChartHeading title="Ventas" sub="Facturas emitidas, con IVA" source="holded" granularity={data.granularity} /><ResponsiveContainer width="100%" height={245}><BarChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><FinanceXAxis buckets={data.buckets} /><YAxis hide /><Tooltip content={<FinanceTooltip />} /><Bar dataKey="sales" name="Ventas" fill="#2f5a8a" radius={[4,4,0,0]} /></BarChart></ResponsiveContainer></section>

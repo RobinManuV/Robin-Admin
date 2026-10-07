@@ -88,6 +88,30 @@ test('reports purchase documents whose expense accounts are not configured', () 
   assert.deepEqual(result.entries, []);
 });
 
+test('resolves Holded internal expense account ids through the expense account catalogue', () => {
+  const result = purchaseDocumentsToExpenseEntries([{
+    id: 'purchase-catalogued',
+    documentType: 'purchase',
+    date: Math.floor(Date.parse('2026-09-12T00:00:00Z') / 1000),
+    subtotal: 250,
+    tax: 52.5,
+    total: 302.5,
+    expAccountId: 'internal-meta-account',
+    items: [],
+  }], new Date('2026-09-01T00:00:00Z'), new Date('2026-10-01T00:00:00Z'), [{
+    id: 'internal-meta-account',
+    name: 'Publicidad y campañas',
+    accountNum: 62700002,
+  }]);
+
+  assert.equal(result.classifiedDocuments, 1);
+  assert.equal(result.unclassifiedDocuments, 0);
+  assert.equal(result.entries[0].category, 'marketing');
+  assert.equal(result.entries[0].debit, 250);
+  assert.equal(result.entries[1].category, 'taxes');
+  assert.equal(result.entries[1].debit, 52.5);
+});
+
 test('calculates VAT payable as sales VAT minus purchase VAT', async () => {
   const purchaseResult = purchaseDocumentsToExpenseEntries([{
     id: 'purchase-vat',
