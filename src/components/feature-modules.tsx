@@ -18,6 +18,7 @@ import {
   Flame,
   GraduationCap,
   Landmark,
+  Mail,
   Megaphone,
   MessageCircle,
   KeyRound,
@@ -31,12 +32,14 @@ import {
   UserCheck,
   UserPlus,
   WalletCards,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Contact, CrmStage, LeadCategory, LostReason } from "@/types/domain";
 import { integrationClient } from "@/services/integrations";
 import { adminDataClient } from "@/services/admin-data";
+import type { CrmEmailDraft, CrmEmailTemplate } from "@/services/admin-data";
 import type { FinanceSnapshot, MetaSnapshot, PaymentAnalytics } from "@/services/integrations";
 import { portalClient } from "@/services/portal";
 import type { PortalAccessUser, PortalAdmin, PortalClient, PortalSnapshot, SalesTestStatus } from "@/services/portal";
@@ -137,7 +140,7 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selected, setSelected] = useState<Contact | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [stageFilter, setStageFilter] = useState("all");
+  const [assignment, setAssignment] = useState<"all" | "assigned" | "unassigned">("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [campaignFilter, setCampaignFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -146,13 +149,13 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
   const [savingLead, setSavingLead] = useState(false);
   const list = useMemo(() => contacts.filter((contact) => {
     const stage = leadStages[contact.id] || contact.stage || "Por contactar";
-    if (leadOwners[contact.id]) return false;
-    if (["Cliente", "Contactado", "Lost"].includes(stage)) return false;
-    if (!`${contact.name} ${contact.email} ${contact.phone} ${contact.source}`.toLowerCase().includes(query.trim().toLowerCase())) return false;
-    if (stageFilter !== "all" && stage !== stageFilter) return false;
+    if (stage !== "Por contactar") return false;
+    if (!`${contact.name} ${contact.email} ${contact.phone} ${contact.source} ${contact.campaign}`.toLowerCase().includes(query.trim().toLowerCase())) return false;
+    if (assignment === "assigned" && !leadOwners[contact.id]) return false;
+    if (assignment === "unassigned" && leadOwners[contact.id]) return false;
     if (sourceFilter !== "all" && contact.source !== sourceFilter) return false;
     return campaignFilter === "all" || contact.campaign === campaignFilter;
-  }).sort((a, b) => leadEntryTimestamp(b.createdAt) - leadEntryTimestamp(a.createdAt) || b.id.localeCompare(a.id)), [contacts, leadOwners, leadStages, query, stageFilter, sourceFilter, campaignFilter]);
+  }).sort((a, b) => leadEntryTimestamp(b.createdAt) - leadEntryTimestamp(a.createdAt) || b.id.localeCompare(a.id)), [contacts, leadOwners, leadStages, query, assignment, sourceFilter, campaignFilter]);
   const sources = useMemo(() => [...new Set(contacts.map((contact) => contact.source).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [contacts]);
   const campaigns = useMemo(() => [...new Set(contacts.map((contact) => contact.campaign).filter((campaign) => campaign && campaign !== "Pendiente de identificar"))].sort((a, b) => a.localeCompare(b, "es")), [contacts]);
   function exportLeads() {
@@ -174,12 +177,12 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onS
       </Title>
       <div className="module-toolbar">
         <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre, email o canal…" /></label>
-        <Button variant="outline" onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{(stageFilter !== "all" || sourceFilter !== "all" || campaignFilter !== "all") && <span className="filter-count">{Number(stageFilter !== "all") + Number(sourceFilter !== "all") + Number(campaignFilter !== "all")}</span>}</Button>
+        <Button variant="outline" onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{(assignment !== "all" || sourceFilter !== "all" || campaignFilter !== "all") && <span className="filter-count">{Number(assignment !== "all") + Number(sourceFilter !== "all") + Number(campaignFilter !== "all")}</span>}</Button>
         <Button variant="outline" onClick={exportLeads}><Download />Exportar CSV</Button>
         {selectedIds.size > 0 && <Button variant="outline" className="bulk-delete" disabled={deleting === "bulk"} onClick={async () => { if (!window.confirm(`¿Eliminar definitivamente ${selectedIds.size} leads seleccionados?`)) return; setDeleting("bulk"); try { await onDeleteLeads([...selectedIds]); notify(`${selectedIds.size} leads eliminados correctamente`); setSelectedIds(new Set()); } catch (error) { notify(error instanceof Error ? error.message : "No se pudieron eliminar los leads"); } finally { setDeleting(null); } }}><Trash2 />{deleting === "bulk" ? "Eliminando…" : `Eliminar (${selectedIds.size})`}</Button>}
         <Button onClick={() => setAddingLead(true)}><Plus />Añadir lead</Button>
       </div>
-      {filtersOpen && <section className="lead-filters panel"><label>Estado<select value={stageFilter} onChange={(event) => setStageFilter(event.target.value)}><option value="all">Todos los estados</option>{["Por contactar", "Llamada programada", "Llamada tenida", "Propuesta enviada", "En espera"].map((stage) => <option key={stage}>{stage}</option>)}</select></label><label>Origen<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="all">Todos los orígenes</option>{sources.map((source) => <option key={source} value={source}>{source}</option>)}</select></label><label>Campaña<select value={campaignFilter} onChange={(event) => setCampaignFilter(event.target.value)}><option value="all">Todas las campañas</option>{campaigns.map((campaign) => <option key={campaign} value={campaign}>{campaign}</option>)}</select></label><button type="button" onClick={() => { setStageFilter("all"); setSourceFilter("all"); setCampaignFilter("all"); }}>Limpiar filtros</button></section>}
+      {filtersOpen && <section className="lead-filters panel"><label>Asignación<select value={assignment} onChange={(event) => setAssignment(event.target.value as typeof assignment)}><option value="all">Todos</option><option value="unassigned">Sin asignar</option><option value="assigned">Asignados</option></select></label><label>Origen<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="all">Todos los orígenes</option>{sources.map((source) => <option key={source} value={source}>{source}</option>)}</select></label><label>Campaña<select value={campaignFilter} onChange={(event) => setCampaignFilter(event.target.value)}><option value="all">Todas las campañas</option>{campaigns.map((campaign) => <option key={campaign} value={campaign}>{campaign}</option>)}</select></label><button type="button" onClick={() => { setAssignment("all"); setSourceFilter("all"); setCampaignFilter("all"); }}>Limpiar filtros</button></section>}
       <section className="panel inbox-panel">
         <div className="data-table">
           <table>
@@ -812,9 +815,101 @@ function CategoryPicker({ value, onChange }: { value: LeadCategory | ""; onChang
   </div>;
 }
 
+const emailMergeColumnKeys = ["id", "notion_page_url", "notion_numeric_id", "name", "email", "phone", "email_uid", "summary", "body_text", "comment", "first_contact_comment", "area", "lead_type", "lifecycle", "task_status", "heat", "contact_at", "chase_at", "meeting_at", "overdue_at", "inside_at", "owner_names", "notion_owner_ids", "rolled_up_owner", "robin", "attended_previous_events", "first_payment_received", "folder_created", "checked", "school_name", "school_notion_urls", "campaign_notion_urls", "canva_presentation_url", "source_formula", "source_payload", "source_created_at", "source_updated_at", "created_at", "updated_at", "crm_stage", "lost_at"];
+const emailMergeColumnLabels: Record<string, string> = { id: "ID", notion_page_url: "URL de Notion", notion_numeric_id: "ID numérico de Notion", name: "Nombre", email: "Correo electrónico", phone: "Teléfono", email_uid: "ID de correo", summary: "Resumen", body_text: "Texto del lead", comment: "Comentario", first_contact_comment: "Comentario de primer contacto", area: "Área", lead_type: "Tipo de lead", lifecycle: "Ciclo de vida", task_status: "Estado de tarea", heat: "Heat", contact_at: "Fecha de contacto", chase_at: "Fecha de seguimiento", meeting_at: "Fecha de reunión", overdue_at: "Fecha de vencimiento", inside_at: "Fecha de entrada", owner_names: "Responsables", notion_owner_ids: "IDs de responsables de Notion", rolled_up_owner: "Responsable agregado", robin: "Robin", attended_previous_events: "Asistió a eventos anteriores", first_payment_received: "Primer pago recibido", folder_created: "Carpeta creada", checked: "Revisado", school_name: "Centro educativo", school_notion_urls: "Enlaces de centros", campaign_notion_urls: "Campaña (base de datos)", canva_presentation_url: "Presentación de Canva", source_formula: "Fórmula de origen", source_payload: "Datos de origen", source_created_at: "Fecha de creación de origen", source_updated_at: "Fecha de actualización de origen", created_at: "Fecha de alta CRM", updated_at: "Última actualización", crm_stage: "Estado CRM", lost_at: "Fecha Lost" };
+
+function EmailComposer({ contacts, notify, onClose }: { contacts: Contact[]; notify: (message: string) => void; onClose: () => void }) {
+  const [query, setQuery] = useState("");
+  const [campaignFilter, setCampaignFilter] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [templates, setTemplates] = useState<CrmEmailTemplate[]>([]);
+  const [templateName, setTemplateName] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [fieldQuery, setFieldQuery] = useState<string | null>(null);
+  const [fieldRange, setFieldRange] = useState<{ start: number; end: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [templateBusy, setTemplateBusy] = useState(false);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const campaigns = useMemo(() => [...new Set(contacts.map((contact) => contact.campaign).filter((campaign) => campaign && campaign !== "—" && campaign !== "Pendiente de identificar"))].sort((a, b) => a.localeCompare(b, "es")), [contacts]);
+  const filtered = useMemo(() => contacts.filter((contact) => (campaignFilter === "all" || contact.campaign === campaignFilter) && `${contact.name} ${contact.email} ${contact.phone}`.toLowerCase().includes(query.trim().toLowerCase())), [contacts, campaignFilter, query]);
+  const selectedContacts = contacts.filter((contact) => selectedIds.includes(contact.id));
+  const mergeKeys = [...new Set([...emailMergeColumnKeys, ...contacts.flatMap((contact) => Object.keys(contact.databaseFields || {}))])];
+  const mergeOptions = mergeKeys.map((key) => ({ key, label: emailMergeColumnLabels[key] || key.replace(/_/g, " ") })).filter((item) => fieldQuery == null || `${item.key} ${item.label}`.toLowerCase().includes(fieldQuery.toLowerCase()));
+
+  useEffect(() => {
+    let active = true;
+    adminDataClient.getCrmEmailWorkspace().then(({ draft, templates: savedTemplates }) => {
+      if (!active) return;
+      setTemplates(savedTemplates);
+      if (draft) { setSubject(draft.subject); setBody(draft.body); setSelectedIds(draft.recipientIds); setCampaignFilter(draft.campaignFilter || "all"); }
+    }).catch((error) => { if (active) notify(error instanceof Error ? error.message : "No se pudo cargar el espacio de correo"); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  function insertField(key: string) {
+    const start = fieldRange?.start ?? bodyRef.current?.selectionStart ?? body.length;
+    const end = fieldRange?.end ?? bodyRef.current?.selectionEnd ?? body.length;
+    const insertion = `#${key}`;
+    setBody((current) => `${current.slice(0, start)}${insertion}${current.slice(end)}`);
+    setFieldQuery(null); setFieldRange(null);
+    requestAnimationFrame(() => { bodyRef.current?.focus(); bodyRef.current?.setSelectionRange(start + insertion.length, start + insertion.length); });
+  }
+
+  function changeBody(value: string, cursor: number) {
+    setBody(value);
+    const match = value.slice(0, cursor).match(/#([\p{L}\p{N}_-]*)$/u);
+    if (match) { setFieldQuery(match[1]); setFieldRange({ start: cursor - match[0].length, end: cursor }); }
+    else { setFieldQuery(null); setFieldRange(null); }
+  }
+
+  async function saveDraft() {
+    setSaving(true);
+    try { await adminDataClient.saveCrmEmailDraft({ subject, body, recipientIds: selectedIds, campaignFilter }); notify("Borrador guardado en la base de datos"); }
+    catch (error) { notify(error instanceof Error ? error.message : "No se pudo guardar el borrador"); }
+    finally { setSaving(false); }
+  }
+
+  async function saveTemplate(updateExisting = false) {
+    const name = templateName.trim();
+    if (!name) { notify("Escribe un nombre para la plantilla"); return; }
+    setTemplateBusy(true);
+    try {
+      const saved = await adminDataClient.saveCrmEmailTemplate({ ...(updateExisting && selectedTemplateId ? { id: selectedTemplateId } : {}), name, subject, body });
+      setTemplates((current) => [saved, ...current.filter((item) => item.id !== saved.id)]); setSelectedTemplateId(saved.id); setTemplateName(saved.name);
+      notify(updateExisting ? "Plantilla actualizada" : "Plantilla guardada");
+    } catch (error) { notify(error instanceof Error ? error.message : "No se pudo guardar la plantilla"); }
+    finally { setTemplateBusy(false); }
+  }
+
+  async function deleteTemplate(id: string) {
+    if (!window.confirm("¿Eliminar esta plantilla?")) return;
+    setTemplateBusy(true);
+    try { await adminDataClient.deleteCrmEmailTemplate(id); setTemplates((current) => current.filter((item) => item.id !== id)); if (selectedTemplateId === id) { setSelectedTemplateId(""); setTemplateName(""); } notify("Plantilla eliminada"); }
+    catch (error) { notify(error instanceof Error ? error.message : "No se pudo eliminar la plantilla"); }
+    finally { setTemplateBusy(false); }
+  }
+
+  function loadTemplate(template: CrmEmailTemplate) {
+    setSubject(template.subject); setBody(template.body); setTemplateName(template.name); setSelectedTemplateId(template.id); setFieldQuery(null);
+  }
+
+  return <div className="email-composer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="email-composer" role="dialog" aria-modal="true" aria-labelledby="email-composer-title">
+    <header><div><h2 id="email-composer-title">Correo electrónico</h2><p>Prepara un borrador personalizado. El envío con Gmail se conectará después.</p></div><button className="email-composer-close" type="button" aria-label="Cerrar" onClick={onClose}><X /></button></header>
+    <section className="email-templates-panel"><div className="email-templates-heading"><div><h3>Plantillas</h3><p>Carga una plantilla para editarla o guárdala para reutilizarla.</p></div><label>Nombre<input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Ej. Seguimiento webinar" /></label><Button type="button" variant="outline" disabled={templateBusy} onClick={() => void saveTemplate()}>Guardar como plantilla</Button>{selectedTemplateId && <Button type="button" disabled={templateBusy} onClick={() => void saveTemplate(true)}>Actualizar plantilla</Button>}</div><div className="email-template-list">{templates.map((template) => <article className={`email-template-item ${selectedTemplateId === template.id ? "active" : ""}`} key={template.id}><button type="button" className="email-template-load" onClick={() => loadTemplate(template)}><strong>{template.name}</strong><small>{template.subject || "Sin asunto"}</small></button><button type="button" className="email-template-delete" aria-label={`Eliminar ${template.name}`} disabled={templateBusy} onClick={() => void deleteTemplate(template.id)}><X /></button></article>)}{!templates.length && <span className="email-template-empty">Aún no hay plantillas guardadas.</span>}</div></section>
+    <div className="email-composer-grid"><section className="email-recipient-panel"><h3>Destinatarios</h3><div className="email-recipient-controls"><label>Buscar<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre, email o teléfono" /></label><label>Campaña<select value={campaignFilter} onChange={(event) => setCampaignFilter(event.target.value)}><option value="all">Todas las campañas</option>{campaigns.map((campaign) => <option key={campaign}>{campaign}</option>)}</select></label></div><div className="email-recipient-summary"><span>{selectedIds.length} seleccionados · {filtered.length} visibles</span><button type="button" onClick={() => setSelectedIds((current) => [...new Set([...current, ...filtered.map((item) => item.id)])])}>Seleccionar visibles</button><button type="button" onClick={() => setSelectedIds([])}>Limpiar</button></div><div className="email-recipient-list">{loading ? <p className="email-recipient-empty">Cargando…</p> : filtered.map((contact) => <label className="email-recipient-row" key={contact.id}><input type="checkbox" checked={selectedIds.includes(contact.id)} onChange={(event) => setSelectedIds((current) => event.target.checked ? [...new Set([...current, contact.id])] : current.filter((id) => id !== contact.id))} /><span><strong>{contact.name}</strong><small>{contact.email || "Sin correo electrónico"} · {contact.campaign || "Sin campaña"}</small></span></label>)}{!loading && !filtered.length && <p className="email-recipient-empty">No hay destinatarios con esos filtros.</p>}</div></section>
+      <section className="email-message-panel"><h3>Mensaje</h3><label className="email-subject">Asunto<input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Asunto del correo" /></label><label className="email-subject">Cuerpo<textarea ref={bodyRef} className="email-body-editor" value={body} onChange={(event) => changeBody(event.target.value, event.target.selectionStart)} onKeyDown={(event) => { if (fieldQuery == null || !mergeOptions.length) return; if (event.key === "Escape") setFieldQuery(null); if (event.key === "Enter" || event.key === "Tab") { event.preventDefault(); insertField(mergeOptions[0].key); } }} placeholder="Escribe el correo. Teclea # para insertar una columna." /></label>{fieldQuery != null && <div className="email-merge-list" role="listbox" aria-label="Columnas de crm_leads">{mergeOptions.map((field) => <button type="button" role="option" key={field.key} onMouseDown={(event) => event.preventDefault()} onClick={() => insertField(field.key)}>#{field.key} · {field.label}</button>)}{!mergeOptions.length && <small>No hay columnas que coincidan.</small>}</div>}<p className="email-merge-hint">Los campos corresponden a columnas de la base de leads y se podrán sustituir individualmente al conectar el envío.</p></section></div>
+    <footer className="email-composer-footer"><span>{selectedContacts.filter((contact) => contact.email).length} de {selectedContacts.length} destinatarios seleccionados tienen email.</span><div><Button type="button" variant="outline" onClick={onClose}>Cerrar</Button><Button type="button" disabled={saving || loading} onClick={() => void saveDraft()}>{saving ? "Guardando…" : "Guardar borrador"}</Button><button className="email-send-placeholder" type="button" disabled>Enviar correo · próximamente</button></div></footer>
+  </section></div>;
+}
+
 function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMoveLead, leadCategories: categories, onCategorizeLead, leadHeat, onSetLeadHeat, leadNotes, onSetLeadNotes, leadLostDates, portalSnapshot, portalConnected, onPortalRefresh, notify }: FeatureModuleProps) {
   const [query, setQuery] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<LeadCategory | "all">("all");
   const [campaignFilter, setCampaignFilter] = useState("all");
   const [exportingClients, setExportingClients] = useState(false);
@@ -930,7 +1025,7 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
   return (
     <div className="page">
       <Title name={title} sub={`Cartera comercial de ${currentUser}.`} eyebrow="CRM PERSONAL"><Badge variant="outline">{owned.length} REGISTROS</Badge></Title>
-      <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label>{path === "/crm" && <Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{activeCrmFilters > 0 && <span className="filter-count">{activeCrmFilters}</span>}</Button>}{path === "/crm/clientes" && <Button variant="outline" disabled={exportingClients} onClick={() => void exportClientDatabase()}><Download />{exportingClients ? "Preparando…" : "Descargar base de datos"}</Button>}</div>
+      <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label>{path === "/crm" && <><Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{activeCrmFilters > 0 && <span className="filter-count">{activeCrmFilters}</span>}</Button><Button variant="outline" onClick={() => setEmailComposerOpen(true)}><Mail />Correo electrónico</Button></>}{path === "/crm/clientes" && <Button variant="outline" disabled={exportingClients} onClick={() => void exportClientDatabase()}><Download />{exportingClients ? "Preparando…" : "Descargar base de datos"}</Button>}</div>
 
       {path === "/crm" && (
         <>
@@ -973,6 +1068,7 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
       {path === "/crm/lost" && <><div className="lost-filters"><label>Desde<input type="date" value={lostFrom} onChange={(event) => setLostFrom(event.target.value)} /></label><label>Hasta<input type="date" value={lostTo} onChange={(event) => setLostTo(event.target.value)} /></label><label>Categoría<select value={lostCategory} onChange={(event) => setLostCategory(event.target.value)}><option value="">Todas</option>{leadCategories.map((category) => <option key={category}>{category}</option>)}</select></label><label>Heat mínimo<input type="number" min="0" max="100" value={lostHeat} onChange={(event) => setLostHeat(event.target.value)} /></label></div><div className="data-table panel"><table><thead><tr><th>Lead</th><th>Categoría</th><th>Heat final</th><th>Origen</th><th>Motivo</th><th>Fecha Lost</th></tr></thead><tbody>{owned.filter((contact) => { const lostDate = (leadLostDates[contact.id] || "").slice(0, 10); return leadStages[contact.id] === "Lost" && (!lostCategory || categories[contact.id] === lostCategory) && leadHeat[contact.id] >= Number(lostHeat || 0) && (!lostFrom || lostDate >= lostFrom) && (!lostTo || lostDate <= lostTo); }).map((contact) => <tr key={contact.id} onClick={() => openContact(contact)}><td><b>{contact.name}</b><small>{contact.email}</small></td><td>{categories[contact.id]}</td><td>{leadHeat[contact.id]}</td><td>{contact.source}</td><td>{lostReasonLabel(contact.lostReason)}{contact.lostReasonDetail && <small>{contact.lostReasonDetail}</small>}</td><td>{leadLostDates[contact.id]?.slice(0, 10) || "—"}</td></tr>)}</tbody></table></div></>}
 
       {selected && <ContactDrawer contact={selected} leadMode heat={leadHeat[selected.id]} notes={leadNotes[selected.id]} onHeatChange={(value) => onSetLeadHeat(selected.id, value)} onNotesChange={(value) => onSetLeadNotes(selected.id, value)} onClose={() => setSelected(null)} />}
+      {emailComposerOpen && path === "/crm" && <EmailComposer contacts={porContactarLeads} notify={notify} onClose={() => setEmailComposerOpen(false)} />}
       {pendingClientId && <div className="drawer-wrap outcome-dialog-wrap" onMouseDown={(event) => { if (event.target === event.currentTarget && !convertingId) setPendingClientId(null); }}><form className="manual-lead-card crm-outcome-card" onSubmit={(event) => { event.preventDefault(); void confirmClientConversion(); }}><button className="drawer-close" type="button" disabled={!!convertingId} onClick={() => setPendingClientId(null)}>×</button><span>PASAR A IN</span><h2>Asignar asesor del cliente</h2><p>El agente de venta seguirá siendo <b>{leadOwners[pendingClientId] || currentUser}</b>. El asesor elegido será quien reciba al alumno en el Portal del Alumno.</p><label>Asesor<select required autoFocus value={selectedAdvisor} onChange={(event) => setSelectedAdvisor(event.target.value)}><option value="">Seleccionar asesor…</option>{admins.map((admin) => <option key={admin} value={admin}>{admin}</option>)}</select></label><div className="outcome-role-summary"><span>Agente de venta<strong>{leadOwners[pendingClientId] || currentUser}</strong></span><span>Asesor del cliente<strong>{selectedAdvisor || "Pendiente"}</strong></span></div><div className="manual-lead-actions"><Button type="button" variant="outline" disabled={!!convertingId} onClick={() => setPendingClientId(null)}>Cancelar</Button><Button type="submit" disabled={!selectedAdvisor || !!convertingId}>{convertingId ? "Creando cliente…" : "Crear cliente"}</Button></div></form></div>}
       {pendingLostId && <div className="drawer-wrap outcome-dialog-wrap" onMouseDown={(event) => { if (event.target === event.currentTarget) setPendingLostId(null); }}><form className="manual-lead-card crm-outcome-card" onSubmit={(event) => { event.preventDefault(); confirmLost(); }}><button className="drawer-close" type="button" onClick={() => setPendingLostId(null)}>×</button><span>MARCAR COMO LOST</span><h2>Motivo obligatorio</h2><p>Selecciona por qué se ha perdido este lead. Este dato quedará guardado para el análisis comercial.</p><label>Motivo<select required autoFocus value={lostReason} onChange={(event) => { setLostReason(event.target.value as LostReason | ""); if (event.target.value !== "other") setLostReasonDetail(""); }}><option value="">Seleccionar motivo…</option>{lostReasonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{lostReason === "other" && <label>Explicación breve<input required maxLength={120} value={lostReasonDetail} onChange={(event) => setLostReasonDetail(event.target.value)} placeholder="Escribe el motivo" /></label>}<div className="manual-lead-actions"><Button type="button" variant="outline" onClick={() => setPendingLostId(null)}>Cancelar</Button><Button type="submit" disabled={!lostReason || (lostReason === "other" && !lostReasonDetail.trim())}>Marcar como Lost</Button></div></form></div>}
     </div>
