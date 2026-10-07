@@ -123,7 +123,17 @@ async function loadMeta(bounds, leads) {
     metaCache.set(cacheKey, { savedAt: Date.now(), data });
   }
   const adIds = [...new Set(leads.map((lead) => lead.source_payload?.ad_id).filter(Boolean).map(String))];
-  return { ...data, adCampaigns: data.simulated ? new Map() : await resolveAds(adIds) };
+  let adCampaigns = new Map();
+  if (!data.simulated && adIds.length) {
+    try {
+      adCampaigns = await resolveAds(adIds);
+    } catch (error) {
+      // La resolución de anuncios solo mejora el cruce de nombres. No debe
+      // invalidar el gasto real que Meta ya devolvió para calcular CAC/CPL.
+      console.warn('admin-sales-dashboard Meta ad resolution warning', error && (error.message || error));
+    }
+  }
+  return { ...data, adCampaigns };
 }
 
 async function pagedRows(queryFactory, pageSize = 1000) {
