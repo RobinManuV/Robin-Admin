@@ -302,6 +302,11 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
     hydrateLeads([lead, ...crmContacts]);
   }
 
+  async function addLeads(inputs: Array<{ name: string; email?: string; phone?: string; schoolName?: string; area?: string; leadType?: string; lifecycle?: string; taskStatus?: string; heat?: number; campaign?: string; notes?: string; owner?: string; groupName?: string }>) {
+    const leads = await adminDataClient.createLeads(inputs);
+    hydrateLeads([...leads, ...crmContacts]);
+  }
+
   const dashboardLoading =
     (!crmLoaded && (path === "/bandeja-leads" || path.startsWith("/crm"))) ||
     (portalLoading && (["/", "/alumnos-global", "/analitica-global"].includes(path) || path.startsWith("/informes/inicio"))) ||
@@ -369,6 +374,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
               onDeleteLead={deleteLead}
               onDeleteLeads={deleteLeads}
               onAddLead={addLead}
+              onAddLeads={addLeads}
               leadStages={leadStages}
               onMoveLead={moveLead}
               leadCategories={leadCategories}

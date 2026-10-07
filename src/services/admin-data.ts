@@ -123,6 +123,12 @@ export const adminDataClient = {
     if (!response.ok) throw new Error(payload.error === "name_required" ? "El nombre es obligatorio" : "No se pudo crear el lead");
     return toContact(payload.lead);
   },
+  async createLeads(inputs: Array<{ name: string; email?: string; phone?: string; schoolName?: string; area?: string; leadType?: string; lifecycle?: string; taskStatus?: string; heat?: number; campaign?: string; notes?: string; owner?: string; groupName?: string }>): Promise<Contact[]> {
+    const response = await fetch("/api/admin/crm/leads", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ leads: inputs }) });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error === "name_required" ? "Todas las filas completadas necesitan un nombre" : "No se pudo guardar el grupo de leads");
+    return (payload.leads || []).map(toContact);
+  },
   async getCrmEmailWorkspace(): Promise<{ draft: CrmEmailDraft | null; templates: CrmEmailTemplate[] }> {
     const response = await fetch("/api/admin/crm/email", { credentials: "include" });
     if (!response.ok) throw new Error("No se pudieron cargar borradores y plantillas de correo");
