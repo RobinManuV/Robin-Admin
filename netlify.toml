@@ -359,6 +359,24 @@
   to = "/.netlify/functions/admin-chat"
   status = 200
 
+# ---------- SPA pública del portal del alumno ----------
+[[redirects]]
+  from = "/login"
+  to = "/portal/index.html"
+  status = 200
+[[redirects]]
+  from = "/login/*"
+  to = "/portal/index.html"
+  status = 200
+[[redirects]]
+  from = "/portal"
+  to = "/portal/index.html"
+  status = 200
+[[redirects]]
+  from = "/portal/*"
+  to = "/portal/index.html"
+  status = 200
+
 # ---------- Fallback SPA del gestor ----------
 [[redirects]]
   from = "/*"

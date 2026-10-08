@@ -76,25 +76,49 @@ exports.handler = async (event) => {
     }
     const body = parseJsonBody(event);
     if (event.httpMethod === 'POST') {
-      const name = String(body.name || '').trim();
-      const email = String(body.email || '').trim().toLowerCase() || null;
-      const phone = String(body.phone || '').trim() || null;
-      if (!name) return json({ error: 'name_required' }, { statusCode: 400 });
-      if (isBlockedLeadName(name)) return json({ error: 'blocked_spam_lead' }, { statusCode: 400 });
+      const isGroup = Array.isArray(body.leads);
+      const inputs = isGroup ? body.leads.slice(0, 200) : [body];
+      if (!inputs.length) return json({ error: 'leads_required' }, { statusCode: 400 });
+      if (isGroup && body.leads.length > 200) return json({ error: 'too_many_leads' }, { statusCode: 400 });
+      const areas = new Set(['Concreto', 'Psycology', 'Engineering', 'Health', 'International studies', 'Business', 'chemistry']);
+      const leadTypes = new Set(['General', 'Delft', 'Llegada', 'Mentoría', 'LATAM', 'ESPECIAL']);
+      const lifecycles = new Set(['LOST 25-26', 'LOST', '26-27', 'INSIDE', '28-29', '27-28', 'año que viene', '25-26']);
+      const taskStatuses = new Set(['Sin empezar', 'En progreso', 'Listo']);
+      const allowedSources = new Set(['organic', 'organic_social', 'referral', 'other', 'schools', 'website', 'meta']);
+      if (inputs.some((input) => !String(input.name || '').trim())) return json({ error: 'name_required' }, { statusCode: 400 });
+      if (inputs.some((input) => isBlockedLeadName(String(input.name || '').trim()))) return json({ error: 'blocked_spam_lead' }, { statusCode: 400 });
+      const invalidEnum = inputs.some((input) => (input.area && !areas.has(input.area)) || (input.leadType && !leadTypes.has(input.leadType)) || (input.lifecycle && !lifecycles.has(input.lifecycle)) || (input.taskStatus && !taskStatuses.has(input.taskStatus)) || (input.heat != null && (!Number.isFinite(Number(input.heat)) || Number(input.heat) < 0 || Number(input.heat) > 100)));
+      if (invalidEnum) return json({ error: 'invalid_lead_fields' }, { statusCode: 400 });
       const now = new Date().toISOString();
-      const allowedSources = new Set(['organic', 'organic_social', 'referral', 'other', 'schools']);
-      const source = allowedSources.has(String(body.source || '')) ? String(body.source) : 'other';
       const actor = await syncCrmIdentity(crm, admin);
-      const owner = body.owner ? await resolveCrmOwner({ portal, crm, ownerName: body.owner }) : { available: actor.available, user: null };
       const simulated = testRun?.status === 'active';
-      const insert = { name: simulated && !name.startsWith('TEST ·') ? `TEST · ${name}` : name, email, phone, body_text: String(body.notes || '').trim() || null, crm_stage: 'Por contactar', owner_names: body.owner ? [String(body.owner).trim()] : [], is_test: simulated, source_payload: { source, created_via: 'manual', created_by: admin.id, ...(simulated ? { simulated: true, test_run: testRun.test_run } : {}) }, source_created_at: now, source_updated_at: now };
-      if (actor.available && owner.available) {
-        insert.updated_by_user_id = admin.id;
-        insert.owner_id = owner.user?.id || null;
-      }
-      const { data, error } = await crm.from('crm_leads').insert(insert).select('*').single();
+      const inserts = await Promise.all(inputs.map(async (input) => {
+        const name = String(input.name || '').trim();
+        const email = String(input.email || '').trim().toLowerCase() || null;
+        const phone = String(input.phone || '').trim() || null;
+        const schoolName = String(input.schoolName || '').trim() || null;
+        const notes = String(input.notes || '').trim() || null;
+        const groupName = String(input.groupName || '').trim() || null;
+        const source = allowedSources.has(String(input.source || '')) ? String(input.source) : 'other';
+        const ownerName = String(input.owner || '').trim();
+        const owner = ownerName ? await resolveCrmOwner({ portal, crm, ownerName }) : { available: actor.available, user: null };
+        const insert = {
+          name: simulated && !name.startsWith('TEST ·') ? `TEST · ${name}` : name,
+          email, phone, school_name: schoolName,
+          area: input.area || null, lead_type: input.leadType || null, lifecycle: input.lifecycle || null, task_status: input.taskStatus || null,
+          heat: input.heat == null ? 50 : Number(input.heat),
+          comment: notes, body_text: notes,
+          crm_stage: 'Por contactar', owner_names: ownerName ? [ownerName] : [],
+          is_test: simulated,
+          source_payload: { source, created_via: isGroup ? 'manual_group' : 'manual', created_by: admin.id, ...(input.campaign ? { campaign_name: String(input.campaign).trim() } : {}), ...(groupName ? { manual_group: groupName } : {}), ...(schoolName || source === 'schools' ? { form_name: 'colegios' } : {}), ...(simulated ? { simulated: true, test_run: testRun.test_run } : {}) },
+          source_created_at: now, source_updated_at: now,
+        };
+        if (actor.available && owner.available) { insert.updated_by_user_id = admin.id; insert.owner_id = owner.user?.id || null; }
+        return insert;
+      }));
+      const { data, error } = await crm.from('crm_leads').insert(inserts).select('*');
       if (error) throw error;
-      return json({ lead: data }, { statusCode: 201 });
+      return isGroup ? json({ leads: data || [] }, { statusCode: 201 }) : json({ lead: data?.[0] }, { statusCode: 201 });
     }
     if (event.httpMethod === 'DELETE') {
       const ids = Array.isArray(body.ids) ? body.ids.filter(Boolean).slice(0, 200) : (body.id ? [body.id] : []);
