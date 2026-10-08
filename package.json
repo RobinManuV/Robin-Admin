@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && vite build --config vite.portal.config.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.js",
+    "crm-history:preview": "node scripts/import-historical-crm-metrics.mjs",
+    "crm-history:import": "node scripts/import-historical-crm-metrics.mjs --apply"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.58.0",

@@ -32,6 +32,11 @@ test('filters sales data to the logged-in administrator', () => {
       { id: 'application-manuel', lead_id: 'lead-manuel' },
       { id: 'application-maria', lead_id: 'lead-maria' },
     ],
+    historicalFacts: [
+      { id: 'historical-manuel', manager: 'Manuel' },
+      { id: 'historical-maria', manager: 'María' },
+      { id: 'historical-varios', manager: 'Varios' },
+    ],
     availability: { events: true },
   };
 
@@ -43,6 +48,7 @@ test('filters sales data to the logged-in administrator', () => {
   assert.deepEqual(filtered.events.map((row) => row.id), ['event-manuel']);
   assert.deepEqual(filtered.sessions.map((row) => row.id), ['session-manuel']);
   assert.deepEqual(filtered.applications.map((row) => row.id), ['application-manuel']);
+  assert.deepEqual(filtered.historicalFacts.map((row) => row.id), ['historical-manuel']);
   assert.equal(filtered.availability.events, true);
 });
 

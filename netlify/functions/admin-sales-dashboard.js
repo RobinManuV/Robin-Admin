@@ -8,6 +8,7 @@ const { buildSalesDashboard } = require('../../lib/sales-dashboard');
 const { isMissingPerformanceSchema } = require('../../lib/crm-identity');
 const { activeSalesTestRun, isLeadInTestRun } = require('../../lib/sales-test-mode');
 const { filterSalesRowsForAdmin, markPersonalSalesDashboard } = require('../../lib/sales-personal-scope');
+const { enrichHistoricalCampaigns, loadActiveHistoricalFacts } = require('../../lib/crm-historical-metrics');
 
 const PERIODS = new Set(['30d', 'month', 'last_month', '3m', '365d', 'ytd', 'custom']);
 const metaCache = new Map();
@@ -167,7 +168,7 @@ async function loadCrmLeads(crm) {
 async function loadRows() {
   const portal = getSupabase();
   const crm = getAdminSupabase();
-  const [{ data: users, error: usersError }, { data: payments, error: paymentsError }, leads, events, sessions, crmUsers, applications] = await Promise.all([
+  const [{ data: users, error: usersError }, { data: payments, error: paymentsError }, leads, events, sessions, crmUsers, applications, historical] = await Promise.all([
     pagedRows(() => portal.from('users').select('id,lead_id,email,role,contract_signed,contract_signed_at,pago_completed,pago_completed_at,tipo,origin,has_eu_id,num_carreras,contract_data')),
     pagedRows(() => portal.from('payments').select('id,user_id,installment,amount,currency,status,paid_at,created_at')),
     loadCrmLeads(crm),
@@ -175,6 +176,7 @@ async function loadRows() {
     optionalRows(() => crm.from('crm_user_sessions').select('id,user_id,started_at,last_seen_at').order('started_at', { ascending: true })),
     optionalRows(() => crm.from('crm_users').select('id,name,email,role,active')),
     optionalRows(() => crm.from('crm_lead_applications').select('id,lead_id,position,status,created_at,updated_at')),
+    loadActiveHistoricalFacts(crm),
   ]);
   if (usersError) throw usersError;
   if (paymentsError) throw paymentsError;
@@ -186,7 +188,8 @@ async function loadRows() {
     sessions: sessions.rows,
     crmUsers: crmUsers.rows,
     applications: applications.rows,
-    availability: { events: events.available, sessions: sessions.available, users: crmUsers.available, applications: applications.available },
+    historicalFacts: historical.rows,
+    availability: { events: events.available, sessions: sessions.available, users: crmUsers.available, applications: applications.available, historical: historical.available },
   };
 }
 
@@ -223,6 +226,7 @@ exports.handler = async (event) => {
         events: loadedRows.events.filter((event) => leadIds.has(String(event.lead_id))),
         sessions: [],
         applications: loadedRows.applications.filter((application) => leadIds.has(String(application.lead_id))),
+        historicalFacts: [],
       };
     }
     if (personal) rows = filterSalesRowsForAdmin(rows, admin);
@@ -256,6 +260,7 @@ exports.handler = async (event) => {
       crmUsers: rows.crmUsers,
       crmApplications: rows.applications,
       crmAvailability: rows.availability,
+      historicalFacts: enrichHistoricalCampaigns(rows.historicalFacts, meta.campaigns),
     });
     return json(personal ? markPersonalSalesDashboard(dashboard, admin) : { ...dashboard, scope: { type: 'global', metaSpend: 'global' } });
   } catch (error) {
