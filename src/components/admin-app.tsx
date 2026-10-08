@@ -137,6 +137,11 @@ function getArea(path: string) {
   return "home";
 }
 
+function adminPath(path: string) {
+  if (typeof window === "undefined" || !/(^|\.)project-robin\.com$/i.test(window.location.hostname)) return path;
+  return `/admin${path === "/" ? "" : path}`;
+}
+
 function isSideItemActive(path: string, href: string, portalSection = "inicio", subscriptionsSection = "panel") {
   if (href.startsWith("portal:")) return href === `portal:${portalSection}`;
   if (href.startsWith("plan:")) return href === `plan:${subscriptionsSection}`;
@@ -149,7 +154,7 @@ function isSideItemActive(path: string, href: string, portalSection = "inicio", 
 }
 
 export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogout: () => Promise<void> }) {
-  const path = window.location.pathname;
+  const path = window.location.pathname.replace(/^\/admin(?=\/|$)/, "") || "/";
   const area = getArea(path);
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState("");
@@ -327,7 +332,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
         </div>
         <nav>
           {sideMenus[area].map(([href, label, Icon]) => (
-            <a href={href.startsWith("portal:") ? "/alumnos" : href.startsWith("plan:") ? "/the-robin-plan" : href} key={href} className={isSideItemActive(path, href, portalSection, subscriptionsSection) ? "active" : ""} onClick={(event) => {
+            <a href={adminPath(href.startsWith("portal:") ? "/alumnos" : href.startsWith("plan:") ? "/the-robin-plan" : href)} key={href} className={isSideItemActive(path, href, portalSection, subscriptionsSection) ? "active" : ""} onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
               setOpen(false);
@@ -336,7 +341,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
               } else if (href.startsWith("plan:")) {
                 window.dispatchEvent(new CustomEvent("robin:subscriptions-navigate", { detail: { section: href.slice(5) } }));
               } else {
-                window.location.assign(href);
+                window.location.assign(adminPath(href));
               }
             }}>
               <Icon /><span>{label}</span>
@@ -352,7 +357,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
         <header className="top">
           <button className="menub" onClick={() => setOpen(true)} aria-label="Abrir menú"><Menu /></button>
           <nav className="workspace-tabs" aria-label="Áreas del gestor">
-            {workspaceTabs.map(([href, label, tabArea]) => <a href={href} key={href} className={area === tabArea ? "active" : ""} onClick={(event) => { event.preventDefault(); event.stopPropagation(); window.location.assign(href); }}>{label}</a>)}
+            {workspaceTabs.map(([href, label, tabArea]) => <a href={adminPath(href)} key={href} className={area === tabArea ? "active" : ""} onClick={(event) => { event.preventDefault(); event.stopPropagation(); window.location.assign(adminPath(href)); }}>{label}</a>)}
           </nav>
           <div className="top-actions">
             <span className="authenticated-user">{currentUser}</span>
@@ -425,7 +430,7 @@ function Head({ title, sub, action }: { title: string; sub: string; action?: str
 }
 
 function dashboardReportUrl(type: "altas" | "embudo" | "facturacion", period: string) {
-  return `/informes/inicio?tipo=${type}&periodo=${period}`;
+  return `${adminPath("/informes/inicio")}?tipo=${type}&periodo=${period}`;
 }
 
 function Dashboard({ snapshot, contacts, leadStages, currentUser, holded }: { snapshot: PortalSnapshot | null; contacts: Contact[]; leadStages: Record<string, CrmStage>; currentUser: string; holded: HoldedSnapshot | null }) {
@@ -478,7 +483,7 @@ function Dashboard({ snapshot, contacts, leadStages, currentUser, holded }: { sn
 
         <section className="panel attention">
           <Head title="Leads calientes" sub={`Heat igual o superior a 80 · ${currentUser}`} />
-          <div>{hotLeads.length ? hotLeads.map((lead) => <button key={lead.id} onClick={() => window.location.assign("/crm")}><i className="red" /><div><strong>{lead.name}</strong><small>{leadStages[lead.id] || lead.stage}</small></div><em className="red">Heat {lead.heat}</em></button>) : <p className="empty-copy">No hay leads calientes asignados.</p>}</div>
+          <div>{hotLeads.length ? hotLeads.map((lead) => <button key={lead.id} onClick={() => window.location.assign(adminPath("/crm"))}><i className="red" /><div><strong>{lead.name}</strong><small>{leadStages[lead.id] || lead.stage}</small></div><em className="red">Heat {lead.heat}</em></button>) : <p className="empty-copy">No hay leads calientes asignados.</p>}</div>
         </section>
       </div>
 
