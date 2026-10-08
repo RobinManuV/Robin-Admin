@@ -43,10 +43,15 @@ function sourceFor(row: Record<string, any>): string {
 }
 
 function normalizedFields(row: Record<string, any>): Record<string, unknown> {
-  const raw = row.source_payload?.field_data;
-  if (!raw) return {};
-  if (!Array.isArray(raw)) return raw;
-  return Object.fromEntries(raw.map((field: any) => [field.name, Array.isArray(field.values) ? field.values[0] : field.values]));
+  const toFields = (raw: unknown): Record<string, unknown> => {
+    if (!raw || typeof raw !== "object") return {};
+    if (!Array.isArray(raw)) return raw as Record<string, unknown>;
+    return Object.fromEntries(raw.map((field: any) => [field.name, Array.isArray(field.values) ? field.values.filter(Boolean).join(", ") : field.values]));
+  };
+  return {
+    ...toFields(row.source_payload?.questionnaire || row.source_payload?.cuestionario),
+    ...toFields(row.source_payload?.field_data),
+  };
 }
 
 function fieldValue(fields: Record<string, unknown>, ...patterns: RegExp[]) {
@@ -55,6 +60,22 @@ function fieldValue(fields: Record<string, unknown>, ...patterns: RegExp[]) {
     if (patterns.some((pattern) => pattern.test(normalized)) && value != null && String(value).trim()) return String(value).trim();
   }
   return "";
+}
+
+function labeledCommentValue(comment: unknown, ...patterns: RegExp[]) {
+  for (const line of String(comment || "").split(/\r?\n/)) {
+    const separator = line.indexOf(":");
+    if (separator < 0) continue;
+    const label = line.slice(0, separator).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+    const value = line.slice(separator + 1).trim();
+    if (value && patterns.some((pattern) => pattern.test(label))) return value;
+  }
+  return "";
+}
+
+function humanizeLeadField(value: unknown) {
+  const text = Array.isArray(value) ? value.filter(Boolean).join(", ") : String(value || "");
+  return text.replace(/_+/g, " ").trim();
 }
 
 function databaseFieldValues(row: Record<string, any>): Record<string, string> {
@@ -75,9 +96,17 @@ function toContact(row: Record<string, any>): Contact {
   const formName = String(row.source_payload?.form_name || row.source_payload?.form || (String(row.comment || "").match(/Formulario:\s*([^\n·]+)/i)?.[1] ?? "")).trim().toLowerCase();
   const formNotes = fieldValue(fields, /(message|mensaje|notes?|notas?|comentario|comments?|details?|detalles?|respuesta|response|consulta)/);
   const payloadValue = (...keys: string[]) => keys.map((key) => row.source_payload?.[key]).find((value) => value != null && String(value).trim());
-  const course = String(payloadValue("course", "curso", "academic_course", "school_year", "year_of_study", "grado") || fieldValue(fields, /^(course|curso|academic_?course|school_?year|year_?of_?study|grado)$/) || "").trim();
-  const interestValue = payloadValue("interest", "interes", "interests", "intereses", "interested_in") || fieldValue(fields, /^(interest|interes|interests|intereses|interested_?in)$/);
-  const interest = Array.isArray(interestValue) ? interestValue.filter(Boolean).join(", ") : String(interestValue || "").trim();
+  const sourceComment = row.comment || row.body_text || row.summary || "";
+  const course = humanizeLeadField(
+    payloadValue("course", "curso", "academic_course", "school_year", "year_of_study", "grado")
+      || fieldValue(fields, /(^|_)(course|curso|grado)($|_)/, /(^|_)school_?year($|_)/, /(^|_)year_?of_?study($|_)/)
+      || labeledCommentValue(sourceComment, /(^|_)(course|curso|grado)($|_)/, /(^|_)school_?year($|_)/, /(^|_)year_?of_?study($|_)/)
+  );
+  const interest = humanizeLeadField(
+    payloadValue("interest", "interes", "interests", "intereses", "interested_in")
+      || fieldValue(fields, /interes/, /interest/, /carreras?.*(gustan|interesan)/)
+      || labeledCommentValue(sourceComment, /interes/, /interest/, /carreras?.*(gustan|interesan)/)
+  );
   const remainingFormDetails = Object.entries(fields)
     .filter(([key, value]) => value != null && String(value).trim() && !/(name|nombre|apellido|mail|correo|phone|telefono|movil|course|curso|grado|interest|interes)/i.test(key))
     .map(([key, value]) => `${key.replace(/_/g, " ")}: ${String(value).trim()}`)
