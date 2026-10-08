@@ -32,7 +32,6 @@ import {
   TrendingUp,
   UserCheck,
   Users,
-  WalletCards,
   CircleX,
   X,
 } from "lucide-react";
@@ -66,9 +65,7 @@ const workspaceTabs = [
   ["/alumnos", "Portal del Alumno", "students"],
   ["/the-robin-plan", "The Robin Plan", "subscriptions"],
   ["/crm", "CRM", "crm"],
-  ["/analiticas", "Analíticas personales", "analytics"],
-  ["/campanas", "Campañas", "campaigns"],
-  ["/web", "Web", "web"],
+  ["/analiticas/ventas", "Otras métricas", "analytics"],
 ] as const;
 
 const sideMenus: Record<string, NavItem[]> = {
@@ -108,13 +105,11 @@ const sideMenus: Record<string, NavItem[]> = {
     ["/crm/lost", "Lost", CircleX],
   ],
   analytics: [
-    ["/analiticas/pagos", "Pagos y facturación", WalletCards],
-    ["/analiticas/finanzas", "Finanzas", CircleDollarSign],
+    ["/analiticas/ventas", "Ventas P", TrendingUp],
+    ["/campanas", "Campañas", BriefcaseBusiness],
+    ["/web", "Web", Globe2],
     ["/analiticas/operaciones", "Operaciones", PieChart],
-    ["/analiticas/ventas", "Ventas", TrendingUp],
   ],
-  campaigns: [["/campanas", "Meta Ads", BriefcaseBusiness]],
-  web: [["/web", "Web", Globe2]],
 };
 
 const areaNames: Record<string, string> = {
@@ -122,18 +117,14 @@ const areaNames: Record<string, string> = {
   students: "Portal del Alumno",
   subscriptions: "The Robin Plan",
   crm: "CRM personal",
-  analytics: "Analíticas personales",
-  campaigns: "Campañas personales",
-  web: "Web",
+  analytics: "Otras métricas",
 };
 
 function getArea(path: string) {
   if (path === "/alumnos" || path.startsWith("/alumnos/")) return "students";
   if (path === "/the-robin-plan" || path.startsWith("/the-robin-plan/")) return "subscriptions";
   if (path.startsWith("/crm")) return "crm";
-  if (path.startsWith("/analiticas")) return "analytics";
-  if (path.startsWith("/campanas")) return "campaigns";
-  if (path.startsWith("/web")) return "web";
+  if (path.startsWith("/analiticas") || path.startsWith("/campanas") || path.startsWith("/web")) return "analytics";
   return "home";
 }
 
@@ -144,7 +135,7 @@ function isSideItemActive(path: string, href: string, portalSection = "inicio", 
   if (href === "/crm") return path === "/crm";
   if (href === "/campanas") return path.startsWith("/campanas");
   if (href === "/web") return path.startsWith("/web");
-  if (href === "/analiticas/pagos") return path === "/analiticas" || path === href;
+  if (href === "/analiticas/ventas") return path === "/analiticas" || path === "/analiticas/pagos" || path === "/analiticas/finanzas" || path === href;
   return path === href;
 }
 

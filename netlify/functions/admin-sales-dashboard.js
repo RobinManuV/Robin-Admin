@@ -7,6 +7,7 @@ const { loadExpenseEntries, periodBounds, summarizeExpenses } = require('../../l
 const { buildSalesDashboard } = require('../../lib/sales-dashboard');
 const { isMissingPerformanceSchema } = require('../../lib/crm-identity');
 const { activeSalesTestRun, isLeadInTestRun } = require('../../lib/sales-test-mode');
+const { filterSalesRowsForAdmin, markPersonalSalesDashboard } = require('../../lib/sales-personal-scope');
 
 const PERIODS = new Set(['30d', 'month', 'last_month', '3m', '365d', 'ytd']);
 const metaCache = new Map();
@@ -27,7 +28,7 @@ function actionValue(items, preferredTypes) {
 async function requireAdmin(event) {
   const session = readSessionFromEvent(event);
   if (!session) return null;
-  const { data: user } = await getSupabase().from('users').select('id,email,username,role').eq('id', session.uid).single();
+  const { data: user } = await getSupabase().from('users').select('id,email,username,nombre,role').eq('id', session.uid).single();
   return user && isApplicationAdmin(user) ? user : null;
 }
 
@@ -192,9 +193,11 @@ async function loadRows() {
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') return methodNotAllowed(['GET']);
   try {
-    if (!await requireAdmin(event)) return json({ error: 'unauthorized' }, { statusCode: 401 });
+    const admin = await requireAdmin(event);
+    if (!admin) return json({ error: 'unauthorized' }, { statusCode: 401 });
     const requested = String(event.queryStringParameters?.period || 'ytd');
     const period = PERIODS.has(requested) ? requested : 'ytd';
+    const personal = event.queryStringParameters?.scope === 'personal';
     const bounds = periodBounds(period);
     const [loadedRows, expenses, testRun] = await Promise.all([
       loadRows(),
@@ -217,6 +220,7 @@ exports.handler = async (event) => {
         applications: loadedRows.applications.filter((application) => leadIds.has(String(application.lead_id))),
       };
     }
+    if (personal) rows = filterSalesRowsForAdmin(rows, admin);
 
     let meta = { campaigns: [], daily: [], adCampaigns: new Map(), currency: 'EUR' };
     let metaAvailable = true;
@@ -230,7 +234,7 @@ exports.handler = async (event) => {
       return resolved ? { ...lead, resolved_campaign_id: resolved.id, resolved_campaign_name: resolved.name } : lead;
     });
     const expenseTotals = expenses.available ? summarizeExpenses(expenses.entries, bounds) : null;
-    return json(buildSalesDashboard({
+    const dashboard = buildSalesDashboard({
       period,
       leads,
       users: rows.users,
@@ -246,7 +250,8 @@ exports.handler = async (event) => {
       crmUsers: rows.crmUsers,
       crmApplications: rows.applications,
       crmAvailability: rows.availability,
-    }));
+    });
+    return json(personal ? markPersonalSalesDashboard(dashboard, admin) : { ...dashboard, scope: { type: 'global', metaSpend: 'global' } });
   } catch (error) {
     console.error('admin-sales-dashboard error', error);
     return serverError(error, 'admin.sales_dashboard');

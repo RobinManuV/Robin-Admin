@@ -60,6 +60,7 @@ export type SalesDashboard = {
   sources: { portal: boolean; adminCrm: boolean; holdedMarketing: boolean; meta: boolean };
   meta: { currency: string; spend: number | null };
   team: CrmPerformance;
+  scope?: { type: 'global' | 'personal'; userName?: string; metaSpend: 'global' };
 };
 const META_CACHE_KEY = 'robin-admin-meta-insights-v1';
 const META_CACHE_MS = 30 * 60 * 1000;
@@ -221,7 +222,7 @@ export const integrationClient = {
     if (!response.ok) throw new Error(payload.detail || 'No se pudieron cargar las finanzas');
     return payload as FinanceDashboard;
   },
-  salesDashboard: async (period: FinancePeriod): Promise<SalesDashboard> => {
+  salesDashboard: async (period: FinancePeriod, scope: 'global' | 'personal' = 'global'): Promise<SalesDashboard> => {
     if (isLocalAdminPreview()) {
       const now = new Date();
       const length = previewBucketLength(period, now);
@@ -233,9 +234,9 @@ export const integrationClient = {
         { key: 'other', label: 'Otros' },
         { key: 'schools', label: 'Colegios' },
       ];
-      return { period, rangeLabel: 'Vista previa local', granularity: period === '30d' || period === 'month' || period === 'last_month' ? 'day' : period === '3m' ? 'week' : 'month', syncedAt: now.toISOString(), kpis: { contracted: 0, contracts: 5, leads: null, conversion: null, cac: 172, lac: null }, buckets: Array.from({ length }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', leads: 0, contracts: 0, conversion: null })), channels: channels.map((channel) => ({ ...channel, leads: 0, contracts: 0, contracted: 0, percentage: null })), campaigns: [], marginsByChannel: channels.map((channel) => ({ ...channel, status: 'unavailable' as const, paid: null, spend: null, margin: null })), agents: ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, leads: 0, sales: 0, conversion: null })).concat([{ key: 'team', name: 'Media del equipo', leads: null, sales: null, conversion: null }]), teamAverage: null, sources: { portal: true, adminCrm: true, holdedMarketing: true, meta: true }, meta: { currency: 'EUR', spend: 860 }, team: previewCrmPerformance() };
+      return { period, rangeLabel: 'Vista previa local', granularity: period === '30d' || period === 'month' || period === 'last_month' ? 'day' : period === '3m' ? 'week' : 'month', syncedAt: now.toISOString(), kpis: { contracted: 0, contracts: 5, leads: null, conversion: null, cac: 172, lac: null }, buckets: Array.from({ length }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', leads: 0, contracts: 0, conversion: null })), channels: channels.map((channel) => ({ ...channel, leads: 0, contracts: 0, contracted: 0, percentage: null })), campaigns: [], marginsByChannel: channels.map((channel) => ({ ...channel, status: 'unavailable' as const, paid: null, spend: null, margin: null })), agents: ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, leads: 0, sales: 0, conversion: null })).concat([{ key: 'team', name: 'Media del equipo', leads: null, sales: null, conversion: null }]), teamAverage: null, sources: { portal: true, adminCrm: true, holdedMarketing: true, meta: true }, meta: { currency: 'EUR', spend: 860 }, team: previewCrmPerformance(), scope: { type: scope, userName: scope === 'personal' ? 'Manuel' : undefined, metaSpend: 'global' } };
     }
-    const response = await fetch(`/api/admin/sales/dashboard?period=${encodeURIComponent(period)}`, { credentials: 'include' });
+    const response = await fetch(`/api/admin/sales/dashboard?period=${encodeURIComponent(period)}&scope=${scope}`, { credentials: 'include' });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || 'No se pudieron cargar las ventas');
     return payload as SalesDashboard;

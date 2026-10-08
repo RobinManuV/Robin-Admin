@@ -549,7 +549,7 @@ function nullableNumber(value: number | null | undefined) {
   return value == null ? "—" : plainNumber(value);
 }
 
-function CrmTeamOverview({ team, campaigns }: { team: SalesDashboard["team"]; campaigns: SalesDashboard["campaigns"] }) {
+function CrmTeamOverview({ team, campaigns, personalUser }: { team: SalesDashboard["team"]; campaigns: SalesDashboard["campaigns"]; personalUser?: string }) {
   const campaignTotals = campaigns.reduce((totals, campaign) => ({ spend: totals.spend + Number(campaign.spend || 0), leads: totals.leads + Number(campaign.leads || 0), matchedCrmLeads: totals.matchedCrmLeads + Number(campaign.matchedCrmLeads || 0), contacted: totals.contacted + Number(campaign.contacted || 0), contracts: totals.contracts + Number(campaign.contracts || 0), contracted: totals.contracted + Number(campaign.contracted || 0), paid: totals.paid + Number(campaign.paid || 0) }), { spend: 0, leads: 0, matchedCrmLeads: 0, contacted: 0, contracts: 0, contracted: 0, paid: 0 });
   const summaryCards = [
     { label: "Leads nuevos", value: plainNumber(team.summary.newLeads), detail: team.summary.leadVariation == null ? "Sin comparación histórica" : `${team.summary.leadVariation >= 0 ? "+" : ""}${percent(team.summary.leadVariation)} frente al periodo anterior`, sources: ["CRM"] },
@@ -566,7 +566,7 @@ function CrmTeamOverview({ team, campaigns }: { team: SalesDashboard["team"]; ca
   const maxFunnel = Math.max(...(team.funnel || []).map((row) => row.count), 1);
 
   return <div className="crm-performance">
-    <div className="sales-section-title"><span>EQUIPO COMERCIAL</span><h2>Rendimiento comercial</h2><p>Dedicación, velocidad, conversión y valor del equipo.</p></div>
+    <div className="sales-section-title"><span>{personalUser ? "RENDIMIENTO PERSONAL" : "EQUIPO COMERCIAL"}</span><h2>{personalUser ? `Rendimiento comercial de ${personalUser}` : "Rendimiento comercial"}</h2><p>{personalUser ? "Dedicación, velocidad, conversión y valor de la cartera personal." : "Dedicación, velocidad, conversión y valor del equipo."}</p></div>
     {!team.history.eventsComplete && <div className="crm-history-note"><AlertTriangle /><span>El histórico de eventos comienza con esta implantación. Las métricas que requieren cubrir todo el periodo aparecen como “—” hasta disponer de una serie completa.</span></div>}
 
     <section className="crm-performance-section"><header><h3>Resumen del periodo</h3><p>Lo que un administrador necesita revisar primero.</p></header><div className="crm-team-kpis">{summaryCards.map((card) => <article className="panel" key={card.label}><span>{card.label}</span><strong>{card.value}</strong><small>{card.detail}</small><footer>{card.sources.map((source) => <b key={source}>{source}</b>)}</footer></article>)}</div></section>
@@ -585,7 +585,7 @@ function CrmTeamOverview({ team, campaigns }: { team: SalesDashboard["team"]; ca
   </div>;
 }
 
-function SalesOverview() {
+function SalesOverview({ personalUser }: { personalUser?: string } = {}) {
   const [period, setPeriod] = useState<FinancePeriod>("ytd");
   const [data, setData] = useState<SalesDashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -595,12 +595,12 @@ function SalesOverview() {
     let active = true;
     setLoading(true);
     setError("");
-    integrationClient.salesDashboard(period)
+    integrationClient.salesDashboard(period, personalUser ? "personal" : "global")
       .then((result) => { if (active) setData(result); })
       .catch((reason) => { if (active) { setData(null); setError(reason instanceof Error ? reason.message : "No se pudieron cargar las ventas"); } })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [period]);
+  }, [period, personalUser]);
 
   if (loading && !data) return <DashboardLoader />;
   if (error && !data) return <div className="finance-error"><AlertTriangle /><div><strong>No se pudieron cargar las ventas</strong><span>{error}</span></div></div>;
@@ -612,22 +612,34 @@ function SalesOverview() {
   const campaignMax = Math.max(...data.campaigns.flatMap((campaign) => [campaign.leads, campaign.contracts]), 1);
   const cacCampaigns = data.campaigns.filter((campaign) => campaign.cac != null);
   const sourcesUnavailable = !data.sources.meta;
+  const isPersonal = Boolean(personalUser);
+  const viewerName = data.scope?.userName || personalUser;
+  const metaLabel = isPersonal ? "Meta Ads · global" : "Meta Ads";
+  const personalAgentKey = String(viewerName || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/\s+/)[0];
+  const scopedTeam = isPersonal && personalAgentKey
+    ? {
+        ...data.team,
+        agents: data.team.agents.filter((agent) => agent.key === personalAgentKey),
+        fifo: data.team.fifo.filter((agent) => agent.key === personalAgentKey),
+      }
+    : data.team;
   const kpis = [
     { label: "Contratado", source: ["portal"] as const, value: money(data.kpis.contracted), detail: `${plainNumber(data.kpis.contracts)} contratos firmados en el periodo`, icon: UserCheck },
     { label: "Conversión", source: ["portal"] as const, value: percent(data.kpis.conversion), detail: `${plainNumber(data.kpis.contracts)} contratos de ${plainNumber(data.kpis.leads)} leads del Portal`, icon: TrendingUp },
-    { label: "CAC", source: ["meta", "portal"] as const, value: data.sources.meta ? money(data.kpis.cac) : "—", detail: "Gasto de campañas Meta ÷ clientes", icon: BarChart3 },
-    { label: "LAC", source: ["meta", "portal"] as const, value: data.sources.meta ? money(data.kpis.lac) : "—", detail: "Gasto de campañas Meta ÷ leads del Portal", icon: Megaphone },
+    { label: "CAC", source: ["meta", "portal"] as const, value: data.sources.meta ? money(data.kpis.cac) : "—", detail: `${isPersonal ? "Gasto global" : "Gasto"} de campañas Meta ÷ clientes`, icon: BarChart3 },
+    { label: "LAC", source: ["meta", "portal"] as const, value: data.sources.meta ? money(data.kpis.lac) : "—", detail: `${isPersonal ? "Gasto global" : "Gasto"} de campañas Meta ÷ leads del Portal`, icon: Megaphone },
   ];
 
   return <div className="finance-dashboard sales-dashboard" role="tabpanel" aria-label="Ventas">
     <header className="finance-dashboard-header">
-      <div><span>INICIO · VENTAS</span><h2>Ventas</h2><p>Leads, conversión y rentabilidad comercial · {data.rangeLabel}</p></div>
+      <div><span>{isPersonal ? "OTRAS MÉTRICAS · VENTAS P" : "INICIO · VENTAS"}</span><h2>{isPersonal ? "Ventas P" : "Ventas"}</h2><p>{isPersonal ? `Rendimiento comercial de ${viewerName}` : "Leads, conversión y rentabilidad comercial"} · {data.rangeLabel}</p></div>
       <div className="finance-period"><label htmlFor="sales-period">Periodo</label><select id="sales-period" value={period} onChange={(event) => setPeriod(event.target.value as FinancePeriod)}>{FINANCE_PERIODS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><small>Gráficos {GRANULARITY_LABEL[data.granularity].toLowerCase()} · el filtro aplica a toda la pantalla</small></div>
     </header>
 
     {sourcesUnavailable && <div className="finance-source-warning"><AlertTriangle /><span>Meta Ads no está disponible: no se ha recibido el gasto de campañas. La conversión sigue usando los leads históricos guardados en el Portal; CAC, LAC y el detalle de campañas se muestran como “—”.</span></div>}
+    {isPersonal && data.sources.meta && <div className="finance-source-warning"><AlertTriangle /><span><strong>Meta Ads es global.</strong> La inversión, los leads de Meta y las métricas derivadas —CAC, LAC, ROAS y margen— usan el total de las campañas. Los datos de CRM, contratos, contratado y cobrado están filtrados para {viewerName}.</span></div>}
 
-    <section className="finance-kpis sales-kpis">{kpis.map(({ label, source, value, detail, icon: Icon }) => <article key={label}><i><Icon /></i><div><span>{label}<span className="sales-source-list">{source.map((item) => <SourceTag key={item} source={item}>{item === "portal" ? "Portal" : item === "meta" ? "Meta Ads" : "Holded"}</SourceTag>)}</span></span><strong>{value}</strong><small>{detail}</small></div></article>)}</section>
+    <section className="finance-kpis sales-kpis">{kpis.map(({ label, source, value, detail, icon: Icon }) => <article key={label}><i><Icon /></i><div><span>{label}<span className="sales-source-list">{source.map((item) => <SourceTag key={item} source={item}>{item === "portal" ? "Portal" : item === "meta" ? metaLabel : "Holded"}</SourceTag>)}</span></span><strong>{value}</strong><small>{detail}</small></div></article>)}</section>
 
     <div className="sales-primary-grid">
       <section className="panel finance-chart sales-temporal-chart"><SalesHeading title="Contratos vs leads" sub="Leads registrados y contratos firmados en Portal" sources={["portal"]} granularity={data.granularity} /><ResponsiveContainer width="100%" height={290}><ComposedChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="label" tickFormatter={(_, index) => data.buckets[index]?.tick || ""} axisLine={false} tickLine={false} fontSize={10} /><YAxis yAxisId="count" hide domain={[0, "auto"]} /><YAxis yAxisId="conversion" orientation="right" domain={[0, "auto"]} tickFormatter={(value) => `${value}%`} axisLine={false} tickLine={false} width={38} fontSize={9} /><Tooltip formatter={(value: any, name: any) => [name === "Conversión" ? percent(Number(value)) : Number(value).toLocaleString("es-ES"), name]} /><Bar yAxisId="count" dataKey="leads" name="Leads Portal" fill="#b9c9df" radius={[4,4,0,0]} /><Bar yAxisId="count" dataKey="contracts" name="Contratos firmados" fill="#2f5a8a" radius={[4,4,0,0]} /><Line yAxisId="conversion" type="monotone" dataKey="conversion" name="Conversión" stroke="#c8742a" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls={false} /></ComposedChart></ResponsiveContainer></section>
@@ -641,7 +653,7 @@ function SalesOverview() {
       <section className="panel finance-chart"><SalesHeading title="Margen por canal" sub="(Pagado por los clientes del canal − coste del canal) ÷ pagado" sources={["portal", "meta"]} /><ResponsiveContainer width="100%" height={225}><BarChart data={data.marginsByChannel} margin={{ top: 28, right: 10, left: 0, bottom: 14 }}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="label" interval={0} axisLine={false} tickLine={false} fontSize={9} /><YAxis hide domain={["auto", "auto"]} /><Tooltip formatter={(value: any) => percent(Number(value))} /><Bar dataKey="margin" name="Margen" fill="#5f9c86" radius={[5,5,0,0]}><LabelList dataKey="margin" position="top" fill="#2d6150" fontSize={10} formatter={(value: any) => percent(Number(value))} /></Bar></BarChart></ResponsiveContainer></section>
     </div>
 
-    <CrmTeamOverview team={data.team} campaigns={data.campaigns} />
+    <CrmTeamOverview team={scopedTeam} campaigns={data.campaigns} personalUser={viewerName} />
   </div>;
 }
 
@@ -1137,9 +1149,8 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
 }
 
 function PersonalAnalytics({ path, currentUser, contacts, leadStages, snapshot }: { path: string; currentUser: string; contacts: Contact[]; leadStages: Record<string, CrmStage>; snapshot: PortalSnapshot | null }) {
-  const key = path.split("/").filter(Boolean)[1] || "pagos";
-  if (key === "finanzas" || key === "pagos") return <FinanceAnalytics currentUser={currentUser} />;
-  if (key === "ventas") return <SalesAnalytics currentUser={currentUser} contacts={contacts} leadStages={leadStages} />;
+  const key = path.split("/").filter(Boolean)[1] || "ventas";
+  if (key === "ventas" || key === "finanzas" || key === "pagos") return <div className="page"><SalesOverview personalUser={currentUser} /></div>;
   const owned = contacts.filter((lead) => lead.owner === currentUser);
   const metrics = [
     { label: "Alumnos del portal", value: String(snapshot?.clients.length || 0), detail: "Datos del portal" },
@@ -1147,50 +1158,11 @@ function PersonalAnalytics({ path, currentUser, contacts, leadStages, snapshot }
     { label: "Clientes cerrados", value: String(owned.filter((lead) => (leadStages[lead.id] || lead.stage) === "Cliente").length), detail: "CRM" },
     { label: "En onboarding", value: String(snapshot?.clients.filter((client) => client.requires_onboarding).length || 0), detail: "Requieren seguimiento" },
   ];
-  return <div className="page"><Title name="Analíticas personales" sub={`Carga operativa real · ${currentUser}`} eyebrow="OPERACIONES" /><ReadonlyMetricGrid metrics={metrics} /></div>;
+  return <div className="page"><Title name="Otras métricas" sub={`Carga operativa real · ${currentUser}`} eyebrow="OPERACIONES" /><ReadonlyMetricGrid metrics={metrics} /></div>;
 }
 
 function ReadonlyMetricGrid({ metrics }: { metrics: { label: string; value: string; detail: string }[] }) {
   return <section className="ads-kpi-grid">{metrics.map((metric) => <article key={metric.label}><span>{metric.label}</span><strong>{metric.value}</strong><small>{metric.detail}</small></article>)}</section>;
-}
-
-function FinanceAnalytics({ currentUser }: { currentUser: string }) {
-  const [snapshot, setSnapshot] = useState<FinanceSnapshot | null>(null);
-  const [syncing, setSyncing] = useState(true);
-  const [syncMessage, setSyncMessage] = useState("Conectando con Holded…");
-  const euro = (value: number) => `${Math.round(value).toLocaleString("es-ES")} €`;
-  async function syncHolded() {
-    setSyncing(true);
-    try {
-      const snapshot: FinanceSnapshot = await integrationClient.holded();
-      setSnapshot(snapshot);
-      setSyncMessage(`Sincronizado con Holded · ${snapshot.currentYear.invoices} facturas este año`);
-    } catch (error) {
-      setSyncMessage(error instanceof Error ? error.message : "No se pudo conectar con Holded");
-    } finally { setSyncing(false); }
-  }
-  useEffect(() => { void syncHolded(); }, []);
-  if (syncing) return <div className="page"><DashboardLoader /></div>;
-  if (!snapshot) return <div className="page"><Title name="Analíticas personales" sub="No se pudieron cargar los datos de Holded." eyebrow="FINANZAS" /><div className="empty compact"><Landmark /><h2>{syncMessage}</h2></div></div>;
-  const m = snapshot.currentMonth, y = snapshot.currentYear;
-  const monthMetrics = [{ label: "Ventas", value: euro(m.sales), detail: `${m.invoices} facturas · sin impuestos` }, { label: "Total emitido", value: euro(m.billed), detail: "Ventas más impuestos" }, { label: "Impuestos", value: euro(m.tax), detail: "Registrados en Holded" }, { label: "Cobrado", value: euro(m.collected), detail: `${m.collectionRate.toFixed(1)}% del total emitido` }, { label: "Pendiente", value: euro(m.pending), detail: `${m.pendingInvoices + m.partialInvoices} facturas` }, { label: "Vencido", value: euro(m.overdue), detail: `${m.overdueInvoices} facturas` }, { label: "Ticket medio", value: euro(m.averageTicket), detail: "Por factura" }];
-  const yearMetrics = [{ label: "Ventas", value: euro(y.sales), detail: `${y.invoices} facturas · sin impuestos` }, { label: "Cobrado", value: euro(y.collected), detail: `${y.paidInvoices} pagadas` }, { label: "Pendiente", value: euro(y.pending), detail: "Acumulado anual" }, { label: "Vencido", value: euro(y.overdue), detail: `${y.overdueInvoices} vencidas` }, { label: "Ticket medio", value: euro(y.averageTicket), detail: "Por factura" }, { label: "Tasa de cobro", value: `${y.collectionRate.toFixed(1)}%`, detail: "Cobrado / total emitido" }];
-  const max = Math.max(...snapshot.last12Months.flatMap((item) => [item.sales, item.previousYearSales]), 1);
-  return <div className="page"><Title name="Analíticas personales" sub={`Datos fiscales reales de Holded · ${currentUser}`} eyebrow="FINANZAS"><Button variant="outline" onClick={syncHolded} disabled={syncing}><Landmark />Actualizar Holded</Button></Title><div className="sync-status"><ShieldCheck /><span>{syncMessage}</span><Badge variant="outline">HOLDED</Badge></div><div className="finance-group"><div className="finance-group-title"><h2>Mes actual</h2><p>Importes calculados desde las facturas de Holded.</p></div><ReadonlyMetricGrid metrics={monthMetrics} /></div><section className="panel clean-chart"><div className="panel-heading"><h2>Ventas de los últimos 12 meses</h2><div className="comparison-legend"><span className="current">Actual</span><span className="previous">Anterior</span></div></div><div className="metric-bars comparison">{snapshot.last12Months.map((item) => <div key={item.month} title={`${item.label}: ${euro(item.sales)} · año anterior: ${euro(item.previousYearSales)}`}><i className="comparison-bars"><span className="previous-year" style={{ height: `${Math.max(2, item.previousYearSales / max * 100)}%` }} /><span className="current-year" style={{ height: `${Math.max(2, item.sales / max * 100)}%` }} /></i><small>{item.label}</small></div>)}</div></section><div className="finance-group"><div className="finance-group-title"><h2>Año actual</h2><p>Acumulado fiscal real.</p></div><ReadonlyMetricGrid metrics={yearMetrics} /></div></div>;
-}
-
-function SalesAnalytics({ currentUser, contacts, leadStages }: { currentUser: string; contacts: Contact[]; leadStages: Record<string, CrmStage> }) {
-  const owned = contacts.filter((lead) => lead.owner === currentUser);
-  const count = (stage: CrmStage) => owned.filter((lead) => (leadStages[lead.id] || lead.stage) === stage).length;
-  const clients = count("Cliente");
-  const stages: Array<[string, number]> = [["Leads asignados", owned.length], ["Contactados", count("Contactado")], ["Llamadas agendadas", count("Llamada programada")], ["Llamadas realizadas", count("Llamada tenida")], ["Propuestas", count("Propuesta enviada")], ["Clientes", clients]];
-  const metrics = stages.map(([label, value]) => ({ label, value: String(value), detail: owned.length ? `${(value / owned.length * 100).toFixed(1)}% de la cartera` : "Sin leads asignados" }));
-  const sources = [...new Set(owned.map((lead) => lead.source))].map((source) => { const rows = owned.filter((lead) => lead.source === source); const wins = rows.filter((lead) => (leadStages[lead.id] || lead.stage) === "Cliente").length; return [source, String(rows.length), String(wins), rows.length ? `${(wins / rows.length * 100).toFixed(1)}%` : "0%"] as string[]; });
-  return <div className="page"><Title name="Analíticas personales" sub={`Embudo real de la cartera de ${currentUser}`} eyebrow="VENTAS" /><ReadonlyMetricGrid metrics={metrics} /><section className="panel sales-funnel"><h2>Embudo de conversión</h2>{stages.map(([label, value]) => <div key={label}><p><span>{label}</span><strong>{value}</strong></p><i><b style={{ width: `${owned.length ? Math.max(2, value / owned.length * 100) : 0}%` }} /></i></div>)}</section><PerformanceTable title="Rendimiento por origen" rows={sources.map(([source, leads, wins, conversion]) => [source, leads, wins, conversion])} /></div>;
-}
-
-function PerformanceTable({ title, rows }: { title: string; rows: string[][] }) {
-  return <section className="panel"><div className="panel-heading"><div><h2>{title}</h2><p>Datos calculados desde el CRM</p></div></div><div className="data-table"><table><thead><tr><th>Origen</th><th>Leads</th><th>Clientes</th><th>Conversión</th></tr></thead><tbody>{rows.map((row) => <tr key={row[0]}>{row.map((cell, index) => <td key={`${row[0]}-${index}`}>{index === 0 ? <b>{cell}</b> : cell}</td>)}</tr>)}</tbody></table></div></section>;
 }
 
 function Campaigns({ currentUser, notify }: { currentUser: string; notify: (message: string) => void }) {
