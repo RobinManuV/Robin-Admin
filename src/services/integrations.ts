@@ -7,6 +7,9 @@ export type MetaCampaign = MetaMetrics & { id: string; name: string; status: str
 export type MetaSnapshot = { period: string; account: { id: string; name: string; currency: string; timezone: string }; summary: MetaMetrics; campaigns: MetaCampaign[]; daily: { date: string; spend: number; cpm: number }[]; syncedAt: string };
 export type PaymentAnalytics = { application: { paid: number; pending: number }; subscriptions: { paid: number; pending: number } | null; subscriptionsError?: string | null };
 export type FinancePeriod = '30d' | 'month' | 'last_month' | '3m' | '365d' | 'ytd';
+export type AnalyticsDateRange = { from: string; to: string };
+export type AnalyticsPeriod = FinancePeriod | AnalyticsDateRange;
+export type DashboardPeriod = FinancePeriod | 'custom';
 export type ExpenseDiagnostics = {
   status: 'ok' | 'empty' | 'partial' | 'fallback' | 'unavailable';
   code: string | null;
@@ -18,7 +21,7 @@ export type ExpenseDiagnostics = {
   fallbackError?: string | null;
 };
 export type FinanceDashboard = {
-  period: FinancePeriod;
+  period: DashboardPeriod;
   rangeLabel: string;
   granularity: 'day' | 'week' | 'month';
   syncedAt: string;
@@ -46,7 +49,7 @@ export type CrmPerformance = {
   quality: { key: string; label: string; count: number }[];
 };
 export type SalesDashboard = {
-  period: FinancePeriod;
+  period: DashboardPeriod;
   rangeLabel: string;
   granularity: 'day' | 'week' | 'month';
   syncedAt: string;
@@ -65,7 +68,12 @@ export type SalesDashboard = {
 const META_CACHE_KEY = 'robin-admin-meta-insights-v1';
 const META_CACHE_MS = 30 * 60 * 1000;
 
-function previewBucketLength(period: FinancePeriod, now: Date) {
+function previewBucketLength(period: AnalyticsPeriod, now: Date) {
+  if (typeof period !== 'string') {
+    const from = new Date(`${period.from}T00:00:00`);
+    const to = new Date(`${period.to}T00:00:00`);
+    return Math.max(1, Math.min(366, Math.floor((to.getTime() - from.getTime()) / 86400000) + 1));
+  }
   if (period === '30d') return 30;
   if (period === 'month') return now.getDate();
   if (period === 'last_month') return new Date(now.getFullYear(), now.getMonth(), 0).getDate();
@@ -113,7 +121,22 @@ function previewHolded(): HoldedSnapshot {
   };
 }
 
-function previewFinanceDashboard(period: FinancePeriod): FinanceDashboard {
+function periodId(period: AnalyticsPeriod): DashboardPeriod {
+  return typeof period === 'string' ? period : 'custom';
+}
+
+function periodQuery(period: AnalyticsPeriod) {
+  if (typeof period === 'string') return `period=${encodeURIComponent(period)}`;
+  return `period=custom&from=${encodeURIComponent(period.from)}&to=${encodeURIComponent(period.to)}`;
+}
+
+function previewGranularity(period: AnalyticsPeriod): FinanceDashboard['granularity'] {
+  if (typeof period === 'string') return period === '30d' || period === 'month' || period === 'last_month' ? 'day' : period === '3m' ? 'week' : 'month';
+  const days = previewBucketLength(period, new Date());
+  return days <= 62 ? 'day' : days <= 186 ? 'week' : 'month';
+}
+
+function previewFinanceDashboard(period: AnalyticsPeriod): FinanceDashboard {
   const now = new Date();
   const length = previewBucketLength(period, now);
   let cumulativeContracted = 0;
@@ -156,9 +179,9 @@ function previewFinanceDashboard(period: FinancePeriod): FinanceDashboard {
     if (lastExpenseBucket) lastExpenseBucket.expenses = Math.round((lastExpenseBucket.expenses + expenses.total - compiledTotal) * 100) / 100;
   }
   return {
-    period,
+    period: periodId(period),
     rangeLabel: 'Vista previa local · datos simulados',
-    granularity: period === '30d' || period === 'month' || period === 'last_month' ? 'day' : period === '3m' ? 'week' : 'month',
+    granularity: previewGranularity(period),
     syncedAt: now.toISOString(),
     available: true,
     kpis: { sales, invoices: Math.max(1, students), contracted, students, cac: students ? Math.round(expenses.marketing / students) : null, anomaly: false },
@@ -215,14 +238,14 @@ export const integrationClient = {
     if (!response.ok) throw new Error(payload.detail || 'No se pudieron cargar los pagos de Supabase');
     return payload as PaymentAnalytics;
   },
-  financeDashboard: async (period: FinancePeriod): Promise<FinanceDashboard> => {
+  financeDashboard: async (period: AnalyticsPeriod): Promise<FinanceDashboard> => {
     if (isLocalAdminPreview()) return previewFinanceDashboard(period);
-    const response = await fetch(`/api/admin/finance/dashboard?period=${encodeURIComponent(period)}`, { credentials: 'include' });
+    const response = await fetch(`/api/admin/finance/dashboard?${periodQuery(period)}`, { credentials: 'include' });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || 'No se pudieron cargar las finanzas');
     return payload as FinanceDashboard;
   },
-  salesDashboard: async (period: FinancePeriod, scope: 'global' | 'personal' = 'global'): Promise<SalesDashboard> => {
+  salesDashboard: async (period: AnalyticsPeriod, scope: 'global' | 'personal' = 'global'): Promise<SalesDashboard> => {
     if (isLocalAdminPreview()) {
       const now = new Date();
       const length = previewBucketLength(period, now);
@@ -234,9 +257,9 @@ export const integrationClient = {
         { key: 'other', label: 'Otros' },
         { key: 'schools', label: 'Colegios' },
       ];
-      return { period, rangeLabel: 'Vista previa local', granularity: period === '30d' || period === 'month' || period === 'last_month' ? 'day' : period === '3m' ? 'week' : 'month', syncedAt: now.toISOString(), kpis: { contracted: 0, contracts: 5, leads: null, conversion: null, cac: 172, lac: null }, buckets: Array.from({ length }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', leads: 0, contracts: 0, conversion: null })), channels: channels.map((channel) => ({ ...channel, leads: 0, contracts: 0, contracted: 0, percentage: null })), campaigns: [], marginsByChannel: channels.map((channel) => ({ ...channel, status: 'unavailable' as const, paid: null, spend: null, margin: null })), agents: ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, leads: 0, sales: 0, conversion: null })).concat([{ key: 'team', name: 'Media del equipo', leads: null, sales: null, conversion: null }]), teamAverage: null, sources: { portal: true, adminCrm: true, holdedMarketing: true, meta: true }, meta: { currency: 'EUR', spend: 860 }, team: previewCrmPerformance(), scope: { type: scope, userName: scope === 'personal' ? 'Manuel' : undefined, metaSpend: 'global' } };
+      return { period: periodId(period), rangeLabel: 'Vista previa local', granularity: previewGranularity(period), syncedAt: now.toISOString(), kpis: { contracted: 0, contracts: 5, leads: null, conversion: null, cac: 172, lac: null }, buckets: Array.from({ length }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', leads: 0, contracts: 0, conversion: null })), channels: channels.map((channel) => ({ ...channel, leads: 0, contracts: 0, contracted: 0, percentage: null })), campaigns: [], marginsByChannel: channels.map((channel) => ({ ...channel, status: 'unavailable' as const, paid: null, spend: null, margin: null })), agents: ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, leads: 0, sales: 0, conversion: null })).concat([{ key: 'team', name: 'Media del equipo', leads: null, sales: null, conversion: null }]), teamAverage: null, sources: { portal: true, adminCrm: true, holdedMarketing: true, meta: true }, meta: { currency: 'EUR', spend: 860 }, team: previewCrmPerformance(), scope: { type: scope, userName: scope === 'personal' ? 'Manuel' : undefined, metaSpend: 'global' } };
     }
-    const response = await fetch(`/api/admin/sales/dashboard?period=${encodeURIComponent(period)}&scope=${scope}`, { credentials: 'include' });
+    const response = await fetch(`/api/admin/sales/dashboard?${periodQuery(period)}&scope=${scope}`, { credentials: 'include' });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || 'No se pudieron cargar las ventas');
     return payload as SalesDashboard;

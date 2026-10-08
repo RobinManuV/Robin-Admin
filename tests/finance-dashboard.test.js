@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   buildFinanceDashboard,
   loadExpenseEntries,
+  periodBounds,
   purchaseDocumentsToExpenseEntries,
   summarizeExpenses,
 } = require('../lib/finance-dashboard');
@@ -11,6 +12,21 @@ const {
 const start = new Date('2026-09-01T00:00:00.000Z');
 const end = new Date('2026-10-01T00:00:00.000Z');
 const bounds = { start, end, granularity: 'day' };
+
+test('uses July 1 for YTD and supports rolling and custom date ranges', () => {
+  const today = new Date('2026-10-08T00:00:00.000Z');
+  const ytd = periodBounds('ytd', today);
+  const rolling = periodBounds('3m', today);
+  const custom = periodBounds('custom', today, { from: '2026-08-15', to: '2026-09-30' });
+
+  assert.equal(ytd.start.toISOString(), '2026-07-01T00:00:00.000Z');
+  assert.equal(ytd.end.toISOString(), '2026-10-09T00:00:00.000Z');
+  assert.equal(rolling.start.toISOString(), '2026-07-08T00:00:00.000Z');
+  assert.equal(rolling.end.toISOString(), '2026-10-09T00:00:00.000Z');
+  assert.equal(custom.start.toISOString(), '2026-08-15T00:00:00.000Z');
+  assert.equal(custom.end.toISOString(), '2026-10-01T00:00:00.000Z');
+  assert.equal(custom.granularity, 'day');
+});
 
 test('classifies purchase invoices and purchase refunds by accounting date', () => {
   const result = purchaseDocumentsToExpenseEntries([

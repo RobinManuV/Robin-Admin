@@ -12,7 +12,7 @@ const {
   readTreasuryHistory,
 } = require('../../lib/finance-dashboard');
 
-const PERIODS = new Set(['30d', 'month', 'last_month', '3m', '365d', 'ytd']);
+const PERIODS = new Set(['30d', 'month', 'last_month', '3m', '365d', 'ytd', 'custom']);
 
 async function requireAdmin(event) {
   const session = readSessionFromEvent(event);
@@ -38,7 +38,12 @@ exports.handler = async (event) => {
     if (!await requireAdmin(event)) return json({ error: 'unauthorized' }, { statusCode: 401 });
     const requested = String(event.queryStringParameters?.period || 'ytd');
     const period = PERIODS.has(requested) ? requested : 'ytd';
-    const bounds = periodBounds(period);
+    let bounds;
+    try {
+      bounds = periodBounds(period, undefined, period === 'custom' ? { from: event.queryStringParameters?.from, to: event.queryStringParameters?.to } : null);
+    } catch (_) {
+      return json({ error: 'invalid_date_range', detail: 'Selecciona una fecha de inicio y fin válidas.' }, { statusCode: 400 });
+    }
     const invoiceStart = bounds.previousStart < bounds.start ? bounds.previousStart : bounds.start;
 
     const [invoices, portalRows, expenseResult] = await Promise.all([
@@ -63,6 +68,7 @@ exports.handler = async (event) => {
 
     const dashboard = await buildFinanceDashboard({
       period,
+      bounds,
       invoices,
       users: portalRows.users,
       payments: portalRows.payments,

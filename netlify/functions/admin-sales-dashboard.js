@@ -9,7 +9,7 @@ const { isMissingPerformanceSchema } = require('../../lib/crm-identity');
 const { activeSalesTestRun, isLeadInTestRun } = require('../../lib/sales-test-mode');
 const { filterSalesRowsForAdmin, markPersonalSalesDashboard } = require('../../lib/sales-personal-scope');
 
-const PERIODS = new Set(['30d', 'month', 'last_month', '3m', '365d', 'ytd']);
+const PERIODS = new Set(['30d', 'month', 'last_month', '3m', '365d', 'ytd', 'custom']);
 const metaCache = new Map();
 const META_CACHE_MS = 30 * 60 * 1000;
 
@@ -198,7 +198,12 @@ exports.handler = async (event) => {
     const requested = String(event.queryStringParameters?.period || 'ytd');
     const period = PERIODS.has(requested) ? requested : 'ytd';
     const personal = event.queryStringParameters?.scope === 'personal';
-    const bounds = periodBounds(period);
+    let bounds;
+    try {
+      bounds = periodBounds(period, undefined, period === 'custom' ? { from: event.queryStringParameters?.from, to: event.queryStringParameters?.to } : null);
+    } catch (_) {
+      return json({ error: 'invalid_date_range', detail: 'Selecciona una fecha de inicio y fin válidas.' }, { statusCode: 400 });
+    }
     const [loadedRows, expenses, testRun] = await Promise.all([
       loadRows(),
       loadExpenseEntries(bounds.start, bounds.end),
@@ -236,6 +241,7 @@ exports.handler = async (event) => {
     const expenseTotals = expenses.available ? summarizeExpenses(expenses.entries, bounds) : null;
     const dashboard = buildSalesDashboard({
       period,
+      bounds,
       leads,
       users: rows.users,
       payments: rows.payments,

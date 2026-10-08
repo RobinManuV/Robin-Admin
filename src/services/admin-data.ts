@@ -15,6 +15,7 @@ function isLocalAdminPreview() {
 export type EditableMetricRecord = { id: string; label: string; value: string; detail: string; group?: string };
 export type CrmEmailDraft = { subject: string; body: string; recipientIds: string[]; campaignFilter: string };
 export type CrmEmailTemplate = { id: string; name: string; subject: string; body: string; updatedAt?: string };
+export type LeadTeamNote = { id: string; leadId: string; body: string; authorName: string; createdAt: string };
 type LeadPatch = { owner?: string; source?: string; category?: LeadCategory | ""; stage?: CrmStage; heat?: number; notes?: string; lostAt?: string; lostReason?: LostReason | ""; lostReasonDetail?: string };
 
 function statusFor(stage: CrmStage): Contact["status"] {
@@ -72,19 +73,38 @@ function toContact(row: Record<string, any>): Contact {
   const stage = (row.crm_stage || "Por contactar") as CrmStage;
   const category = row.lead_type === "Delft" ? "delft" : row.lead_type;
   const formName = String(row.source_payload?.form_name || row.source_payload?.form || (String(row.comment || "").match(/Formulario:\s*([^\n·]+)/i)?.[1] ?? "")).trim().toLowerCase();
-  const formNotes = fieldValue(fields, /(message|mensaje|notes?|notas?|comentario|comments?|details?|detalles?|respuesta|response|consulta|interes)/);
+  const formNotes = fieldValue(fields, /(message|mensaje|notes?|notas?|comentario|comments?|details?|detalles?|respuesta|response|consulta)/);
+  const payloadValue = (...keys: string[]) => keys.map((key) => row.source_payload?.[key]).find((value) => value != null && String(value).trim());
+  const course = String(payloadValue("course", "curso", "academic_course", "school_year", "year_of_study", "grado") || fieldValue(fields, /^(course|curso|academic_?course|school_?year|year_?of_?study|grado)$/) || "").trim();
+  const interestValue = payloadValue("interest", "interes", "interests", "intereses", "interested_in") || fieldValue(fields, /^(interest|interes|interests|intereses|interested_?in)$/);
+  const interest = Array.isArray(interestValue) ? interestValue.filter(Boolean).join(", ") : String(interestValue || "").trim();
   const remainingFormDetails = Object.entries(fields)
-    .filter(([key, value]) => value != null && String(value).trim() && !/(name|nombre|apellido|mail|correo|phone|telefono|movil)/i.test(key))
+    .filter(([key, value]) => value != null && String(value).trim() && !/(name|nombre|apellido|mail|correo|phone|telefono|movil|course|curso|grado|interest|interes)/i.test(key))
     .map(([key, value]) => `${key.replace(/_/g, " ")}: ${String(value).trim()}`)
     .join("\n");
   const storedCampaign = String(row.campaign_notion_urls?.[0] || "").trim();
   const payloadCampaign = String(row.source_payload?.campaign_name || "").trim();
   const isNotionUrl = (value: string) => /^https?:\/\/(?:www\.)?notion\.(?:so|site|com)\//i.test(value);
   const campaign = [payloadCampaign, storedCampaign].find((value) => value && !value.startsWith("meta-ad:") && !isNotionUrl(value)) || "Pendiente de identificar";
-  return { id: row.id, name, initials: name.split(/\s+/).slice(0, 2).map((part: string) => part[0] || "").join("").toUpperCase(), email: row.email || fieldValue(fields, /^e?mail$/, /^correo/) || "", phone: row.phone || fieldValue(fields, /phone/, /telefono/, /movil/) || "", country: "", university: row.school_name || "", course: "", product: "Aplicación", status: statusFor(stage), source: sourceFor(row), campaign, owner: row.owner_names?.[0] || "", probability: Number(row.heat || 0), nextAction: "", lastContact: row.contact_at || "—", value: 0, tags: [], databaseFields: databaseFieldValues(row), formName, category: category as LeadCategory | undefined, heat: Number(row.heat ?? 50), notes: row.comment || row.body_text || row.summary || formNotes || remainingFormDetails || "", stage, lostAt: row.lost_at || undefined, lostReason: row.source_payload?.lost_reason || undefined, lostReasonDetail: row.source_payload?.lost_reason_detail || undefined, createdAt: row.source_created_at || row.created_at || undefined, clientAt: row.inside_at || undefined };
+  const comment = row.comment || row.body_text || row.summary || formNotes || remainingFormDetails || "";
+  return { id: row.id, name, initials: name.split(/\s+/).slice(0, 2).map((part: string) => part[0] || "").join("").toUpperCase(), email: row.email || fieldValue(fields, /^e?mail$/, /^correo/) || "", phone: row.phone || fieldValue(fields, /phone/, /telefono/, /movil/) || "", country: "", university: row.school_name || "", course, interest, comment, contactAt: row.contact_at || undefined, product: "Aplicación", status: statusFor(stage), source: sourceFor(row), campaign, owner: row.owner_names?.[0] || "", probability: Number(row.heat || 0), nextAction: "", lastContact: row.contact_at || "—", value: 0, tags: [], databaseFields: databaseFieldValues(row), formName, category: category as LeadCategory | undefined, heat: Number(row.heat ?? 50), notes: comment, stage, lostAt: row.lost_at || undefined, lostReason: row.source_payload?.lost_reason || undefined, lostReasonDetail: row.source_payload?.lost_reason_detail || undefined, createdAt: row.source_created_at || row.created_at || undefined, clientAt: row.inside_at || undefined };
 }
 
 export const adminDataClient = {
+  async listLeadTeamNotes(leadId: string): Promise<LeadTeamNote[]> {
+    if (isLocalAdminPreview()) return [];
+    const response = await fetch(`/api/admin/crm/lead-notes?leadId=${encodeURIComponent(leadId)}`, { credentials: "include" });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.detail || "No se pudieron cargar las notas del equipo");
+    return payload.notes || [];
+  },
+  async addLeadTeamNote(leadId: string, body: string): Promise<LeadTeamNote> {
+    if (isLocalAdminPreview()) return { id: `preview-${Date.now()}`, leadId, body, authorName: "Vista previa", createdAt: new Date().toISOString() };
+    const response = await fetch("/api/admin/crm/lead-notes", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ leadId, body }) });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.detail || "No se pudo guardar la nota del equipo");
+    return payload.note;
+  },
   async listLeads(): Promise<Contact[]> {
     if (isLocalAdminPreview()) return [];
     const response = await fetch("/api/admin/crm/leads", { credentials: "include" });
