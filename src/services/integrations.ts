@@ -40,7 +40,7 @@ export type FinanceDashboard = {
 export type CrmPerformance = {
   history: { eventsAvailable: boolean; sessionsAvailable: boolean; applicationsAvailable: boolean; eventsComplete: boolean; sessionsComplete: boolean; eventsSince: string | null; sessionsSince: string | null };
   summary: { newLeads: number; leadVariation: number | null; contracts: number; contracted: number; averageTicket: number | null; won: number | null; lost: number | null; winRate: number | null; speedMinutes: number | null; collected: number; collectionRate: number | null; qualityIssues: number };
-  agents: { key: string; name: string; assigned: number | null; contacted: number | null; contactRate: number | null; speedMinutes: number | null; contracts: number; won: number | null; lost: number | null; winRate: number | null; contracted: number; revenuePerLead: number | null; portfolio: number; stale: number | null; activeDays: number | null; actionsPerDay: number | null; collected: number; collectionRate: number | null; collectionDays: number | null; admissionRate: number | null; applications: number | null }[];
+  agents: { key: string; name: string; assigned: number | null; contacted: number | null; contactRate: number | null; speedMinutes: number | null; contracts: number; cohortLeads?: number; cohortClients?: number; won: number | null; lost: number | null; winRate: number | null; contracted: number; revenuePerLead: number | null; portfolio: number; stale: number | null; activeDays: number | null; actionsPerDay: number | null; collected: number; collectionRate: number | null; collectionDays: number | null; admissionRate: number | null; applications: number | null }[];
   stageTimes: { stage: string; values: Record<string, number | null> }[];
   funnel: { stage: string; count: number; conversion: number | null; lost: number }[] | null;
   lostReasons: { key: string; label: string; count: number; percentage: number | null }[];
@@ -55,12 +55,13 @@ export type SalesDashboard = {
   syncedAt: string;
   kpis: { contracted: number; contracts: number; leads: number | null; conversion: number | null; cac: number | null; lac: number | null };
   buckets: { key: string; label: string; tick: string; leads: number; contracts: number; conversion: number | null }[];
+  acquisition: { leads: number; newClients: number; buckets: { key: string; label: string; tick: string; leads: number; clients: number }[] };
   channels: { key: string; label: string; leads: number; contracts: number; contracted: number; percentage: number | null }[];
   campaigns: { id: string | null; name: string; leads: number; contracts: number; conversion: number | null; spend: number | null; contracted: number; paid: number; contacted: number; matchedCrmLeads: number; contactRate: number | null; cpl: number | null; cac: number | null; roas: number | null; roasCollected: number | null; margin: number | null }[];
   marginsByChannel: { key: string; label: string; status: 'ready' | 'unavailable' | 'wip'; paid: number | null; spend: number | null; margin: number | null }[];
   agents: { key: string; name: string; leads: number | null; sales: number | null; conversion: number | null }[];
   teamAverage: number | null;
-  sources: { portal: boolean; adminCrm: boolean; holdedMarketing: boolean; meta: boolean };
+  sources: { portal: boolean; adminCrm: boolean; holdedMarketing: boolean; meta: boolean; historical?: boolean };
   meta: { currency: string; spend: number | null };
   team: CrmPerformance;
   scope?: { type: 'global' | 'personal'; userName?: string; metaSpend: 'global' };
@@ -257,7 +258,8 @@ export const integrationClient = {
         { key: 'other', label: 'Otros' },
         { key: 'schools', label: 'Colegios' },
       ];
-      return { period: periodId(period), rangeLabel: 'Vista previa local', granularity: previewGranularity(period), syncedAt: now.toISOString(), kpis: { contracted: 0, contracts: 5, leads: null, conversion: null, cac: 172, lac: null }, buckets: Array.from({ length }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', leads: 0, contracts: 0, conversion: null })), channels: channels.map((channel) => ({ ...channel, leads: 0, contracts: 0, contracted: 0, percentage: null })), campaigns: [], marginsByChannel: channels.map((channel) => ({ ...channel, status: 'unavailable' as const, paid: null, spend: null, margin: null })), agents: ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, leads: 0, sales: 0, conversion: null })).concat([{ key: 'team', name: 'Media del equipo', leads: null, sales: null, conversion: null }]), teamAverage: null, sources: { portal: true, adminCrm: true, holdedMarketing: true, meta: true }, meta: { currency: 'EUR', spend: 860 }, team: previewCrmPerformance(), scope: { type: scope, userName: scope === 'personal' ? 'Manuel' : undefined, metaSpend: 'global' } };
+      const buckets = Array.from({ length }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', leads: 0, contracts: 0, conversion: null }));
+      return { period: periodId(period), rangeLabel: 'Vista previa local', granularity: previewGranularity(period), syncedAt: now.toISOString(), kpis: { contracted: 0, contracts: 5, leads: null, conversion: null, cac: 172, lac: null }, buckets, acquisition: { leads: 0, newClients: 0, buckets: buckets.map((bucket) => ({ key: bucket.key, label: bucket.label, tick: bucket.tick, leads: 0, clients: 0 })) }, channels: channels.map((channel) => ({ ...channel, leads: 0, contracts: 0, contracted: 0, percentage: null })), campaigns: [], marginsByChannel: channels.map((channel) => ({ ...channel, status: 'unavailable' as const, paid: null, spend: null, margin: null })), agents: ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, leads: 0, sales: 0, conversion: null })).concat([{ key: 'team', name: 'Media del equipo', leads: null, sales: null, conversion: null }]), teamAverage: null, sources: { portal: true, adminCrm: true, holdedMarketing: true, meta: true, historical: false }, meta: { currency: 'EUR', spend: 860 }, team: previewCrmPerformance(), scope: { type: scope, userName: scope === 'personal' ? 'Manuel' : undefined, metaSpend: 'global' } };
     }
     const response = await fetch(`/api/admin/sales/dashboard?${periodQuery(period)}&scope=${scope}`, { credentials: 'include' });
     const payload = await response.json().catch(() => ({}));

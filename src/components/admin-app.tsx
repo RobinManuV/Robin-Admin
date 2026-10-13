@@ -54,7 +54,7 @@ import { portalClient } from "@/services/portal";
 import type { PortalAdmin, PortalClient, PortalSnapshot } from "@/services/portal";
 import { adminDataClient } from "@/services/admin-data";
 import { integrationClient } from "@/services/integrations";
-import type { HoldedSnapshot } from "@/services/integrations";
+import type { AnalyticsDateRange, HoldedSnapshot, SalesDashboard } from "@/services/integrations";
 import robinPlanWordmark from "@/robin-subscriptions/portal-source/src/assets/robin-wordmark.png";
 import { DashboardLoader } from "@/components/dashboard-loader";
 
@@ -424,8 +424,30 @@ function dashboardReportUrl(type: "altas" | "embudo" | "facturacion", period: st
   return `${adminPath("/informes/inicio")}?tipo=${type}&periodo=${period}`;
 }
 
+function localDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function dashboardAcquisitionPeriod(period: "7" | "15" | "30" | "all"): AnalyticsDateRange {
+  const end = new Date();
+  const start = period === "all" ? new Date(2025, 4, 1) : new Date(end.getFullYear(), end.getMonth(), end.getDate() - Number(period) + 1);
+  return { from: localDateKey(start), to: localDateKey(end) };
+}
+
 function Dashboard({ snapshot, contacts, leadStages, currentUser, holded }: { snapshot: PortalSnapshot | null; contacts: Contact[]; leadStages: Record<string, CrmStage>; currentUser: string; holded: HoldedSnapshot | null }) {
   const [period, setPeriod] = useState<"7" | "15" | "30" | "all">("all");
+  const [acquisition, setAcquisition] = useState<SalesDashboard["acquisition"] | null>(null);
+  useEffect(() => {
+    let active = true;
+    setAcquisition(null);
+    integrationClient.salesDashboard(dashboardAcquisitionPeriod(period))
+      .then((result) => { if (active) setAcquisition(result.acquisition); })
+      .catch(() => { if (active) setAcquisition(null); });
+    return () => { active = false; };
+  }, [period]);
   const today = new Date(); today.setHours(23, 59, 59, 999);
   const dated = [...contacts.map((item) => item.createdAt), ...(snapshot?.clients || []).map((item) => item.created_at)].filter((value): value is string => Boolean(value));
   const periodDays = period === "all" ? null : Number(period);
@@ -441,12 +463,13 @@ function Dashboard({ snapshot, contacts, leadStages, currentUser, holded }: { sn
   const activeLeads = contacts.filter((lead) => !["Cliente", "Lost"].includes(leadStages[lead.id] || lead.stage || "Por contactar"));
   const liveStats = [
     ["Leads activos", String(activeLeads.length), "CRM conectado", Users, "blue", null],
-    ["Nuevos leads", String(newLeads.length), periodLabel, Sparkles, "gold", null],
-    ["Nuevos clientes", String(newClients.length), periodLabel, GraduationCap, "green", dashboardReportUrl("altas", period)],
+    ["Nuevos leads", String(acquisition?.leads ?? newLeads.length), `${periodLabel} · CRM + histórico`, Sparkles, "gold", null],
+    ["Nuevos clientes", String(acquisition?.newClients ?? newClients.length), `${periodLabel} · fecha de firma conocida`, GraduationCap, "green", dashboardReportUrl("altas", period)],
     ["Ventas este año", holded ? `${Math.round(holded.currentYear.sales).toLocaleString("es-ES")} €` : "—", holded ? `${holded.currentYear.invoices} facturas en Holded` : "Holded no disponible", CircleDollarSign, "red", dashboardReportUrl("facturacion", period)],
   ] as const;
   const visibleDays = Math.max(1, Math.floor((today.getTime() - rangeStart.getTime()) / 86400000) + 1);
-  const chartData = period === "all" ? monthlySeries(rangeStart, today, contacts, clients) : dailySeries(rangeStart, visibleDays, contacts, clients);
+  const chartData = acquisition?.buckets.map((bucket) => ({ day: bucket.tick || bucket.label, leads: bucket.leads, clients: bucket.clients }))
+    || (period === "all" ? monthlySeries(rangeStart, today, contacts, clients) : dailySeries(rangeStart, visibleDays, contacts, clients));
   const hotLeads = contacts.filter((lead) => lead.owner === currentUser && (lead.heat || 0) >= 80 && !["Cliente", "Lost"].includes(leadStages[lead.id] || lead.stage || "Por contactar"));
   const funnelStages: Array<[string, CrmStage]> = [["Por contactar", "Por contactar"], ["Contactados", "Contactado"], ["Llamadas", "Llamada programada"], ["Propuestas", "Propuesta enviada"], ["Clientes", "Cliente"]];
   const funnel = funnelStages.map(([label, stage]) => [label, contacts.filter((lead) => (leadStages[lead.id] || lead.stage || "Por contactar") === stage).length] as const);
@@ -518,6 +541,15 @@ function DashboardReport({ snapshot, contacts, leadStages, holded }: { snapshot:
   const params = new URLSearchParams(window.location.search);
   const type = params.get("tipo") || "altas";
   const rawPeriod = params.get("periodo") || "30";
+  const safePeriod = (["7", "15", "30", "all"].includes(rawPeriod) ? rawPeriod : "30") as "7" | "15" | "30" | "all";
+  const [acquisition, setAcquisition] = useState<SalesDashboard["acquisition"] | null>(null);
+  useEffect(() => {
+    let active = true;
+    integrationClient.salesDashboard(dashboardAcquisitionPeriod(safePeriod))
+      .then((result) => { if (active) setAcquisition(result.acquisition); })
+      .catch(() => { if (active) setAcquisition(null); });
+    return () => { active = false; };
+  }, [safePeriod]);
   const periodDays = rawPeriod === "all" ? null : Number(rawPeriod);
   const today = new Date(); today.setHours(23, 59, 59, 999);
   const start = periodDays ? new Date(today.getTime() - (periodDays - 1) * 86400000) : null;
@@ -534,8 +566,8 @@ function DashboardReport({ snapshot, contacts, leadStages, holded }: { snapshot:
     <div className="title"><div><span>INFORME DETALLADO</span><h1>{title}</h1><p>Origen, criterio de cálculo y registros que componen el resultado.</p></div><button className="report-close" onClick={() => window.close()}>Cerrar pestaña</button></div>
 
     {type === "altas" && <>
-      <section className="report-summary"><article><span>Leads</span><strong>{leadsInRange.length}</strong><small>Registros del CRM creados en el periodo</small></article><article><span>Clientes</span><strong>{clientsInRange.length}</strong><small>Altas del Portal del Alumno en el periodo</small></article><article><span>Periodo</span><strong>{periodLabel}</strong><small>{start ? `${start.toLocaleDateString("es-ES")} – ${today.toLocaleDateString("es-ES")}` : "Sin límite de fecha inicial"}</small></article></section>
-      <ReportMethod text="La línea azul usa la fecha original de creación conservada desde Notion. La naranja cuenta las nuevas altas generales del Portal del Alumno por su fecha de creación, sin limitarse al administrador que ha iniciado sesión. En la vista histórica los puntos se agrupan por mes; en los periodos de 7, 15 o 30 días se agrupan por día." />
+      <section className="report-summary"><article><span>Leads</span><strong>{acquisition?.leads ?? leadsInRange.length}</strong><small>CRM actual más histórico validado</small></article><article><span>Clientes</span><strong>{acquisition?.newClients ?? clientsInRange.length}</strong><small>Altas con fecha de firma conocida</small></article><article><span>Periodo</span><strong>{periodLabel}</strong><small>{start ? `${start.toLocaleDateString("es-ES")} – ${today.toLocaleDateString("es-ES")}` : "Desde mayo de 2025"}</small></article></section>
+      <ReportMethod text="El total de leads combina el histórico validado de Notion hasta el 22 de septiembre de 2026 con los leads nativos del CRM desde el 23 de septiembre. Los clientes históricos sin una fecha contractual verificable cuentan en la conversión de su cohorte, pero no se inventa una fecha de alta. Por privacidad, el desglose inferior solo muestra registros identificables ya presentes en los sistemas vivos; los hechos históricos seudónimos aparecen únicamente en los totales y gráficos." />
       <ReportTable headers={["Tipo", "Nombre", "Email", "Fecha"]} rows={[...leadsInRange.map((lead) => ["Lead", lead.name, lead.email, formatReportDate(lead.createdAt)]), ...clientsInRange.map((client) => ["Cliente", [client.nombre, client.apellidos].filter(Boolean).join(" ") || client.username || "—", client.email || "—", formatReportDate(client.created_at)])]} />
     </>}
 

@@ -15,3 +15,8 @@ navegador.
   agregados del panel, mapas de calor y retención de 14 meses.
 - `202610060001_create_crm_email_workspace.sql`: borradores y plantillas de
   correo del CRM, accesibles únicamente a través de funciones autenticadas.
+- `202610080001_create_crm_historical_metrics.sql`: cohortes históricas
+  pseudonimizadas para alimentar las métricas anteriores al 23/09/2026 sin
+  añadir registros a la bandeja, clientes ni eventos operativos.
+- `202610080002_seed_crm_historical_metrics.sql`: lote validado de 1.168 hechos
+  históricos seudonimizados (109 clientes), sin nombres, emails ni teléfonos.
