@@ -10,6 +10,7 @@ const { activeSalesTestRun, isLeadInTestRun } = require('../../lib/sales-test-mo
 const campaignNameCache = new Map();
 const CAMPAIGN_CACHE_MS = 6 * 60 * 60 * 1000;
 const LOST_REASONS = new Set(['price', 'more_destinations', 'competition', 'other']);
+const CONTACT_ROLES = new Set(['madre', 'padre', 'hijo', 'hija']);
 
 async function requireAdmin(event) {
   const session = readSessionFromEvent(event);
@@ -137,6 +138,9 @@ exports.handler = async (event) => {
       if (lostReason === 'other' && !lostReasonDetail) return json({ error: 'lost_reason_detail_required' }, { statusCode: 400 });
       if (lostReasonDetail.length > 120) return json({ error: 'lost_reason_detail_too_long' }, { statusCode: 400 });
     }
+    if (body.patch.contact_role !== undefined && body.patch.contact_role !== null && !CONTACT_ROLES.has(String(body.patch.contact_role))) {
+      return json({ error: 'invalid_contact_role', detail: 'Selecciona madre, padre, hijo o hija.' }, { statusCode: 400 });
+    }
     if (body.patch.source !== undefined || body.patch.lost_reason !== undefined || body.patch.lost_reason_detail !== undefined) {
       const { data: current, error: currentError } = await crm.from('crm_leads').select('source_payload').eq('id', body.id).single();
       if (currentError) throw currentError;
@@ -148,7 +152,7 @@ exports.handler = async (event) => {
       delete body.patch.lost_reason;
       delete body.patch.lost_reason_detail;
     }
-    const allowed = ['owner_names', 'source_payload', 'lead_type', 'crm_stage', 'heat', 'comment', 'lost_at'];
+    const allowed = ['owner_names', 'source_payload', 'lead_type', 'crm_stage', 'heat', 'comment', 'contact_role', 'lost_at'];
     const update = Object.fromEntries(Object.entries(body.patch).filter(([key]) => allowed.includes(key)));
     const actor = await syncCrmIdentity(crm, admin);
     if (actor.available) {

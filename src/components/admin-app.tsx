@@ -49,7 +49,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FeatureModule } from "@/components/feature-modules";
-import type { Contact, CrmStage, LeadCategory, LostReason } from "@/types/domain";
+import type { Contact, CrmStage, LeadCategory, LeadContactRole, LostReason } from "@/types/domain";
 import { portalClient } from "@/services/portal";
 import type { PortalAdmin, PortalClient, PortalSnapshot } from "@/services/portal";
 import { adminDataClient } from "@/services/admin-data";
@@ -272,6 +272,14 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
     persistLead(id, { stage, lostAt, lostReason, lostReasonDetail });
   }
 
+  async function qualifyLead(id: string, input: { contactRole: LeadContactRole; heat: number; durationMinutes: number; notes: string }) {
+    await adminDataClient.updateLead(id, { contactRole: input.contactRole, heat: input.heat });
+    await adminDataClient.addLeadCall(id, input.durationMinutes, input.notes);
+    setLeadHeat((values) => ({ ...values, [id]: input.heat }));
+    setCrmContacts((contacts) => contacts.map((contact) => contact.id === id ? { ...contact, contactRole: input.contactRole, heat: input.heat } : contact));
+    moveLead(id, "Contactado");
+  }
+
   function addAdmin(name: string) {
     const cleanName = name.trim();
     if (!cleanName || admins.some((admin) => admin.toLowerCase() === cleanName.toLowerCase())) return;
@@ -373,10 +381,12 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
               onAddLeads={addLeads}
               leadStages={leadStages}
               onMoveLead={moveLead}
+              onQualifyLead={qualifyLead}
               leadCategories={leadCategories}
               onCategorizeLead={(id, category) => { setLeadCategories((categories) => ({ ...categories, [id]: category })); persistLead(id, { category }); }}
               leadHeat={leadHeat}
               onSetLeadHeat={(id, heat) => { setLeadHeat((values) => ({ ...values, [id]: heat })); persistLead(id, { heat }); }}
+              onSetLeadContactRole={(id, contactRole) => { setCrmContacts((contacts) => contacts.map((contact) => contact.id === id ? { ...contact, contactRole } : contact)); persistLead(id, { contactRole }); }}
               leadNotes={leadNotes}
               onSetLeadNotes={(id, notes) => { setLeadNotes((values) => ({ ...values, [id]: notes })); persistLead(id, { notes }); }}
               leadLostDates={leadLostDates}

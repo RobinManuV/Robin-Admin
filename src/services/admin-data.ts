@@ -1,4 +1,4 @@
-import type { Contact, CrmStage, LeadCategory, LostReason } from "@/types/domain";
+import type { Contact, CrmStage, LeadCategory, LeadContactRole, LostReason } from "@/types/domain";
 
 function isLocalAdminPreview() {
   if (import.meta.env?.VITE_ENABLE_LOCAL_PREVIEW !== "1"
@@ -16,7 +16,8 @@ export type EditableMetricRecord = { id: string; label: string; value: string; d
 export type CrmEmailDraft = { subject: string; body: string; recipientIds: string[]; campaignFilter: string };
 export type CrmEmailTemplate = { id: string; name: string; subject: string; body: string; updatedAt?: string };
 export type LeadTeamNote = { id: string; leadId: string; body: string; authorName: string; createdAt: string };
-type LeadPatch = { owner?: string; source?: string; category?: LeadCategory | ""; stage?: CrmStage; heat?: number; notes?: string; lostAt?: string; lostReason?: LostReason | ""; lostReasonDetail?: string };
+export type LeadCall = { id: string; leadId: string; durationMinutes: number; notes: string; authorName: string; occurredAt: string };
+type LeadPatch = { owner?: string; source?: string; category?: LeadCategory | ""; stage?: CrmStage; heat?: number; notes?: string; contactRole?: LeadContactRole | ""; lostAt?: string; lostReason?: LostReason | ""; lostReasonDetail?: string };
 
 const previewLead = (overrides: Partial<Contact>): Contact => ({
   id: "preview-lead", name: "Lead de ejemplo", initials: "LE", email: "lead@example.com", phone: "+34 600 000 000",
@@ -32,7 +33,11 @@ const previewLeads: Contact[] = [
   previewLead({ id: "preview-web-2", name: "Sofía Ruiz", initials: "SR", email: "sofia@example.com", source: "Página web", campaign: "Pendiente de identificar", formName: "colegios", course: "2º Bachillerato", interest: "Psychology", createdAt: "2026-10-12T16:40:00.000Z" }),
   // Permite comprobar el requisito: este registro existe, pero no aparece en
   // la bandeja porque ya tiene responsable.
-  previewLead({ id: "preview-assigned", name: "Lead ya asignado", initials: "LA", owner: "Noel", source: "Meta Ads", campaign: "Campaña ya gestionada" }),
+  previewLead({ id: "preview-assigned", name: "Lead ya asignado", initials: "LA", owner: "Manuel", source: "Meta Ads", campaign: "Campaña ya gestionada", contactRole: "madre" }),
+];
+
+const previewCalls: LeadCall[] = [
+  { id: "preview-call-1", leadId: "preview-assigned", durationMinutes: 18, notes: "Primera toma de contacto", authorName: "Manuel", occurredAt: "2026-10-13T09:45:00.000Z" },
 ];
 
 function statusFor(stage: CrmStage): Contact["status"] {
@@ -133,10 +138,28 @@ function toContact(row: Record<string, any>): Contact {
   const isNotionUrl = (value: string) => /^https?:\/\/(?:www\.)?notion\.(?:so|site|com)\//i.test(value);
   const campaign = [payloadCampaign, storedCampaign].find((value) => value && !value.startsWith("meta-ad:") && !isNotionUrl(value)) || "Pendiente de identificar";
   const comment = row.comment || row.body_text || row.summary || formNotes || remainingFormDetails || "";
-  return { id: row.id, name, initials: name.split(/\s+/).slice(0, 2).map((part: string) => part[0] || "").join("").toUpperCase(), email: row.email || fieldValue(fields, /^e?mail$/, /^correo/) || "", phone: row.phone || fieldValue(fields, /phone/, /telefono/, /movil/) || "", country: "", university: row.school_name || "", course, interest, comment, contactAt: row.contact_at || undefined, product: "Aplicación", status: statusFor(stage), source: sourceFor(row), campaign, owner: row.owner_names?.[0] || "", probability: Number(row.heat || 0), nextAction: "", lastContact: row.contact_at || "—", value: 0, tags: [], databaseFields: databaseFieldValues(row), formName, category: category as LeadCategory | undefined, heat: Number(row.heat ?? 50), notes: comment, stage, lostAt: row.lost_at || undefined, lostReason: row.source_payload?.lost_reason || undefined, lostReasonDetail: row.source_payload?.lost_reason_detail || undefined, createdAt: row.source_created_at || row.created_at || undefined, clientAt: row.inside_at || undefined };
+  return { id: row.id, name, initials: name.split(/\s+/).slice(0, 2).map((part: string) => part[0] || "").join("").toUpperCase(), email: row.email || fieldValue(fields, /^e?mail$/, /^correo/) || "", phone: row.phone || fieldValue(fields, /phone/, /telefono/, /movil/) || "", country: "", university: row.school_name || "", course, interest, comment, contactAt: row.contact_at || undefined, contactRole: row.contact_role || undefined, product: "Aplicación", status: statusFor(stage), source: sourceFor(row), campaign, owner: row.owner_names?.[0] || "", probability: Number(row.heat || 0), nextAction: "", lastContact: row.contact_at || "—", value: 0, tags: [], databaseFields: databaseFieldValues(row), formName, category: category as LeadCategory | undefined, heat: Number(row.heat ?? 50), notes: comment, stage, lostAt: row.lost_at || undefined, lostReason: row.source_payload?.lost_reason || undefined, lostReasonDetail: row.source_payload?.lost_reason_detail || undefined, createdAt: row.source_created_at || row.created_at || undefined, clientAt: row.inside_at || undefined };
 }
 
 export const adminDataClient = {
+  async listLeadCalls(leadId: string): Promise<LeadCall[]> {
+    if (isLocalAdminPreview()) return previewCalls.filter((call) => call.leadId === leadId).map((call) => ({ ...call }));
+    const response = await fetch(`/api/admin/crm/lead-calls?leadId=${encodeURIComponent(leadId)}`, { credentials: "include" });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.detail || "No se pudieron cargar las llamadas");
+    return payload.calls || [];
+  },
+  async addLeadCall(leadId: string, durationMinutes: number, notes = ""): Promise<LeadCall> {
+    if (isLocalAdminPreview()) {
+      const call = { id: `preview-call-${Date.now()}`, leadId, durationMinutes, notes, authorName: "Manuel", occurredAt: new Date().toISOString() };
+      previewCalls.push(call);
+      return { ...call };
+    }
+    const response = await fetch("/api/admin/crm/lead-calls", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ leadId, durationMinutes, notes }) });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.detail || "No se pudo registrar la llamada");
+    return payload.call;
+  },
   async listLeadTeamNotes(leadId: string): Promise<LeadTeamNote[]> {
     if (isLocalAdminPreview()) return [];
     const response = await fetch(`/api/admin/crm/lead-notes?leadId=${encodeURIComponent(leadId)}`, { credentials: "include" });
@@ -159,7 +182,22 @@ export const adminDataClient = {
     return (payload.leads || []).map(toContact);
   },
   async updateLead(id: string, patch: LeadPatch) {
-    if (isLocalAdminPreview()) return { ok: true };
+    if (isLocalAdminPreview()) {
+      const lead = previewLeads.find((item) => item.id === id);
+      if (lead) {
+        if (patch.owner !== undefined) lead.owner = patch.owner;
+        if (patch.source !== undefined) lead.source = patch.source;
+        if (patch.category !== undefined) lead.category = patch.category || undefined;
+        if (patch.stage !== undefined) lead.stage = patch.stage;
+        if (patch.heat !== undefined) lead.heat = patch.heat;
+        if (patch.notes !== undefined) { lead.notes = patch.notes; lead.comment = patch.notes; }
+        if (patch.contactRole !== undefined) lead.contactRole = patch.contactRole || undefined;
+        if (patch.lostAt !== undefined) lead.lostAt = patch.lostAt || undefined;
+        if (patch.lostReason !== undefined) lead.lostReason = patch.lostReason || undefined;
+        if (patch.lostReasonDetail !== undefined) lead.lostReasonDetail = patch.lostReasonDetail || undefined;
+      }
+      return { ok: true };
+    }
     const update: Record<string, unknown> = {};
     if (patch.owner !== undefined) update.owner_names = patch.owner ? [patch.owner] : [];
     if (patch.source !== undefined) update.source = patch.source;
@@ -167,6 +205,7 @@ export const adminDataClient = {
     if (patch.stage !== undefined) update.crm_stage = patch.stage;
     if (patch.heat !== undefined) update.heat = patch.heat;
     if (patch.notes !== undefined) update.comment = patch.notes;
+    if (patch.contactRole !== undefined) update.contact_role = patch.contactRole || null;
     if (patch.lostAt !== undefined) update.lost_at = patch.lostAt || null;
     if (patch.lostReason !== undefined) update.lost_reason = patch.lostReason || null;
     if (patch.lostReasonDetail !== undefined) update.lost_reason_detail = patch.lostReasonDetail.trim() || null;
