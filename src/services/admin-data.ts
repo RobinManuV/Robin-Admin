@@ -17,6 +17,7 @@ export type CrmEmailDraft = { subject: string; body: string; recipientIds: strin
 export type CrmEmailTemplate = { id: string; name: string; subject: string; body: string; updatedAt?: string };
 export type LeadTeamNote = { id: string; leadId: string; body: string; authorName: string; createdAt: string };
 export type LeadCall = { id: string; leadId: string; durationMinutes: number; notes: string; authorName: string; occurredAt: string };
+export type FutureAcademicYear = "2027-28" | "2028-29";
 type LeadPatch = { owner?: string; source?: string; category?: LeadCategory | ""; stage?: CrmStage; heat?: number; notes?: string; contactRole?: LeadContactRole | ""; lostAt?: string; lostReason?: LostReason | ""; lostReasonDetail?: string };
 
 const previewLead = (overrides: Partial<Contact>): Contact => ({
@@ -34,6 +35,7 @@ const previewLeads: Contact[] = [
   // Permite comprobar el requisito: este registro existe, pero no aparece en
   // la bandeja porque ya tiene responsable.
   previewLead({ id: "preview-assigned", name: "Lead ya asignado", initials: "LA", owner: "Manuel", source: "Meta Ads", campaign: "Campaña ya gestionada", contactRole: "madre" }),
+  previewLead({ id: "preview-contacted", name: "Andrea Torres", initials: "AT", owner: "Manuel", source: "Página web", campaign: "Formulario contacto", contactRole: "hija", stage: "En espera", status: "Contactado", heat: 65 }),
 ];
 
 const previewCalls: LeadCall[] = [
@@ -142,6 +144,17 @@ function toContact(row: Record<string, any>): Contact {
 }
 
 export const adminDataClient = {
+  async moveLeadToFuture(leadId: string, academicYear: FutureAcademicYear) {
+    if (isLocalAdminPreview()) {
+      const index = previewLeads.findIndex((lead) => lead.id === leadId);
+      if (index >= 0) previewLeads.splice(index, 1);
+      return { ok: true, academicYear };
+    }
+    const response = await fetch("/api/admin/crm/future-leads", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ leadId, academicYear }) });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.detail || "No se pudo mover el lead al próximo curso");
+    return payload;
+  },
   async listLeadCalls(leadId: string): Promise<LeadCall[]> {
     if (isLocalAdminPreview()) return previewCalls.filter((call) => call.leadId === leadId).map((call) => ({ ...call }));
     const response = await fetch(`/api/admin/crm/lead-calls?leadId=${encodeURIComponent(leadId)}`, { credentials: "include" });

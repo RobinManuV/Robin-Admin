@@ -67,10 +67,11 @@ exports.handler = async (event) => {
       const comment = [details, remainingDetails].filter(Boolean).filter((value, index, values) => values.indexOf(value) === index).join('\n');
       const email = fieldValue(fields, /(^|_)e?mail($|_)/, /^correo/);
       const phone = fieldValue(fields, /phone/, /telefono/, /movil/);
+      const course = fieldValue(fields, /(^|_)(course|curso)($|_)/, /school_?year/, /year_?of_?study/);
       const adId = lead.ad_id || change.value.ad_id;
       const campaignName = String(lead.campaign_name || '').trim() || await campaignNameFor(adId, version);
       const name = fullName || [firstName, lastName].filter(Boolean).join(' ') || email || phone;
-      await ingestCrmLead({ source: 'meta', externalId: lead.id, name, email, phone, comment, bodyText: comment, createdAt: lead.created_time, campaign: campaignName || null, payload: { form_id: lead.form_id || change.value.form_id, ad_id: adId, campaign_name: campaignName, field_data: fields } });
+      await ingestCrmLead({ source: 'meta', externalId: lead.id, name, email, phone, course, comment, bodyText: comment, createdAt: lead.created_time, campaign: campaignName || null, payload: { form_id: lead.form_id || change.value.form_id, ad_id: adId, campaign_name: campaignName, course: course || null, field_data: fields } });
     }
     return json({ ok: true, received: leadEvents.length });
   } catch (error) { return serverError(error, 'crm.meta_webhook'); }

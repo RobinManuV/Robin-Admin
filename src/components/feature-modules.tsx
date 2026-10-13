@@ -42,7 +42,7 @@ import { Button } from "@/components/ui/button";
 import type { Contact, CrmStage, LeadCategory, LeadContactRole, LostReason } from "@/types/domain";
 import { integrationClient } from "@/services/integrations";
 import { adminDataClient } from "@/services/admin-data";
-import type { CrmEmailDraft, CrmEmailTemplate, LeadCall, LeadTeamNote } from "@/services/admin-data";
+import type { CrmEmailDraft, CrmEmailTemplate, FutureAcademicYear, LeadCall, LeadTeamNote } from "@/services/admin-data";
 import type { FinanceSnapshot, MetaSnapshot, PaymentAnalytics } from "@/services/integrations";
 import { portalClient } from "@/services/portal";
 import type { PortalAccessUser, PortalAdmin, PortalClient, PortalSnapshot, SalesTestStatus } from "@/services/portal";
@@ -86,6 +86,7 @@ type FeatureModuleProps = {
   onAddLeads: (inputs: Array<{ name: string; email?: string; phone?: string; schoolName?: string; area?: string; leadType?: string; lifecycle?: string; taskStatus?: string; heat?: number; campaign?: string; notes?: string; owner?: string; groupName?: string }>) => Promise<void>;
   leadStages: Record<string, CrmStage>;
   onMoveLead: (id: string, stage: CrmStage, outcome?: { lostReason?: LostReason; lostReasonDetail?: string }) => void;
+  onMoveLeadToFuture: (id: string, academicYear: FutureAcademicYear) => Promise<void>;
   onQualifyLead: (id: string, input: { contactRole: LeadContactRole; heat: number; durationMinutes: number; notes: string }) => Promise<void>;
   leadCategories: Record<string, LeadCategory | "">;
   onCategorizeLead: (id: string, category: LeadCategory | "") => void;
@@ -302,7 +303,7 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onD
         </tbody></table></div>
         <footer><Button type="button" variant="outline" onClick={() => setGroupRows((rows) => [...rows, emptyLeadGroupRow()])}><Plus />Añadir fila</Button><span>{groupRows.filter((row) => row.name.trim()).length} leads listos</span><div><Button type="button" variant="outline" onClick={() => setAddingGroup(false)}>Cancelar</Button><Button type="submit" disabled={savingGroup}>{savingGroup ? "Guardando…" : "Guardar grupo"}</Button></div></footer>
       </form></div>}
-      {selected && <ContactDrawer contact={{ ...selected, owner: leadOwners[selected.id] || "Sin asignar", stage: leadStages[selected.id] }} heat={selected.heat || 50} onHeatChange={(value) => onSetLeadHeat(selected.id, value)} onContactRoleChange={(value) => onSetLeadContactRole(selected.id, value)} onDeleteLead={async (id) => { await onDeleteLead(id); notify(`${selected.name} eliminado correctamente`); }} onClose={() => setSelected(null)} leadMode />}
+      {selected && <ContactDrawer contact={{ ...selected, owner: leadOwners[selected.id] || "Sin asignar", stage: leadStages[selected.id] }} admins={admins} heat={selected.heat || 50} onHeatChange={(value) => onSetLeadHeat(selected.id, value)} onOwnerChange={(owner) => { onAssignLead(selected.id, owner); notify(`${selected.name} asignado a ${owner}`); }} onContactRoleChange={(value) => onSetLeadContactRole(selected.id, value)} onDeleteLead={async (id) => { await onDeleteLead(id); notify(`${selected.name} eliminado correctamente`); }} onClose={() => setSelected(null)} leadMode />}
     </div>
   );
 }
@@ -363,9 +364,10 @@ function StudentProfile({ client, portalUrl }: { client?: PortalClient; portalUr
 const contactRoleLabels: Record<LeadContactRole, string> = { madre: "Madre", padre: "Padre", hijo: "Hijo", hija: "Hija" };
 const contactRoleOptions = Object.keys(contactRoleLabels) as LeadContactRole[];
 
-function ContactDrawer({ contact, onClose, heat = contact.heat || 50, onHeatChange, onContactRoleChange, onDeleteLead, leadMode = false }: { contact: Contact; onClose: () => void; heat?: number; onHeatChange?: (value: number) => void; onContactRoleChange?: (value: LeadContactRole) => void; onDeleteLead?: (id: string) => Promise<void>; leadMode?: boolean }) {
+function ContactDrawer({ contact, admins = [], onClose, heat = contact.heat || 50, onHeatChange, onOwnerChange, onContactRoleChange, onDeleteLead, leadMode = false }: { contact: Contact; admins?: string[]; onClose: () => void; heat?: number; onHeatChange?: (value: number) => void; onOwnerChange?: (owner: string) => void; onContactRoleChange?: (value: LeadContactRole) => void; onDeleteLead?: (id: string) => Promise<void>; leadMode?: boolean }) {
   const [localHeat, setLocalHeat] = useState(heat);
   const [localContactRole, setLocalContactRole] = useState<LeadContactRole | "">(contact.contactRole || "");
+  const [localOwner, setLocalOwner] = useState(contact.owner || "");
   const [teamNotes, setTeamNotes] = useState<LeadTeamNote[]>([]);
   const [teamNoteDraft, setTeamNoteDraft] = useState("");
   const [teamNotesLoading, setTeamNotesLoading] = useState(false);
@@ -384,7 +386,7 @@ function ContactDrawer({ contact, onClose, heat = contact.heat || 50, onHeatChan
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
-  useEffect(() => { setPhoneCopyStatus(""); setLocalContactRole(contact.contactRole || ""); setLocalHeat(heat); }, [contact.id, contact.contactRole, heat]);
+  useEffect(() => { setPhoneCopyStatus(""); setLocalContactRole(contact.contactRole || ""); setLocalOwner(contact.owner || ""); setLocalHeat(heat); }, [contact.id, contact.contactRole, contact.owner, heat]);
   useEffect(() => {
     if (!leadMode) return;
     let active = true;
@@ -491,9 +493,9 @@ function ContactDrawer({ contact, onClose, heat = contact.heat || 50, onHeatChan
       <aside className="drawer" onClick={(event) => event.stopPropagation()}>
         <button className="drawer-close" onClick={onClose}>×</button>
         <span>{leadMode ? "FICHA DEL LEAD" : "PERFIL DEL ALUMNO"}</span><h2>{contact.name}</h2><p>{contact.email} · {contact.phone}</p>
-        <div className="detail-kpis"><article><small>{leadMode ? "Tipo" : "Progreso"}</small><strong>{leadMode ? contact.category || "—" : `${contact.probability}%`}</strong></article><article><small>Responsable</small><strong>{contact.owner}</strong></article></div>
+        <div className="detail-kpis"><article><small>{leadMode ? "Tipo" : "Progreso"}</small><strong>{leadMode ? contact.category || "—" : `${contact.probability}%`}</strong></article><article><small>Responsable</small><strong>{localOwner || "Sin asignar"}</strong></article></div>
         {!leadMode && <section className="whatsapp-detail"><h3><MessageCircle /> WhatsApp</h3><p>{contact.phone}</p><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Escribe un mensaje…" /><Button variant="outline" onClick={sendMessage} disabled={sending || !message.trim()}>{sending ? "Enviando…" : "Enviar por WhatsApp"}</Button>{messageStatus && <small>{messageStatus}</small>}</section>}
-        {leadMode && <section className="lead-information"><h3>Información del lead</h3><dl><div><dt>Correo electrónico</dt><dd>{contact.email || "—"}</dd></div><div><dt>Teléfono</dt><dd className="lead-phone-value"><span>{contact.phone || "—"}</span><Button type="button" size="sm" variant="outline" aria-label={`Copiar teléfono ${contact.phone || ""}`} title="Copiar teléfono" onClick={() => void copyLeadPhone()} disabled={!contact.phone}>{phoneCopyStatus === "Copiado" ? <Check /> : <Copy />}{phoneCopyStatus || "Copiar"}</Button></dd></div><div><dt>Contacto principal</dt><dd><select className="lead-contact-role" value={localContactRole} onChange={(event) => { const value = event.target.value as LeadContactRole; setLocalContactRole(value); if (value) onContactRoleChange?.(value); }}><option value="">Sin indicar</option>{contactRoleOptions.map((role) => <option key={role} value={role}>{contactRoleLabels[role]}</option>)}</select></dd></div><div><dt>Origen</dt><dd>{contact.source || "—"}</dd></div><div><dt>Campaña</dt><dd>{contact.campaign && contact.campaign !== "Pendiente de identificar" ? contact.campaign : "Sin identificar"}</dd></div><div><dt>Curso</dt><dd>{contact.course || "—"}</dd></div><div><dt>Interés</dt><dd>{contact.interest || "—"}</dd></div><div><dt>Estado</dt><dd>{contact.stage || "Por contactar"}</dd></div>{contact.stage === "Lost" && <><div><dt>Motivo Lost</dt><dd>{lostReasonLabel(contact.lostReason)}</dd></div>{contact.lostReasonDetail && <div><dt>Detalle</dt><dd>{contact.lostReasonDetail}</dd></div>}</>}<div><dt>Responsable</dt><dd>{contact.owner || "Sin asignar"}</dd></div><div><dt>Fecha de alta</dt><dd>{contact.createdAt ? new Date(contact.createdAt).toLocaleDateString("es-ES") : "—"}</dd></div></dl></section>}
+        {leadMode && <section className="lead-information"><h3>Información del lead</h3><dl><div><dt>Correo electrónico</dt><dd>{contact.email || "—"}</dd></div><div><dt>Teléfono</dt><dd className="lead-phone-value"><span>{contact.phone || "—"}</span><Button type="button" size="sm" variant="outline" aria-label={`Copiar teléfono ${contact.phone || ""}`} title="Copiar teléfono" onClick={() => void copyLeadPhone()} disabled={!contact.phone}>{phoneCopyStatus === "Copiado" ? <Check /> : <Copy />}{phoneCopyStatus || "Copiar"}</Button></dd></div><div><dt>Contacto principal</dt><dd><select className="lead-contact-role" value={localContactRole} onChange={(event) => { const value = event.target.value as LeadContactRole; setLocalContactRole(value); if (value) onContactRoleChange?.(value); }}><option value="">Sin indicar</option>{contactRoleOptions.map((role) => <option key={role} value={role}>{contactRoleLabels[role]}</option>)}</select></dd></div><div><dt>Origen</dt><dd>{contact.source || "—"}</dd></div><div><dt>Campaña</dt><dd>{contact.campaign && contact.campaign !== "Pendiente de identificar" ? contact.campaign : "Sin identificar"}</dd></div><div><dt>Curso</dt><dd>{contact.course || "—"}</dd></div><div><dt>Interés</dt><dd>{contact.interest || "—"}</dd></div><div><dt>Estado</dt><dd>{contact.stage || "Por contactar"}</dd></div>{contact.stage === "Lost" && <><div><dt>Motivo Lost</dt><dd>{lostReasonLabel(contact.lostReason)}</dd></div>{contact.lostReasonDetail && <div><dt>Detalle</dt><dd>{contact.lostReasonDetail}</dd></div>}</>}<div><dt>Agente de venta</dt><dd><select className="owner-select lead-owner-select" value={localOwner} onChange={(event) => { const owner = event.target.value; setLocalOwner(owner); if (owner) onOwnerChange?.(owner); }}><option value="">Sin asignar</option>{admins.map((admin) => <option key={admin} value={admin}>{admin}</option>)}</select></dd></div><div><dt>Fecha de alta</dt><dd>{contact.createdAt ? new Date(contact.createdAt).toLocaleDateString("es-ES") : "—"}</dd></div></dl></section>}
         <section className="heat-control"><h3><Flame /> Heat del lead <b>{localHeat}</b></h3><input type="range" min="0" max="100" value={localHeat} onChange={(event) => { const value = Number(event.target.value); setLocalHeat(value); onHeatChange?.(value); }} /><div><span>Frío</span><span>Caliente</span></div></section>
         {leadMode && <section className="lead-calls"><h3><PhoneCall /> Llamadas</h3>{leadCallsLoading && <small>Cargando llamadas…</small>}{!leadCallsLoading && leadCalls.length === 0 && <small>Aún no hay llamadas registradas.</small>}{leadCalls.length > 0 && <div className="lead-call-history">{leadCalls.map((call) => <article key={call.id}><div><strong>{call.durationMinutes} min</strong><time dateTime={call.occurredAt}>{new Date(call.occurredAt).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</time></div>{call.notes && <p>{call.notes}</p>}<footer>{call.authorName}</footer></article>)}</div>}{leadCallFormOpen && <form className="lead-call-form" onSubmit={submitLeadCall}><label>Duración (minutos)<input type="number" min="1" max="1440" step="1" required value={leadCallDuration} onChange={(event) => setLeadCallDuration(event.target.value)} placeholder="Ej. 20" /></label><label>Notas de la llamada<textarea maxLength={4000} value={leadCallNotes} onChange={(event) => setLeadCallNotes(event.target.value)} placeholder="Opcional" /></label><div><Button type="button" variant="outline" onClick={() => setLeadCallFormOpen(false)}>Cancelar</Button><Button type="submit" disabled={leadCallSaving}>{leadCallSaving ? "Guardando…" : "Registrar"}</Button></div></form>}<Button type="button" variant="outline" className="lead-call-add" onClick={() => setLeadCallFormOpen((open) => !open)}><Plus />{leadCallFormOpen ? "Cerrar" : "Registrar llamada"}</Button>{leadCallError && <small className="team-note-error" role="alert">{leadCallError}</small>}</section>}
         {leadMode && <section className="lead-comment"><h3>Comentario</h3><p>{contact.comment || "Sin comentario"}</p></section>}
@@ -1196,7 +1198,7 @@ function EmailComposer({ contacts, notify, onClose }: { contacts: Contact[]; not
   </section></div>;
 }
 
-function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMoveLead, onQualifyLead, onDeleteLead, leadCategories: categories, onCategorizeLead, leadHeat, onSetLeadHeat, onSetLeadContactRole, leadNotes, onSetLeadNotes, leadLostDates, portalSnapshot, portalConnected, onPortalRefresh, notify }: FeatureModuleProps) {
+function Crm({ path, currentUser, admins, contacts, leadOwners, onAssignLead, leadStages, onMoveLead, onMoveLeadToFuture, onQualifyLead, onDeleteLead, leadCategories: categories, onCategorizeLead, leadHeat, onSetLeadHeat, onSetLeadContactRole, leadNotes, onSetLeadNotes, leadLostDates, portalSnapshot, portalConnected, onPortalRefresh, notify }: FeatureModuleProps) {
   const [query, setQuery] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [leadView, setLeadView] = useState<"cards" | "table">("cards");
@@ -1214,8 +1216,12 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
   const [pendingClientId, setPendingClientId] = useState<string | null>(null);
   const [selectedAdvisor, setSelectedAdvisor] = useState("");
   const [pendingLostId, setPendingLostId] = useState<string | null>(null);
+  const [lostDestination, setLostDestination] = useState<"lost" | "future">("lost");
   const [lostReason, setLostReason] = useState<LostReason | "">("");
   const [lostReasonDetail, setLostReasonDetail] = useState("");
+  const [futureAcademicYear, setFutureAcademicYear] = useState<FutureAcademicYear | "">("");
+  const [savingOutcome, setSavingOutcome] = useState(false);
+  const [outcomeError, setOutcomeError] = useState("");
   const [pendingQualificationId, setPendingQualificationId] = useState<string | null>(null);
   const [qualificationContactRole, setQualificationContactRole] = useState<LeadContactRole | "">("");
   const [qualificationHeat, setQualificationHeat] = useState(50);
@@ -1249,7 +1255,7 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
   }, [stageReminderOpen, stageReminderVersion]);
 
   function openContact(contact: Contact) {
-    setSelected({ ...contact, owner: currentUser, category: categories[contact.id] || undefined, heat: leadHeat[contact.id], notes: leadNotes[contact.id] });
+    setSelected({ ...contact, owner: leadOwners[contact.id] || contact.owner || currentUser, category: categories[contact.id] || undefined, heat: leadHeat[contact.id], notes: leadNotes[contact.id] });
   }
 
   function showStageReminder() {
@@ -1323,8 +1329,11 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
       return;
     }
     if (stage === "Lost") {
+      setLostDestination("lost");
       setLostReason("");
       setLostReasonDetail("");
+      setFutureAcademicYear("");
+      setOutcomeError("");
       setPendingLostId(leadId);
       return;
     }
@@ -1363,9 +1372,23 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
     } finally { setConvertingId(null); }
   }
 
-  function confirmLost() {
+  async function confirmLost() {
     const leadId = pendingLostId;
-    if (!leadId || !lostReason || (lostReason === "other" && !lostReasonDetail.trim())) return;
+    if (!leadId) return;
+    if (lostDestination === "future") {
+      if (!futureAcademicYear) return;
+      setSavingOutcome(true);
+      setOutcomeError("");
+      try {
+        await onMoveLeadToFuture(leadId, futureAcademicYear);
+        setPendingLostId(null);
+        notify(`Lead enviado a próximos cursos · ${futureAcademicYear}`);
+      } catch (error) {
+        setOutcomeError(error instanceof Error ? error.message : "No se pudo mover el lead");
+      } finally { setSavingOutcome(false); }
+      return;
+    }
+    if (!lostReason || (lostReason === "other" && !lostReasonDetail.trim())) return;
     onMoveLead(leadId, "Lost", { lostReason, lostReasonDetail: lostReason === "other" ? lostReasonDetail.trim() : "" });
     setPendingLostId(null);
     notify("Lead marcado como perdido con motivo registrado");
@@ -1444,11 +1467,11 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, leadStages, onMo
 
       {path === "/crm/lost" && <><div className="lost-filters"><label>Desde<input type="date" value={lostFrom} onChange={(event) => setLostFrom(event.target.value)} /></label><label>Hasta<input type="date" value={lostTo} onChange={(event) => setLostTo(event.target.value)} /></label><label>Categoría<select value={lostCategory} onChange={(event) => setLostCategory(event.target.value)}><option value="">Todas</option>{leadCategories.map((category) => <option key={category}>{category}</option>)}</select></label><label>Heat mínimo<input type="number" min="0" max="100" value={lostHeat} onChange={(event) => setLostHeat(event.target.value)} /></label></div><div className="data-table panel"><table><thead><tr><th>Lead</th><th>Categoría</th><th>Heat final</th><th>Origen</th><th>Motivo</th><th>Fecha Lost</th></tr></thead><tbody>{owned.filter((contact) => { const lostDate = (leadLostDates[contact.id] || "").slice(0, 10); return leadStages[contact.id] === "Lost" && (!lostCategory || categories[contact.id] === lostCategory) && leadHeat[contact.id] >= Number(lostHeat || 0) && (!lostFrom || lostDate >= lostFrom) && (!lostTo || lostDate <= lostTo); }).map((contact) => <tr key={contact.id} onClick={() => openContact(contact)}><td><b>{contact.name}</b><small>{contact.email}</small></td><td>{categories[contact.id]}</td><td>{leadHeat[contact.id]}</td><td>{contact.source}</td><td>{lostReasonLabel(contact.lostReason)}{contact.lostReasonDetail && <small>{contact.lostReasonDetail}</small>}</td><td>{leadLostDates[contact.id]?.slice(0, 10) || "—"}</td></tr>)}</tbody></table></div></>}
 
-      {selected && <ContactDrawer contact={selected} leadMode heat={leadHeat[selected.id]} onHeatChange={(value) => onSetLeadHeat(selected.id, value)} onContactRoleChange={(value) => onSetLeadContactRole(selected.id, value)} onDeleteLead={async (id) => { await onDeleteLead(id); notify(`${selected.name} eliminado correctamente`); }} onClose={() => setSelected(null)} />}
+      {selected && <ContactDrawer contact={selected} admins={admins} leadMode heat={leadHeat[selected.id]} onHeatChange={(value) => onSetLeadHeat(selected.id, value)} onOwnerChange={(owner) => { onAssignLead(selected.id, owner); notify(`${selected.name} asignado a ${owner}`); }} onContactRoleChange={(value) => onSetLeadContactRole(selected.id, value)} onDeleteLead={async (id) => { await onDeleteLead(id); notify(`${selected.name} eliminado correctamente`); }} onClose={() => setSelected(null)} />}
       {emailComposerOpen && path === "/crm" && <EmailComposer contacts={porContactarLeads} notify={notify} onClose={() => setEmailComposerOpen(false)} />}
       {pendingQualificationId && <div className="drawer-wrap outcome-dialog-wrap"><form className="manual-lead-card crm-outcome-card qualification-dialog" onSubmit={(event) => { event.preventDefault(); void confirmQualification(); }}><button className="drawer-close" type="button" disabled={qualifying} onClick={() => setPendingQualificationId(null)}>×</button><span>PASAR A CONTACTADO</span><h2>Completa el primer contacto</h2><p>Antes de continuar debes identificar a la persona, ajustar el heat y registrar la primera llamada.</p><label>Contacto principal<select required autoFocus value={qualificationContactRole} onChange={(event) => setQualificationContactRole(event.target.value as LeadContactRole | "")}><option value="">Seleccionar…</option>{contactRoleOptions.map((role) => <option key={role} value={role}>{contactRoleLabels[role]}</option>)}</select></label><label>Nuevo heat <strong className="qualification-heat-value">{qualificationHeat}</strong><input type="range" min="0" max="100" value={qualificationHeat} onChange={(event) => setQualificationHeat(Number(event.target.value))} /></label><small className={qualificationHeat === qualificationInitialHeat ? "qualification-pending" : "qualification-complete"}>{qualificationHeat === qualificationInitialHeat ? `Debes cambiar el valor actual (${qualificationInitialHeat}).` : `Heat ajustado de ${qualificationInitialHeat} a ${qualificationHeat}.`}</small><label>Duración de la llamada (minutos)<input type="number" min="1" max="1440" step="1" required value={qualificationDuration} onChange={(event) => setQualificationDuration(event.target.value)} placeholder="Ej. 20" /></label><label>Notas de la llamada<textarea maxLength={4000} value={qualificationNotes} onChange={(event) => setQualificationNotes(event.target.value)} placeholder="Opcional" /></label>{qualificationError && <small className="team-note-error" role="alert">{qualificationError}</small>}<div className="manual-lead-actions"><Button type="button" variant="outline" disabled={qualifying} onClick={() => setPendingQualificationId(null)}>Cancelar</Button><Button type="submit" disabled={qualifying || !qualificationContactRole || qualificationHeat === qualificationInitialHeat || !qualificationDuration}>{qualifying ? "Guardando…" : "Guardar y pasar a Contactado"}</Button></div></form></div>}
       {pendingClientId && <div className="drawer-wrap outcome-dialog-wrap" onMouseDown={(event) => { if (event.target === event.currentTarget && !convertingId) setPendingClientId(null); }}><form className="manual-lead-card crm-outcome-card" onSubmit={(event) => { event.preventDefault(); void confirmClientConversion(); }}><button className="drawer-close" type="button" disabled={!!convertingId} onClick={() => setPendingClientId(null)}>×</button><span>PASAR A IN</span><h2>Asignar asesor del cliente</h2><p>El agente de venta seguirá siendo <b>{leadOwners[pendingClientId] || currentUser}</b>. El asesor elegido será quien reciba al alumno en el Portal del Alumno.</p><label>Asesor<select required autoFocus value={selectedAdvisor} onChange={(event) => setSelectedAdvisor(event.target.value)}><option value="">Seleccionar asesor…</option>{admins.map((admin) => <option key={admin} value={admin}>{admin}</option>)}</select></label><div className="outcome-role-summary"><span>Agente de venta<strong>{leadOwners[pendingClientId] || currentUser}</strong></span><span>Asesor del cliente<strong>{selectedAdvisor || "Pendiente"}</strong></span></div><div className="manual-lead-actions"><Button type="button" variant="outline" disabled={!!convertingId} onClick={() => setPendingClientId(null)}>Cancelar</Button><Button type="submit" disabled={!selectedAdvisor || !!convertingId}>{convertingId ? "Creando cliente…" : "Crear cliente"}</Button></div></form></div>}
-      {pendingLostId && <div className="drawer-wrap outcome-dialog-wrap" onMouseDown={(event) => { if (event.target === event.currentTarget) setPendingLostId(null); }}><form className="manual-lead-card crm-outcome-card" onSubmit={(event) => { event.preventDefault(); confirmLost(); }}><button className="drawer-close" type="button" onClick={() => setPendingLostId(null)}>×</button><span>MARCAR COMO LOST</span><h2>Motivo obligatorio</h2><p>Selecciona por qué se ha perdido este lead. Este dato quedará guardado para el análisis comercial.</p><label>Motivo<select required autoFocus value={lostReason} onChange={(event) => { setLostReason(event.target.value as LostReason | ""); if (event.target.value !== "other") setLostReasonDetail(""); }}><option value="">Seleccionar motivo…</option>{lostReasonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{lostReason === "other" && <label>Explicación breve<input required maxLength={120} value={lostReasonDetail} onChange={(event) => setLostReasonDetail(event.target.value)} placeholder="Escribe el motivo" /></label>}<div className="manual-lead-actions"><Button type="button" variant="outline" onClick={() => setPendingLostId(null)}>Cancelar</Button><Button type="submit" disabled={!lostReason || (lostReason === "other" && !lostReasonDetail.trim())}>Marcar como Lost</Button></div></form></div>}
+      {pendingLostId && <div className="drawer-wrap outcome-dialog-wrap" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingOutcome) setPendingLostId(null); }}><form className="manual-lead-card crm-outcome-card" onSubmit={(event) => { event.preventDefault(); void confirmLost(); }}><button className="drawer-close" type="button" disabled={savingOutcome} onClick={() => setPendingLostId(null)}>×</button><span>RETIRAR DEL PIPELINE</span><h2>{lostDestination === "future" ? "Lead de próximo curso" : "Motivo obligatorio"}</h2><p>{lostDestination === "future" ? "El lead saldrá del CRM activo y se guardará únicamente en la tabla de próximos cursos." : "Selecciona por qué se ha perdido este lead. Este dato quedará guardado para el análisis comercial."}</p><label>Destino<select autoFocus value={lostDestination} onChange={(event) => { const destination = event.target.value as "lost" | "future"; setLostDestination(destination); setOutcomeError(""); }}><option value="lost">Lost definitivo</option><option value="future">Lead de próximo curso</option></select></label>{lostDestination === "lost" ? <><label>Motivo<select required value={lostReason} onChange={(event) => { setLostReason(event.target.value as LostReason | ""); if (event.target.value !== "other") setLostReasonDetail(""); }}><option value="">Seleccionar motivo…</option>{lostReasonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{lostReason === "other" && <label>Explicación breve<input required maxLength={120} value={lostReasonDetail} onChange={(event) => setLostReasonDetail(event.target.value)} placeholder="Escribe el motivo" /></label>}</> : <label>Curso académico<select required value={futureAcademicYear} onChange={(event) => setFutureAcademicYear(event.target.value as FutureAcademicYear | "")}><option value="">Seleccionar curso…</option><option value="2027-28">2027-28</option><option value="2028-29">2028-29</option></select></label>}{outcomeError && <small className="team-note-error" role="alert">{outcomeError}</small>}<div className="manual-lead-actions"><Button type="button" variant="outline" disabled={savingOutcome} onClick={() => setPendingLostId(null)}>Cancelar</Button><Button type="submit" disabled={savingOutcome || (lostDestination === "lost" ? !lostReason || (lostReason === "other" && !lostReasonDetail.trim()) : !futureAcademicYear)}>{savingOutcome ? "Moviendo…" : lostDestination === "future" ? "Enviar a próximos cursos" : "Marcar como Lost"}</Button></div></form></div>}
       {stageReminderOpen && <div className="crm-stage-reminder" role="alertdialog" aria-modal="true" aria-labelledby="crm-stage-reminder-title"><section><div className="crm-stage-reminder-icon"><PhoneCall /></div><h2 id="crm-stage-reminder-title">¿Has registrado todas las llamadas?</h2><p>¿Has añadido todas las notas?</p>{stageReminderClosable ? <button type="button" aria-label="Cerrar aviso" onClick={() => setStageReminderOpen(false)}><X /></button> : <small>Podrás cerrar este aviso en 5 segundos.</small>}</section></div>}
     </div>
   );

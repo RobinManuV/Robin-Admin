@@ -50,6 +50,10 @@
   to = "/.netlify/functions/admin-crm-lead-calls"
   status = 200
 [[redirects]]
+  from = "/api/admin/crm/future-leads"
+  to = "/.netlify/functions/admin-crm-future-leads"
+  status = 200
+[[redirects]]
   from = "/api/admin/crm/email"
   to = "/.netlify/functions/admin-crm-email"
   status = 200

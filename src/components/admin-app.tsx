@@ -53,6 +53,7 @@ import type { Contact, CrmStage, LeadCategory, LeadContactRole, LostReason } fro
 import { portalClient } from "@/services/portal";
 import type { PortalAdmin, PortalClient, PortalSnapshot } from "@/services/portal";
 import { adminDataClient } from "@/services/admin-data";
+import type { FutureAcademicYear } from "@/services/admin-data";
 import { integrationClient } from "@/services/integrations";
 import type { AnalyticsDateRange, HoldedSnapshot, SalesDashboard } from "@/services/integrations";
 import robinPlanWordmark from "@/robin-subscriptions/portal-source/src/assets/robin-wordmark.png";
@@ -194,6 +195,12 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
     void adminDataClient.updateLead(id, patch).catch((error) => setNotice(error instanceof Error ? error.message : "No se pudo guardar el lead"));
   }
 
+  function assignLead(id: string, owner: string) {
+    setLeadOwners((owners) => ({ ...owners, [id]: owner }));
+    setCrmContacts((contacts) => contacts.map((contact) => contact.id === id ? { ...contact, owner } : contact));
+    persistLead(id, { owner });
+  }
+
   useEffect(() => {
     let active = true;
     const load = () => adminDataClient.listLeads().then((leads) => {
@@ -278,6 +285,18 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
     setLeadHeat((values) => ({ ...values, [id]: input.heat }));
     setCrmContacts((contacts) => contacts.map((contact) => contact.id === id ? { ...contact, contactRole: input.contactRole, heat: input.heat } : contact));
     moveLead(id, "Contactado");
+  }
+
+  async function moveLeadToFuture(id: string, academicYear: FutureAcademicYear) {
+    await adminDataClient.moveLeadToFuture(id, academicYear);
+    setCrmContacts((contacts) => contacts.filter((contact) => contact.id !== id));
+    const withoutLead = <T,>(values: Record<string, T>) => { const next = { ...values }; delete next[id]; return next; };
+    setLeadOwners(withoutLead);
+    setLeadStages(withoutLead);
+    setLeadCategories(withoutLead);
+    setLeadHeat(withoutLead);
+    setLeadNotes(withoutLead);
+    setLeadLostDates(withoutLead);
   }
 
   function addAdmin(name: string) {
@@ -373,7 +392,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
               admins={admins}
               contacts={crmContacts}
               leadOwners={leadOwners}
-              onAssignLead={(id, owner) => { setLeadOwners((owners) => ({ ...owners, [id]: owner })); persistLead(id, { owner }); }}
+              onAssignLead={assignLead}
               onSetLeadSource={(id, source) => { const labels: Record<string, string> = { meta: "Meta Ads", website: "Página web", organic: "Orgánico", organic_social: "Orgánico RRSS", referral: "Referidos", other: "Otros", schools: "Colegios" }; const label = labels[source] || "Otros"; setCrmContacts((contacts) => contacts.map((contact) => contact.id === id ? { ...contact, source: label } : contact)); persistLead(id, { source }); }}
               onDeleteLead={deleteLead}
               onDeleteLeads={deleteLeads}
@@ -381,6 +400,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
               onAddLeads={addLeads}
               leadStages={leadStages}
               onMoveLead={moveLead}
+              onMoveLeadToFuture={moveLeadToFuture}
               onQualifyLead={qualifyLead}
               leadCategories={leadCategories}
               onCategorizeLead={(id, category) => { setLeadCategories((categories) => ({ ...categories, [id]: category })); persistLead(id, { category }); }}
