@@ -16,6 +16,7 @@ export function daysBetween(startIso, endIso) {
 
 export function PaymentStatusBadge({ status }) {
   if (status === 'paid') return <Badge tone="green">Pagado</Badge>;
+  if (status === 'annulled') return <Badge tone="rose">Anulado</Badge>;
   if (status === 'unlocked') return <Badge tone="amber">Disponible</Badge>;
   return <Badge tone="slate">Bloqueado</Badge>;
 }

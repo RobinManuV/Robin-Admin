@@ -11,6 +11,7 @@ const { readSessionFromEvent } = require('../../lib/auth');
 const { isApplicationAdmin, normalizeEmail } = require('../../lib/authorization');
 const { json, methodNotAllowed, parseJsonBody, serverError, verifyOrigin } = require('../../lib/http');
 const { chatCompletion } = require('../../lib/anthropic-chat');
+const { isPaymentAnnulled } = require('../../lib/payments');
 
 const PHASES = {
   1: 'Presentación de carreras',
@@ -68,9 +69,9 @@ exports.handler = async (event) => {
     if (clientIds.length) {
       const { data } = await sb
         .from('payments')
-        .select('user_id, installment, amount, currency, status, unlocked_at, paid_at')
+        .select('user_id, installment, amount, currency, status, unlocked_at, paid_at, payment_data')
         .in('user_id', clientIds);
-      payments = data || [];
+      payments = (data || []).filter((payment) => !isPaymentAnnulled(payment));
     }
 
     // 3) Documentos: sólo metadata

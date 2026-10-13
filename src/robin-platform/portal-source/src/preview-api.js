@@ -43,6 +43,15 @@ const previewBookings = [
   { id: "preview-booking-1", title: "Seguimiento con tu asesor", start_at: "2026-09-22T15:00:00Z", status: "confirmed" },
 ];
 
+const previewAdminPayments = [
+  { id: "preview-payment-1", installment: 1, amount: 566.67, currency: "EUR", status: "paid", paid_at: "2026-09-02T10:00:00Z", payment_data: {} },
+  { id: "preview-payment-2", installment: 2, amount: 566.67, currency: "EUR", status: "unlocked", unlocked_at: "2026-10-10T10:00:00Z", payment_data: {} },
+  { id: "preview-payment-3", installment: 3, amount: 566.66, currency: "EUR", status: "locked", payment_data: {} },
+  { id: "preview-payment-4", installment: 4, amount: 121, currency: "EUR", status: "unlocked", concept: "Traducción jurada de documentación", payment_data: { extra_payment: true, preset: "custom", vat_treatment: "standard_21", vat_rate: 21 } },
+  { id: "preview-payment-5", installment: 5, amount: 33, currency: "EUR", status: "paid", paid_at: "2026-10-11T10:00:00Z", concept: "Evaluación inicial de inglés/IELTS – Lucía Martín", payment_data: { extra_payment: true, preset: "ielts_evaluation", units: 1, unit_price: 33, vat_treatment: "exempt", vat_rate: 0, exemption_note: "Operación exenta de IVA conforme al artículo 20.Uno.9.º de la Ley 37/1992." } },
+  { id: "preview-payment-6", installment: 6, amount: 132, currency: "EUR", status: "annulled", paid_at: "2026-10-08T10:00:00Z", concept: "Clase de preparación de inglés/IELTS – Individual – 4 horas – Lucía Martín", payment_data: { extra_payment: true, preset: "ielts_class", class_mode: "individual", hours: 4, vat_treatment: "exempt", vat_rate: 0, annulled_at: "2026-10-12T12:00:00Z", stripe_refunded: false, holded_invoice_annulled: true } },
+];
+
 function previewRole() {
   if (import.meta.env?.VITE_ENABLE_LOCAL_PREVIEW !== "1") return null;
   if (typeof window === "undefined" || !PREVIEW_HOSTS.has(window.location.hostname)) return null;
@@ -136,6 +145,7 @@ export async function getLocalPreviewResponse(method, url) {
   if (path === "/api/robin-plan/admin/faqs") return { active: true, data: { faqs: [] } };
   if (path === "/api/admin/clients" || path === "/api/admin/clients/all") return { active: true, data: { clients: previewClients } };
   if (path === "/api/admin/dashboard") return { active: true, data: { clients: previewClients, payments: [], documents: previewDocuments, bookings: previewBookings, activity: [], tasks: [], team: [] } };
+  if (path === "/api/admin/payments") return { active: true, data: { user: { ...previewClient, tipo: "general", num_carreras: 1 }, payments: previewAdminPayments } };
   if (path === "/api/documents") return { active: true, data: { documents: previewDocuments } };
   if (path === "/api/careers" && url.includes("all=1")) return { active: true, data: { templates: [previewCareer], assigned_template_ids: [previewCareer.id] } };
   if (path === "/api/careers") return { active: true, data: { careers: [previewCareer] } };

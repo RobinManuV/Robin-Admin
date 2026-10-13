@@ -3,11 +3,13 @@ const { getSubscriptionsSupabase } = require('../../lib/subscriptions-supabase')
 const { readSessionFromEvent } = require('../../lib/auth');
 const { isApplicationAdmin } = require('../../lib/authorization');
 const { json, methodNotAllowed, serverError } = require('../../lib/http');
+const { isPaymentAnnulled } = require('../../lib/payments');
 
 const money = (row) => Number(row.amount ?? row.total ?? row.price ?? row.value ?? row.importe ?? row.monto ?? row.total_amount ?? row.subscription_price ?? 0) || 0;
 
 function aggregate(rows) {
   return rows.reduce((result, row) => {
+    if (isPaymentAnnulled(row)) return result;
     const status = String(row.status || '').toLowerCase();
     if (status === 'paid') result.paid += money(row);
     if (status === 'unlocked') result.pending += money(row);
@@ -24,7 +26,7 @@ exports.handler = async (event) => {
     const { data: admin } = await main.from('users').select('id,email,username,role').eq('id', session.uid).single();
     if (!admin || !isApplicationAdmin(admin)) return json({ error: 'forbidden' }, { statusCode: 403 });
     const [{ data: payments, error: paymentsError }, subscriptionResult] = await Promise.all([
-      main.from('payments').select('amount,status'),
+      main.from('payments').select('amount,status,payment_data'),
       Promise.resolve().then(async () => {
         try { return await getSubscriptionsSupabase().from('subscription_invoices').select('*'); }
         catch (error) { return { data: null, error }; }

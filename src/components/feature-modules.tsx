@@ -151,6 +151,27 @@ function leadContactAgeTone(days: number | null) {
   return "yellow";
 }
 
+function webFormLabel(formName?: string) {
+  const normalized = String(formName || "").trim().toLowerCase();
+  const labels: Record<string, string> = {
+    contacto: "Formulario de contacto",
+    colegios: "Formulario de colegios",
+    newsletter: "Newsletter",
+    reserva: "Reserva de consulta",
+  };
+  if (labels[normalized]) return labels[normalized];
+  if (!normalized) return "Formulario web";
+  return normalized.replace(/[_-]+/g, " ").replace(/\b\p{L}/gu, (letter) => letter.toUpperCase());
+}
+
+function campaignOrOrigin(contact: Contact) {
+  if (contact.source === "Meta Ads") {
+    return contact.campaign && contact.campaign !== "Pendiente de identificar" ? contact.campaign : "Campaña pendiente";
+  }
+  if (contact.source === "Página web") return webFormLabel(contact.formName);
+  return contact.source || "—";
+}
+
 type LeadGroupRow = { name: string; email: string; phone: string; schoolName: string; area: string; leadType: string; lifecycle: string; taskStatus: string; heat: string; source: string; campaign: string; notes: string; owner: string };
 const emptyLeadGroupRow = (): LeadGroupRow => ({ name: "", email: "", phone: "", schoolName: "", area: "", leadType: "", lifecycle: "", taskStatus: "", heat: "50", source: "", campaign: "", notes: "", owner: "" });
 
@@ -158,7 +179,6 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onD
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Contact | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [assignment, setAssignment] = useState<"all" | "assigned" | "unassigned">("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [campaignFilter, setCampaignFilter] = useState("all");
   const [addingLead, setAddingLead] = useState(false);
@@ -171,12 +191,13 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onD
   const list = useMemo(() => contacts.filter((contact) => {
     const stage = leadStages[contact.id] || contact.stage || "Por contactar";
     if (stage !== "Por contactar") return false;
-    if (!`${contact.name} ${contact.email} ${contact.phone} ${contact.source} ${contact.campaign}`.toLowerCase().includes(query.trim().toLowerCase())) return false;
-    if (assignment === "assigned" && !leadOwners[contact.id]) return false;
-    if (assignment === "unassigned" && leadOwners[contact.id]) return false;
+    // La bandeja es exclusivamente de entrada: al asignar un responsable, el
+    // lead pasa al CRM personal y deja de mostrarse aquí inmediatamente.
+    if (leadOwners[contact.id]) return false;
+    if (!`${contact.name} ${contact.email} ${contact.phone} ${contact.source} ${contact.campaign} ${contact.formName || ""}`.toLowerCase().includes(query.trim().toLowerCase())) return false;
     if (sourceFilter !== "all" && contact.source !== sourceFilter) return false;
     return campaignFilter === "all" || contact.campaign === campaignFilter;
-  }).sort((a, b) => leadEntryTimestamp(b.createdAt) - leadEntryTimestamp(a.createdAt) || b.id.localeCompare(a.id)), [contacts, leadOwners, leadStages, query, assignment, sourceFilter, campaignFilter]);
+  }).sort((a, b) => leadEntryTimestamp(b.createdAt) - leadEntryTimestamp(a.createdAt) || b.id.localeCompare(a.id)), [contacts, leadOwners, leadStages, query, sourceFilter, campaignFilter]);
   const sources = useMemo(() => [...new Set(contacts.map((contact) => contact.source).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [contacts]);
   const campaigns = useMemo(() => [...new Set(contacts.map((contact) => contact.campaign).filter((campaign) => campaign && campaign !== "Pendiente de identificar"))].sort((a, b) => a.localeCompare(b, "es")), [contacts]);
   async function saveLeadGroup(event: React.FormEvent) {
@@ -212,22 +233,22 @@ function LeadInbox({ admins, contacts, leadOwners, leadStages, onAssignLead, onD
       </Title>
       <div className="module-toolbar">
         <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre, email o canal…" /></label>
-        <Button variant="outline" onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{(assignment !== "all" || sourceFilter !== "all" || campaignFilter !== "all") && <span className="filter-count">{Number(assignment !== "all") + Number(sourceFilter !== "all") + Number(campaignFilter !== "all")}</span>}</Button>
+        <Button variant="outline" onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{(sourceFilter !== "all" || campaignFilter !== "all") && <span className="filter-count">{Number(sourceFilter !== "all") + Number(campaignFilter !== "all")}</span>}</Button>
         <Button variant="outline" onClick={exportLeads}><Download />Exportar CSV</Button>
         <Button variant="outline" onClick={() => setAddingGroup(true)}><Plus />Añadir grupo</Button>
         <Button onClick={() => setAddingLead(true)}><Plus />Añadir lead</Button>
       </div>
-      {filtersOpen && <section className="lead-filters panel"><label>Asignación<select value={assignment} onChange={(event) => setAssignment(event.target.value as typeof assignment)}><option value="all">Todos</option><option value="unassigned">Sin asignar</option><option value="assigned">Asignados</option></select></label><label>Origen<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="all">Todos los orígenes</option>{sources.map((source) => <option key={source} value={source}>{source}</option>)}</select></label><label>Campaña<select value={campaignFilter} onChange={(event) => setCampaignFilter(event.target.value)}><option value="all">Todas las campañas</option>{campaigns.map((campaign) => <option key={campaign} value={campaign}>{campaign}</option>)}</select></label><button type="button" onClick={() => { setAssignment("all"); setSourceFilter("all"); setCampaignFilter("all"); }}>Limpiar filtros</button></section>}
+      {filtersOpen && <section className="lead-filters panel"><label>Origen<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="all">Todos los orígenes</option>{sources.map((source) => <option key={source} value={source}>{source}</option>)}</select></label><label>Campaña<select value={campaignFilter} onChange={(event) => setCampaignFilter(event.target.value)}><option value="all">Todas las campañas</option>{campaigns.map((campaign) => <option key={campaign} value={campaign}>{campaign}</option>)}</select></label><button type="button" onClick={() => { setSourceFilter("all"); setCampaignFilter("all"); }}>Limpiar filtros</button></section>}
       <section className="panel inbox-panel">
         <div className="data-table">
           <table>
-            <thead><tr><th>Lead</th><th>Entrada</th><th>Origen</th><th>Curso</th><th>Interés</th><th>Asignar a</th><th>Días sin contactar</th></tr></thead>
+            <thead><tr><th>Lead</th><th>Entrada</th><th>Campaña / origen</th><th>Curso</th><th>Interés</th><th>Asignar a</th><th>Días sin contactar</th></tr></thead>
             <tbody>
               {list.map((contact) => (
-                <tr key={contact.id} className={!leadOwners[contact.id] ? "unassigned-lead" : ""} onClick={() => setSelected(contact)}>
+                <tr key={contact.id} className="unassigned-lead" onClick={() => setSelected(contact)}>
                   <td><button type="button" className="lead-name-button" onClick={() => setSelected(contact)}>{contact.formName === "colegios" && <small className="school-lead-label">COLEGIOS</small>}<b className={contact.formName === "colegios" ? "school-lead-name" : ""}>{contact.name}</b><small>{contact.email}</small></button></td>
                   <td><time className="lead-entry-time" dateTime={contact.createdAt}>{formatLeadEntry(contact.createdAt)}</time></td>
-                  <td><span className="lead-source-readonly">{contact.source || "—"}</span></td>
+                  <td><span className="lead-source-readonly">{campaignOrOrigin(contact)}</span>{["Meta Ads", "Página web"].includes(contact.source) && <small className="lead-source-kind">{contact.source}</small>}</td>
                   <td>{contact.course || ""}</td>
                   <td>{contact.interest || ""}</td>
                   <td>

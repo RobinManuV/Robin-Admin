@@ -8,6 +8,7 @@ const { buildSalesDashboard } = require('../../lib/sales-dashboard');
 const { isMissingPerformanceSchema } = require('../../lib/crm-identity');
 const { activeSalesTestRun, isLeadInTestRun } = require('../../lib/sales-test-mode');
 const { filterSalesRowsForAdmin, markPersonalSalesDashboard } = require('../../lib/sales-personal-scope');
+const { isPaymentAnnulled } = require('../../lib/payments');
 
 const PERIODS = new Set(['30d', 'month', 'last_month', '3m', '365d', 'ytd', 'custom']);
 const metaCache = new Map();
@@ -169,7 +170,7 @@ async function loadRows() {
   const crm = getAdminSupabase();
   const [{ data: users, error: usersError }, { data: payments, error: paymentsError }, leads, events, sessions, crmUsers, applications] = await Promise.all([
     pagedRows(() => portal.from('users').select('id,lead_id,email,role,contract_signed,contract_signed_at,pago_completed,pago_completed_at,tipo,origin,has_eu_id,num_carreras,contract_data')),
-    pagedRows(() => portal.from('payments').select('id,user_id,installment,amount,currency,status,paid_at,created_at')),
+    pagedRows(() => portal.from('payments').select('id,user_id,installment,amount,currency,status,paid_at,payment_data,created_at')),
     loadCrmLeads(crm),
     optionalRows(() => crm.from('crm_lead_events').select('id,lead_id,user_id,actor_id,event_type,from_value,to_value,metadata,created_at').order('created_at', { ascending: true })),
     optionalRows(() => crm.from('crm_user_sessions').select('id,user_id,started_at,last_seen_at').order('started_at', { ascending: true })),
@@ -180,7 +181,7 @@ async function loadRows() {
   if (paymentsError) throw paymentsError;
   return {
     users: (users || []).filter((user) => !isApplicationAdmin(user)),
-    payments: payments || [],
+    payments: (payments || []).filter((payment) => !isPaymentAnnulled(payment)),
     leads,
     events: events.rows,
     sessions: sessions.rows,

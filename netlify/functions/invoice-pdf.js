@@ -9,6 +9,7 @@ const { readSessionFromEvent } = require('../../lib/auth');
 const { json, methodNotAllowed } = require('../../lib/http');
 const { ownsRecord } = require('../../lib/authorization');
 const holded = require('../../lib/holded');
+const { isPaymentAnnulled } = require('../../lib/payments');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') return methodNotAllowed(['GET']);
@@ -28,6 +29,7 @@ exports.handler = async (event) => {
     if (error || !p || !ownsRecord({ id: session.uid }, p)) {
       return json({ error: 'not_found' }, { statusCode: 404 });
     }
+    if (isPaymentAnnulled(p)) return json({ error: 'invoice_annulled' }, { statusCode: 404 });
     const invId = p.payment_data && p.payment_data.holded_invoice_id;
     if (!invId) return json({ error: 'no_holded_invoice' }, { statusCode: 404 });
 

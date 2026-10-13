@@ -10,6 +10,7 @@ const stripe = require('../../lib/stripe');
 const holded = require('../../lib/holded');
 const { getAdminSupabase } = require('../../lib/admin-supabase');
 const { activeSalesTestRun, testLeadIds } = require('../../lib/sales-test-mode');
+const { effectivePaymentStatus } = require('../../lib/payments');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') return methodNotAllowed(['GET']);
@@ -38,11 +39,11 @@ exports.handler = async (event) => {
     if (clientIds.length) {
       const { data, error } = await sb
         .from('payments')
-        .select('id, user_id, installment, amount, currency, status, unlocked_at, paid_at, invoice_number, concept, due_date, created_at')
+        .select('id, user_id, installment, amount, currency, status, unlocked_at, paid_at, invoice_number, concept, due_date, payment_data, created_at')
         .in('user_id', clientIds)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      payments = data || [];
+      payments = (data || []).map((payment) => ({ ...payment, status: effectivePaymentStatus(payment) }));
     }
     return json({
       admin: { id: admin.id, email: normalizeEmail(admin), username: admin.username, nombre: admin.nombre, apellidos: admin.apellidos },

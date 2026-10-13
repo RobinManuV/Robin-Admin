@@ -1,6 +1,7 @@
 /**
  * POST /api/admin/payments/add
- * Body: { user_id, concept, amount, due_date? (YYYY-MM-DD) }
+ * Body: { user_id, preset, concept?, amount?, vat_treatment?, units?,
+ *         class_mode?, hours?, due_date? (YYYY-MM-DD) }
  * El asesor añade un pago extra a un cliente (servicio adicional contratado).
  * Se crea como una fila en `payments` con installment >= 4, estado 'unlocked'
  * (el cliente puede pagarlo directamente). Las 3 cuotas estándar no se tocan.
@@ -9,6 +10,7 @@ const { getSupabase } = require('../../lib/supabase');
 const { readSessionFromEvent } = require('../../lib/auth');
 const { isApplicationAdmin } = require('../../lib/authorization');
 const { json, methodNotAllowed, parseJsonBody, serverError, verifyOrigin } = require('../../lib/http');
+const { prepareExtraPayment } = require('../../lib/extra-payments');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return methodNotAllowed(['POST']);
@@ -20,13 +22,9 @@ exports.handler = async (event) => {
   if (!body) return json({ error: 'invalid_json' }, { statusCode: 400 });
 
   const user_id = body.user_id;
-  const concept = String(body.concept || '').trim();
-  const amount = Number(body.amount);
   const due_date = body.due_date ? String(body.due_date).trim() : null;
 
   if (!user_id) return json({ error: 'missing_user_id' }, { statusCode: 400 });
-  if (!concept) return json({ error: 'missing_concept' }, { statusCode: 400 });
-  if (!isFinite(amount) || amount <= 0) return json({ error: 'invalid_amount' }, { statusCode: 400 });
   if (due_date && !/^\d{4}-\d{2}-\d{2}$/.test(due_date)) {
     return json({ error: 'invalid_due_date' }, { statusCode: 400 });
   }
@@ -41,8 +39,15 @@ exports.handler = async (event) => {
 
     // Comprobar que el cliente existe
     const { data: client, error: ce } = await sb
-      .from('users').select('id').eq('id', user_id).single();
+      .from('users').select('id, nombre, apellidos, contract_data').eq('id', user_id).single();
     if (ce || !client) return json({ error: 'client_not_found' }, { statusCode: 404 });
+
+    let prepared;
+    try {
+      prepared = prepareExtraPayment(client, body);
+    } catch (validationError) {
+      return json({ error: validationError.code || 'invalid_extra_payment' }, { statusCode: 400 });
+    }
 
     // Siguiente número de installment (>= 4, no choca con las 3 cuotas estándar)
     const { data: rows, error: e1 } = await sb
@@ -57,12 +62,13 @@ exports.handler = async (event) => {
       .insert({
         user_id,
         installment: next,
-        amount: Math.round(amount * 100) / 100,
+        amount: prepared.amount,
         currency: 'EUR',
         status: 'unlocked',
         unlocked_at: nowIso,
-        concept,
+        concept: prepared.concept,
         due_date,
+        payment_data: prepared.paymentData,
       })
       .select()
       .single();

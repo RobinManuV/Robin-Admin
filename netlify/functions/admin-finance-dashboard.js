@@ -3,6 +3,7 @@ const { readSessionFromEvent } = require('../../lib/auth');
 const { isApplicationAdmin } = require('../../lib/authorization');
 const { json, methodNotAllowed, serverError } = require('../../lib/http');
 const holded = require('../../lib/holded');
+const { isPaymentAnnulled } = require('../../lib/payments');
 const {
   buildFinanceDashboard,
   captureTreasuryHistory,
@@ -29,7 +30,10 @@ async function loadPortalFinanceRows() {
   ]);
   if (usersError) throw usersError;
   if (paymentsError) throw paymentsError;
-  return { users: (users || []).filter((user) => !isApplicationAdmin(user)), payments: payments || [] };
+  return {
+    users: (users || []).filter((user) => !isApplicationAdmin(user)),
+    payments: (payments || []).filter((payment) => !isPaymentAnnulled(payment)),
+  };
 }
 
 exports.handler = async (event) => {

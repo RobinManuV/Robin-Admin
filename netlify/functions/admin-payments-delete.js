@@ -1,13 +1,16 @@
 /**
  * POST /api/admin/payments/delete
  * Body: { user_id, payment_id }
- * Elimina un pago extra (installment >= 4). NUNCA elimina las cuotas estándar
- * (installment 1, 2 o 3): para esas la respuesta es 403.
+ * Elimina un pago extra pendiente o anula un pago extra ya cobrado. Para pagos
+ * cobrados, primero anula la factura en Holded y conserva la fila como historial.
+ * NUNCA elimina las cuotas estándar (installment 1, 2 o 3).
  */
 const { getSupabase } = require('../../lib/supabase');
 const { readSessionFromEvent } = require('../../lib/auth');
 const { isApplicationAdmin } = require('../../lib/authorization');
 const { json, methodNotAllowed, parseJsonBody, serverError, verifyOrigin } = require('../../lib/http');
+const holded = require('../../lib/holded');
+const { isPaymentAnnulled } = require('../../lib/payments');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return methodNotAllowed(['POST']);
@@ -33,7 +36,7 @@ exports.handler = async (event) => {
     // Verificar que el pago pertenece al cliente y es un extra (installment >= 4).
     const { data: p, error: e1 } = await sb
       .from('payments')
-      .select('id, user_id, installment, status')
+      .select('id, user_id, installment, status, payment_data, concept, amount')
       .eq('id', payment_id)
       .single();
     if (e1 || !p) return json({ error: 'not_found' }, { statusCode: 404 });
@@ -42,12 +45,54 @@ exports.handler = async (event) => {
       return json({ error: 'cannot_delete_standard', detail: 'Las 3 cuotas estándar no se pueden eliminar.' }, { statusCode: 403 });
     }
 
+    if (isPaymentAnnulled(p)) {
+      return json({ ok: true, action: 'already_annulled', status: 'annulled' });
+    }
+
+    if (p.status === 'paid') {
+      const pd = p.payment_data || {};
+      const invoiceId = pd.holded_invoice_id;
+      let holdedResult = { ok: true, skipped: true, reason: 'no_holded_invoice' };
+      if (invoiceId) {
+        // La API de Holded denomina /cancel a la operación que deja la factura
+        // como anulada. No usamos DELETE: la factura debe conservar su trazabilidad.
+        holdedResult = await holded.annulInvoice(invoiceId);
+      }
+
+      const annulledAt = new Date().toISOString();
+      const paymentData = {
+        ...pd,
+        annulled_at: annulledAt,
+        annulled_by: admin.email || admin.username || admin.id,
+        stripe_refunded: false,
+        holded_invoice_annulled: Boolean(invoiceId),
+        holded_invoice_annulled_at: invoiceId ? annulledAt : null,
+      };
+      const { error: updateError } = await sb
+        .from('payments')
+        .update({ payment_data: paymentData })
+        .eq('id', p.id);
+      if (updateError) throw updateError;
+
+      try {
+        await sb.from('webhook_log').insert({
+          source: 'holded',
+          payload: { payment_id: p.id, invoice_id: invoiceId, user_id },
+          result: 'ok',
+          message: invoiceId ? 'invoice_annulled' : 'payment_annulled_without_invoice',
+        });
+      } catch (error) { console.warn('[optional_operation_failed]', error && error.message); }
+
+      await require('../../lib/integration-sync').syncGoogleSheets(sb, user_id);
+      return json({ ok: true, action: 'annulled', status: 'annulled', holded: holdedResult });
+    }
+
     const { error: e2 } = await sb.from('payments').delete().eq('id', payment_id);
     if (e2) throw e2;
 
     // Reflejar el cliente en la hoja de control de pagos (best-effort, no bloquea).
     await require('../../lib/integration-sync').syncGoogleSheets(sb, user_id);
-    return json({ ok: true });
+    return json({ ok: true, action: 'deleted' });
   } catch (e) {
     console.error('admin-payments-delete error', e);
     return serverError(e);

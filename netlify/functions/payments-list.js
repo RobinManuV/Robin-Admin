@@ -1,7 +1,7 @@
 const { getSupabase } = require('../../lib/supabase');
 const { readSessionFromEvent } = require('../../lib/auth');
 const { json, methodNotAllowed, serverError } = require('../../lib/http');
-const { ensurePayments, invoiceNumber } = require('../../lib/payments');
+const { ensurePayments, invoiceNumber, isPaymentAnnulled } = require('../../lib/payments');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') return methodNotAllowed(['GET']);
@@ -18,7 +18,9 @@ exports.handler = async (event) => {
     if (error || !u) return json({ error: 'unauthorized' }, { statusCode: 401 });
 
     const rows = await ensurePayments(sb, u);
-    const payments = rows.map((p) => ({
+    // Los pagos anulados se conservan para auditoría administrativa, pero ya no
+    // son un cobro ni una factura disponibles para la familia.
+    const payments = rows.filter((p) => !isPaymentAnnulled(p)).map((p) => ({
       id: p.id,
       installment: p.installment,
       amount: Number(p.amount),

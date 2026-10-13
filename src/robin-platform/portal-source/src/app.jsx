@@ -123,7 +123,13 @@ export default function PortalRobin() {
 
   if (!authState.user && isSelectorRoute && !selectedPortal) return <PortalSelector onSelectPortal={() => window.location.assign("/portal/")} />;
   if (!authState.user) return <LoginScreen onLogin={handleLogin} onBack={() => window.location.assign("/login")} />;
-  if (isAdminUser(authState.user)) return <AdminPortal user={authState.user} onLogout={handleLogout} />;
+  if (isAdminUser(authState.user)) {
+    return (
+      <div className="robin-platform-admin robin-students-admin">
+        <AdminPortal user={authState.user} onLogout={handleLogout} />
+      </div>
+    );
+  }
 
   const onboardingProps = { user: authState.user, onLogout: handleLogout, onDone: refreshState };
   if (authState.needsOnboarding && authState.onboardingStep === "origin") return <OnboardingOrigin {...onboardingProps} />;

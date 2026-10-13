@@ -138,10 +138,11 @@ function AdminDashboard({ user, onOpenClient, onOpenAssign, onGotoTab }) {
 
   // Financial
   const fin = useMemo(() => {
-    const total     = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
-    const collected = payments.filter((p) => p.status === "paid").reduce((s, p) => s + Number(p.amount || 0), 0);
-    const pending   = payments.filter((p) => p.status !== "paid").reduce((s, p) => s + Number(p.amount || 0), 0);
-    const clientsWithPayments = new Set(payments.map((p) => p.user_id)).size || 1;
+    const activePayments = payments.filter((p) => p.status !== "annulled");
+    const total     = activePayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const collected = activePayments.filter((p) => p.status === "paid").reduce((s, p) => s + Number(p.amount || 0), 0);
+    const pending   = activePayments.filter((p) => p.status === "locked" || p.status === "unlocked").reduce((s, p) => s + Number(p.amount || 0), 0);
+    const clientsWithPayments = new Set(activePayments.map((p) => p.user_id)).size || 1;
     const pct = total > 0 ? Math.round((collected / total) * 1000) / 10 : 0;
     return { total, collected, pending, pct, avgPerClient: Math.round(total / clientsWithPayments) };
   }, [payments]);
@@ -1676,8 +1677,13 @@ function AdminPagos({ client }) {
   const [facturaOpen, setFacturaOpen] = useState(false);
   const [facturaPayment, setFacturaPayment] = useState(null);
   const [now, setNow] = useState(new Date());
+  const [xPreset, setXPreset] = useState("custom");
   const [xConcept, setXConcept] = useState("");
   const [xAmount, setXAmount] = useState("");
+  const [xVat, setXVat] = useState("standard_21");
+  const [xUnits, setXUnits] = useState("1");
+  const [xClassMode, setXClassMode] = useState("individual");
+  const [xHours, setXHours] = useState("4");
   const [xDue, setXDue] = useState("");
   const [xBusy, setXBusy] = useState(false);
   const [xErr, setXErr] = useState("");
@@ -1722,20 +1728,32 @@ function AdminPagos({ client }) {
     } finally { setBusyId(null); }
   }
   async function addExtra() {
-    const amt = Number(String(xAmount).replace(",", "."));
-    if (!xConcept.trim()) { setXErr("Indica el concepto del pago."); return; }
-    if (!isFinite(amt) || amt <= 0) { setXErr("Indica un importe válido."); return; }
+    const payload = { preset: xPreset, due_date: xDue || null };
+    if (xPreset === "custom") {
+      const amt = Number(String(xAmount).replace(",", "."));
+      if (!xConcept.trim()) { setXErr("Indica el concepto del pago."); return; }
+      if (!isFinite(amt) || amt <= 0) { setXErr("Indica un importe válido."); return; }
+      Object.assign(payload, { concept: xConcept.trim(), amount: amt, vat_treatment: xVat });
+    } else if (xPreset === "ielts_evaluation") {
+      Object.assign(payload, { units: Number(xUnits) });
+    } else {
+      Object.assign(payload, { class_mode: xClassMode, hours: Number(xHours) });
+    }
     setXBusy(true); setXErr("");
     try {
-      await adminPaymentsAdd(client.id, xConcept.trim(), amt, xDue || null);
-      setXConcept(""); setXAmount(""); setXDue("");
+      await adminPaymentsAdd(client.id, payload);
+      setXPreset("custom"); setXConcept(""); setXAmount(""); setXVat("standard_21");
+      setXUnits("1"); setXClassMode("individual"); setXHours("4"); setXDue("");
       await refresh();
     } catch (e) {
       setXErr(e.message || "No se pudo añadir el pago.");
     } finally { setXBusy(false); }
   }
   async function delExtra(p) {
-    if (!window.confirm("¿Eliminar este pago extra? Esta acción no se puede deshacer.")) return;
+    const confirmation = p.status === "paid"
+      ? "¿Anular la factura de Holded y conservar este pago como anulado? No se reembolsará el cobro de Stripe."
+      : "¿Eliminar este pago extra pendiente? Esta acción no se puede deshacer.";
+    if (!window.confirm(confirmation)) return;
     setBusyId(p.id); setError("");
     try {
       await adminPaymentsDelete(client.id, p.id);
@@ -1761,6 +1779,16 @@ function AdminPagos({ client }) {
   const origin = (data.user?.origin || client.origin || "").toLowerCase();
   const esOtros = origin === "otros";
   const num = data.user?.num_carreras || client.num_carreras || 1;
+  const xCalculatedAmount = xPreset === "ielts_evaluation"
+    ? 33 * Number(xUnits || 0)
+    : xPreset === "ielts_class"
+      ? (xClassMode === "group" ? 16.5 : 33) * Number(xHours || 0)
+      : Number(String(xAmount || 0).replace(",", "."));
+  const xIsValid = xPreset === "custom"
+    ? Boolean(xConcept.trim()) && Number.isFinite(xCalculatedAmount) && xCalculatedAmount > 0
+    : xPreset === "ielts_evaluation"
+      ? Number.isInteger(Number(xUnits)) && Number(xUnits) >= 1 && Number(xUnits) <= 100
+      : Number.isFinite(xCalculatedAmount) && xCalculatedAmount > 0;
 
   return (
     <div className="space-y-5">
@@ -1799,6 +1827,7 @@ function AdminPagos({ client }) {
             <div className="space-y-3">
               {data.payments.map((p) => {
                 const isPaid     = p.status === "paid";
+                const isAnnulled = p.status === "annulled";
                 const isUnlocked = p.status === "unlocked";
                 const isLocked   = p.status === "locked";
                 const daysSinceUnlock = isUnlocked && p.unlocked_at ? daysBetween(p.unlocked_at, now.toISOString()) : null;
@@ -1807,14 +1836,16 @@ function AdminPagos({ client }) {
                   <div key={p.id} className="admin-payment-row rounded-xl border border-slate-100 bg-white px-4 py-3 flex items-center gap-4">
                     <div className="h-10 w-10 rounded-xl grid place-items-center flex-shrink-0"
                       style={isPaid ? { background: "#10b981", color: "white" }
+                        : isAnnulled ? { background: "#ffe4e6", color: "#be123c" }
                         : isUnlocked ? { background: GOLD, color: "white" }
                         : { background: "#e2e8f0", color: "#94a3b8" }}>
-                      {isPaid ? <CheckCircle2 className="h-5 w-5" /> : isLocked ? <Shield className="h-5 w-5" /> : <CreditCard className="h-5 w-5" />}
+                      {isPaid ? <CheckCircle2 className="h-5 w-5" /> : isAnnulled ? <XCircle className="h-5 w-5" /> : isLocked ? <Shield className="h-5 w-5" /> : <CreditCard className="h-5 w-5" />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold text-slate-900">{paymentTitle(p, data.payments.filter((x) => x.installment <= 3).length)} · {eur(p.amount)}</div>
                       <div className="text-xs text-slate-400">
                         {isPaid && p.paid_at && `Pagado el ${new Date(p.paid_at).toLocaleDateString("es-ES")}`}
+                        {isAnnulled && p.payment_data?.annulled_at && `Anulado el ${new Date(p.payment_data.annulled_at).toLocaleDateString("es-ES")} · sin reembolso en Stripe`}
                         {isUnlocked && p.unlocked_at && `Desbloqueado el ${new Date(p.unlocked_at).toLocaleDateString("es-ES")}`}
                         {isLocked && `Bloqueado`}
                       </div>
@@ -1849,7 +1880,7 @@ function AdminPagos({ client }) {
                           <Pencil className="h-3.5 w-3.5" /> Importe
                         </Btn>
                       )}
-                      {isPaid && (
+                      {isPaid && !isAnnulled && (
                         <Btn variant="secondary" size="sm" onClick={() => { setFacturaPayment(p); setFacturaOpen(true); }}>
                           <FileText className="h-3.5 w-3.5" /> Justificante
                         </Btn>
@@ -1859,9 +1890,9 @@ function AdminPagos({ client }) {
                           {busyId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Desbloquear"}
                         </Btn>
                       )}
-                      {p.installment >= 4 && (
-                        <Btn size="sm" variant="danger" onClick={() => delExtra(p)} disabled={busyId === p.id} title="Eliminar pago extra">
-                          {busyId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      {p.installment >= 4 && !isAnnulled && (
+                        <Btn size="sm" variant="danger" onClick={() => delExtra(p)} disabled={busyId === p.id} title={isPaid ? "Anular factura y pago" : "Eliminar pago extra"}>
+                          {busyId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : isPaid ? <><XCircle className="h-3.5 w-3.5" /> Anular</> : <Trash2 className="h-3.5 w-3.5" />}
                         </Btn>
                       )}
                     </div>
@@ -1881,18 +1912,54 @@ function AdminPagos({ client }) {
       <Card>
         <CardHeader title="Añadir pago extra" subtitle="Para servicios adicionales que contrate el cliente" icon={Plus} />
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_170px] gap-3">
-            <Field label="Concepto" value={xConcept} onChange={setXConcept} placeholder="Revisión de candidaturas" />
-            <Field label="Importe (€)" value={xAmount} onChange={(v) => setXAmount(v.replace(/[^\d.,]/g, ""))} placeholder="150" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <SelectField label="Tipo de pago" value={xPreset} onChange={setXPreset} allowEmpty={false} options={[
+              { value: "custom", label: "Personalizado" },
+              { value: "ielts_evaluation", label: "Evaluación inicial de inglés/IELTS" },
+              { value: "ielts_class", label: "Clase de preparación de inglés/IELTS" },
+            ]} />
             <Field label="Fecha a pagar" type="date" value={xDue} onChange={setXDue} />
           </div>
+          {xPreset === "custom" && (
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px_180px] gap-3 mt-3">
+              <Field label="Concepto" value={xConcept} onChange={setXConcept} placeholder="Revisión de candidaturas" />
+              <Field label="Importe total (€)" value={xAmount} onChange={(v) => setXAmount(v.replace(/[^\d.,]/g, ""))} placeholder="150" />
+              <SelectField label="IVA" value={xVat} onChange={setXVat} allowEmpty={false} options={[
+                { value: "standard_21", label: "21 %" },
+                { value: "exempt", label: "Exento" },
+              ]} />
+            </div>
+          )}
+          {xPreset === "ielts_evaluation" && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+              <Field label="Unidades (33 € cada una)" type="number" value={xUnits} onChange={(v) => setXUnits(v.replace(/\D/g, ""))} />
+              <div><div className="text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Importe total</div><div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold">{eur(xCalculatedAmount)}</div></div>
+              <div><div className="text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">IVA</div><div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm">Exento</div></div>
+            </div>
+          )}
+          {xPreset === "ielts_class" && (
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
+              <SelectField label="Modalidad" value={xClassMode} onChange={setXClassMode} allowEmpty={false} options={[
+                { value: "individual", label: "Individual · 33 €/hora" },
+                { value: "group", label: "Grupo · 16,50 €/hora" },
+              ]} />
+              <SelectField label="Horas" value={xHours} onChange={setXHours} allowEmpty={false} options={["4", "6", "8", "12"]} />
+              <div><div className="text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Importe total</div><div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold">{eur(xCalculatedAmount)}</div></div>
+              <div><div className="text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">IVA</div><div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm">Exento</div></div>
+            </div>
+          )}
+          {(xPreset !== "custom" || xVat === "exempt") && (
+            <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 mt-3">
+              Operación exenta de IVA conforme al artículo 20.Uno.9.º de la Ley 37/1992.
+            </div>
+          )}
           {xErr && <div className="text-sm text-rose-600 bg-rose-50 rounded-xl px-3 py-2 mt-3">{xErr}</div>}
           <div className="flex justify-end mt-3">
-            <Btn onClick={addExtra} disabled={xBusy || !xConcept.trim() || !xAmount}>
+            <Btn onClick={addExtra} disabled={xBusy || !xIsValid}>
               {xBusy ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Añadiendo…</> : <><Plus className="h-3.5 w-3.5" /> Añadir pago</>}
             </Btn>
           </div>
-          <div className="text-[11px] text-slate-400 mt-2">El pago extra quedará disponible para el cliente de inmediato.</div>
+          <div className="text-[11px] text-slate-400 mt-2">El importe indicado es el total final. El pago extra quedará disponible para el cliente de inmediato.</div>
         </CardContent>
       </Card>
 

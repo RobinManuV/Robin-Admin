@@ -2,7 +2,7 @@ const { getSupabase } = require('../../lib/supabase');
 const { readSessionFromEvent } = require('../../lib/auth');
 const { isApplicationAdmin } = require('../../lib/authorization');
 const { json, methodNotAllowed, serverError } = require('../../lib/http');
-const { ensurePayments, invoiceNumber } = require('../../lib/payments');
+const { ensurePayments, invoiceNumber, effectivePaymentStatus } = require('../../lib/payments');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') return methodNotAllowed(['GET']);
@@ -29,7 +29,7 @@ exports.handler = async (event) => {
     const rows = await ensurePayments(sb, u);
     const payments = rows.map((p) => ({
       id: p.id, installment: p.installment, amount: Number(p.amount),
-      currency: p.currency, status: p.status, unlocked_at: p.unlocked_at,
+      currency: p.currency, status: effectivePaymentStatus(p), unlocked_at: p.unlocked_at,
       paid_at: p.paid_at, invoice_number: p.invoice_number || invoiceNumber(u, p),
       payment_data: p.payment_data,
       concept: p.concept || null, due_date: p.due_date || null,

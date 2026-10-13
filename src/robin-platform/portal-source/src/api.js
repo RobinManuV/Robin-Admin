@@ -233,8 +233,8 @@ export async function paymentsVerify(sessionId) {
 export async function adminPaymentsList(userId) {
   return api.get("/api/admin/payments?user_id=" + encodeURIComponent(userId));
 }
-export async function adminPaymentsAdd(userId, concept, amount, dueDate) {
-  return api.post("/api/admin/payments/add", { user_id: userId, concept, amount, due_date: dueDate || null });
+export async function adminPaymentsAdd(userId, payment) {
+  return api.post("/api/admin/payments/add", { ...payment, user_id: userId });
 }
 export async function adminPaymentsDelete(userId, paymentId) {
   return api.post("/api/admin/payments/delete", { user_id: userId, payment_id: paymentId });

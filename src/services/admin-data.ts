@@ -18,6 +18,23 @@ export type CrmEmailTemplate = { id: string; name: string; subject: string; body
 export type LeadTeamNote = { id: string; leadId: string; body: string; authorName: string; createdAt: string };
 type LeadPatch = { owner?: string; source?: string; category?: LeadCategory | ""; stage?: CrmStage; heat?: number; notes?: string; lostAt?: string; lostReason?: LostReason | ""; lostReasonDetail?: string };
 
+const previewLead = (overrides: Partial<Contact>): Contact => ({
+  id: "preview-lead", name: "Lead de ejemplo", initials: "LE", email: "lead@example.com", phone: "+34 600 000 000",
+  country: "España", university: "", course: "2º Bachillerato", interest: "Business", product: "Aplicación",
+  status: "Nuevo", source: "Otros", campaign: "Pendiente de identificar", owner: "", probability: 50,
+  nextAction: "", lastContact: "—", value: 0, tags: [], stage: "Por contactar", heat: 50,
+  createdAt: "2026-10-13T09:30:00.000Z", ...overrides,
+});
+
+const previewLeads: Contact[] = [
+  previewLead({ id: "preview-meta-1", name: "Lucía Martín", initials: "LM", email: "lucia@example.com", source: "Meta Ads", campaign: "Estudiar en Países Bajos · Grados 2027", interest: "International Business", heat: 78 }),
+  previewLead({ id: "preview-web-1", name: "Carlos Vega", initials: "CV", email: "carlos@example.com", source: "Página web", campaign: "Pendiente de identificar", formName: "contacto", course: "1º Bachillerato", interest: "Engineering", createdAt: "2026-10-13T08:15:00.000Z" }),
+  previewLead({ id: "preview-web-2", name: "Sofía Ruiz", initials: "SR", email: "sofia@example.com", source: "Página web", campaign: "Pendiente de identificar", formName: "colegios", course: "2º Bachillerato", interest: "Psychology", createdAt: "2026-10-12T16:40:00.000Z" }),
+  // Permite comprobar el requisito: este registro existe, pero no aparece en
+  // la bandeja porque ya tiene responsable.
+  previewLead({ id: "preview-assigned", name: "Lead ya asignado", initials: "LA", owner: "Noel", source: "Meta Ads", campaign: "Campaña ya gestionada" }),
+];
+
 function statusFor(stage: CrmStage): Contact["status"] {
   if (stage === "Por contactar") return "Nuevo";
   if (stage === "Propuesta enviada") return "Propuesta";
@@ -135,13 +152,14 @@ export const adminDataClient = {
     return payload.note;
   },
   async listLeads(): Promise<Contact[]> {
-    if (isLocalAdminPreview()) return [];
+    if (isLocalAdminPreview()) return previewLeads.map((lead) => ({ ...lead }));
     const response = await fetch("/api/admin/crm/leads", { credentials: "include" });
     if (!response.ok) throw new Error(response.status === 503 ? "Falta configurar la base de datos del CRM" : "No se pudieron cargar los leads");
     const payload = await response.json();
     return (payload.leads || []).map(toContact);
   },
   async updateLead(id: string, patch: LeadPatch) {
+    if (isLocalAdminPreview()) return { ok: true };
     const update: Record<string, unknown> = {};
     if (patch.owner !== undefined) update.owner_names = patch.owner ? [patch.owner] : [];
     if (patch.source !== undefined) update.source = patch.source;

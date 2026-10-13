@@ -7,7 +7,10 @@ const { FISCAL: ROBIN_FISCAL } = financialConfig;
 
 export function Factura({ open, onClose, user, payment }) {
   if (!open || !payment) return null;
-  const base = Number(payment.amount || 0) / (1 + ROBIN_FISCAL.iva / 100);
+  const paymentData = payment.payment_data || {};
+  const isExempt = paymentData.vat_treatment === "exempt" || paymentData.holded_vat_treatment === "exempt";
+  const taxRate = isExempt ? 0 : Number(paymentData.holded_tax_rate ?? paymentData.vat_rate ?? ROBIN_FISCAL.iva);
+  const base = Number(payment.amount || 0) / (1 + taxRate / 100);
   const iva  = Number(payment.amount || 0) - base;
   const fechaEmision = payment.paid_at ? new Date(payment.paid_at) : new Date();
   const fechaStr = new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "long", year: "numeric" }).format(fechaEmision);
@@ -45,7 +48,7 @@ export function Factura({ open, onClose, user, payment }) {
             <div className="grid grid-cols-[1fr_120px_120px] bg-slate-50 px-4 py-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
               <div>Concepto</div>
               <div className="text-right">Base</div>
-              <div className="text-right">IVA ({ROBIN_FISCAL.iva}%)</div>
+              <div className="text-right">IVA ({isExempt ? "Exento" : `${taxRate}%`})</div>
             </div>
             <div className="grid grid-cols-[1fr_120px_120px] px-4 py-3 border-t border-slate-100">
               <div>
@@ -65,6 +68,7 @@ export function Factura({ open, onClose, user, payment }) {
           <div className="text-xs text-slate-500">
             <div><strong>Fecha de emisión:</strong> {fechaStr}</div>
             {payment.payment_data?.last4 && <div><strong>Método:</strong> Tarjeta ···· {payment.payment_data.last4}</div>}
+            {isExempt && <div className="mt-2"><strong>Observaciones:</strong> {paymentData.exemption_note || "Operación exenta de IVA conforme al artículo 20.Uno.9.º de la Ley 37/1992."}</div>}
           </div>
         </div>
         <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-end gap-2">
