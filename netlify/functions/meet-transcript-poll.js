@@ -18,7 +18,9 @@ const { ADVISORS, canonicalAdvisorEmail } = require('../../lib/admins');
 const { hasApplicationAdminRole } = require('../../lib/authorization');
 const gcal = require('../../lib/google-calendar');
 
-const LOOKBACK_HOURS = parseInt(process.env.MEET_POLL_LOOKBACK_HOURS || '48', 10);
+// Keep a week visible so a brief integration outage can be recovered by the
+// next scheduled run. Successfully processed files are deduplicated below.
+const LOOKBACK_HOURS = parseInt(process.env.MEET_POLL_LOOKBACK_HOURS || '168', 10);
 
 async function summarizeAndCompile({ priorHistorial, rawNotes, meeting }) {
   const today = new Date().toISOString().slice(0, 10);
@@ -51,12 +53,19 @@ Devuelve el HISTORIAL completo actualizado.`;
   return text;
 }
 
-async function alreadyProcessed(sb, fileId) {
-  const { data } = await sb.from('processed_meet_docs').select('file_id').eq('file_id', fileId).limit(1);
-  return !!(data && data.length);
+async function getProcessedRecord(sb, fileId) {
+  const { data, error } = await sb
+    .from('processed_meet_docs')
+    .select('file_id, user_id')
+    .eq('file_id', fileId)
+    .limit(1);
+  if (error) throw error;
+  return data && data[0] ? data[0] : null;
 }
 async function markProcessed(sb, fileId, userId) {
-  try { await sb.from('processed_meet_docs').insert({ file_id: fileId, user_id: userId || null }); } catch (error) { console.warn("[optional_operation_failed]", error && error.message); }
+  const { error } = await sb.from('processed_meet_docs')
+    .upsert({ file_id: fileId, user_id: userId || null }, { onConflict: 'file_id' });
+  if (error) throw error;
 }
 async function logWebhook(sb, payload, result, message) {
   try { await sb.from('webhook_log').insert({ source: 'meet', payload: minimizeLogPayload(payload), result, message }); } catch (error) { console.warn("[optional_operation_failed]", error && error.message); }
@@ -130,7 +139,11 @@ async function pollAdvisor(sb, advisor) {
 
   for (const doc of docs) {
     try {
-      if (await alreadyProcessed(sb, doc.id)) continue;
+      // A row with a user_id means the transcript was successfully attached.
+      // Rows with null user_id are retry markers: Meet may not have finished
+      // writing the document yet, or the matching booking/user may appear later.
+      const previousRecord = await getProcessedRecord(sb, doc.id);
+      if (previousRecord && previousRecord.user_id) continue;
 
       const text = await gcal.driveExportText(advisor.email, doc.id);
       if (!text || text.trim().length < 20) { await markProcessed(sb, doc.id, null); continue; }
@@ -139,10 +152,13 @@ async function pollAdvisor(sb, advisor) {
       if (!resolved) resolved = await resolveUserByName(sb, advisor.email, doc.name);
       if (!resolved) {
         out.no_user++;
-        await logWebhook(sb, {
-          file_id: doc.id,
-        }, 'no_user', 'transcript_no_matching_booking');
-        await markProcessed(sb, doc.id, null); // no reintentar en bucle
+        // Log only the first unmatched attempt; keep the document retryable.
+        if (!previousRecord) {
+          await logWebhook(sb, {
+            file_id: doc.id,
+          }, 'no_user', 'transcript_no_matching_booking');
+        }
+        await markProcessed(sb, doc.id, null);
         continue;
       }
       const { user, booking } = resolved;
@@ -190,7 +206,13 @@ async function pollAdvisor(sb, advisor) {
 }
 
 exports.handler = async (event) => {
-  if (event && event.httpMethod) return json({ error: 'not_found' }, { statusCode: 404 });
+  // Netlify Clockwork sends scheduled functions as POST events. Restrict this
+  // handler to those events instead of rejecting them based on httpMethod.
+  const headers = (event && event.headers) || {};
+  const isScheduleEvent = Object.keys(headers).some((key) =>
+    key.toLowerCase() === 'x-netlify-event' && String(headers[key]).toLowerCase() === 'schedule'
+  );
+  if (!isScheduleEvent) return json({ error: 'not_found' }, { statusCode: 404 });
 
   const sb = getSupabase();
   const results = [];
