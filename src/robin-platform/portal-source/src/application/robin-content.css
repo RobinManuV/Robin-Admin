@@ -1,0 +1,829 @@
+@import url("https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&display=swap");
+
+/* Project Robin visual system. This stylesheet is scoped to the embedded content area. */
+.robin-students-admin {
+  --bg: #FAF8F1;
+  --card: #FFFFFF;
+  --brand: #1B3A6B;
+  --btn: #1B3A6B;
+  --btn-hover: #14305A;
+  --btn-fg: #FFFFFF;
+  --btn-off: #C9D1E0;
+  --soft: #EEF2F9;
+  --soft-hover: #E0E7F3;
+  --ink: #1F2937;
+  --muted: #6B7280;
+  --faint: #9CA3AF;
+  --field: #E3E0D3;
+  --amber: #C9791A;
+  --amber-bg: #FDF3E3;
+  --danger: #B42318;
+  --danger-bg: #FEF3F2;
+  --scrim: rgba(14, 21, 37, .5);
+  --shadow: 0 1px 2px rgba(27, 58, 107, .05), 0 6px 20px rgba(27, 58, 107, .06);
+  --display: "Anton", "Archivo Narrow", Impact, sans-serif;
+  --body: "Inter", system-ui, sans-serif;
+}
+
+.robin-students-admin .admin-workspace.is-embedded,
+.robin-students-admin .admin-workspace.is-embedded .admin-layout,
+.robin-students-admin .admin-workspace.is-embedded .admin-workarea,
+.robin-students-admin .admin-workspace.is-embedded .admin-content {
+  background: var(--bg) !important;
+  color: var(--ink) !important;
+  font-family: var(--body) !important;
+  font-size: 15px;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-workarea {
+  max-width: none;
+  padding: 30px max(16px, 3vw) 72px;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-page-heading,
+.robin-students-admin .admin-workspace.is-embedded .admin-client-context,
+.robin-students-admin .admin-workspace.is-embedded .admin-content {
+  width: 100%;
+  max-width: 1240px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-page-heading {
+  display: block !important;
+  margin-bottom: 24px;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-page-title,
+.robin-students-admin .admin-workspace.is-embedded .admin-client-identity h1 {
+  margin: 0;
+  color: var(--brand) !important;
+  font: 400 clamp(32px, 5vw, 44px)/1.05 var(--display) !important;
+  letter-spacing: .01em !important;
+  text-transform: uppercase !important;
+  overflow-wrap: anywhere;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-page-heading .admin-page-title {
+  font-size: clamp(32px, 5vw, 44px) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-content > * + * {
+  margin-top: 22px;
+}
+
+.robin-students-admin .admin-workspace.is-embedded :is(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid var(--btn) !important;
+  outline-offset: 2px !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded :is(button, a) {
+  transition: color .15s, background-color .15s !important;
+}
+
+/* Cards */
+.robin-students-admin .admin-workspace.is-embedded .ui-card,
+.robin-students-admin .admin-workspace.is-embedded .ui-card:hover {
+  min-width: 0;
+  overflow: visible;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: var(--card) !important;
+  box-shadow: var(--shadow) !important;
+  color: var(--ink) !important;
+  transform: none !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card-header {
+  align-items: baseline;
+  gap: 12px;
+  padding: 26px 26px 0 !important;
+  border: 0 !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card-header > div:first-child {
+  align-items: baseline;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card-header > div:first-child > div:first-child:not(.min-w-0) {
+  display: none !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card-title {
+  color: var(--brand) !important;
+  font: 600 17px/1.3 var(--body) !important;
+  letter-spacing: 0 !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card-header .text-xs {
+  color: var(--muted) !important;
+  font-size: 13px !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card-content {
+  padding: 20px 26px 26px !important;
+}
+
+/* Buttons */
+.robin-students-admin .admin-workspace.is-embedded .ui-card button.inline-flex,
+.robin-students-admin .admin-workspace.is-embedded .admin-empty-context button,
+.robin-students-admin .admin-workspace.is-embedded .notification-refresh-button,
+.robin-students-admin .admin-workspace.is-embedded .assign-client-action {
+  min-height: auto !important;
+  padding: 11px 20px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: var(--soft) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: var(--brand) !important;
+  font: 600 14px/1.2 var(--body) !important;
+  text-decoration: none;
+  transform: none !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card button.inline-flex:hover,
+.robin-students-admin .admin-workspace.is-embedded .notification-refresh-button:hover {
+  background: var(--soft-hover) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card button.inline-flex[style],
+.robin-students-admin .admin-workspace.is-embedded .assign-client-action[style] {
+  background: var(--btn) !important;
+  color: var(--btn-fg) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card button.inline-flex[style]:hover,
+.robin-students-admin .admin-workspace.is-embedded .assign-client-action[style]:hover {
+  background: var(--btn-hover) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card button.inline-flex.bg-rose-600 {
+  background: var(--danger) !important;
+  color: var(--btn-fg) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded button:disabled {
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card button.inline-flex:disabled {
+  background: var(--btn-off) !important;
+  color: var(--btn-fg) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card button.inline-flex.px-3 {
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+}
+
+/* Form fields */
+.robin-students-admin .admin-workspace.is-embedded .ui-card label.block > div:first-child,
+.robin-students-admin .admin-workspace.is-embedded .ui-card-content > div > .text-xs.font-semibold,
+.robin-students-admin .admin-workspace.is-embedded .ui-card legend {
+  margin: 0 0 8px;
+  color: var(--brand) !important;
+  font: 600 13px/1.3 var(--body) !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  min-width: 0;
+  max-width: 100%;
+  min-height: auto;
+  padding: 13px 16px !important;
+  border: 1.5px solid var(--field) !important;
+  border-radius: 12px !important;
+  background: var(--card) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: var(--ink) !important;
+  font: 15px/1.4 var(--body) !important;
+  outline: 0;
+}
+
+.robin-students-admin .admin-workspace.is-embedded textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.robin-students-admin .admin-workspace.is-embedded :is(input, textarea)::placeholder {
+  color: var(--faint) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select):focus {
+  border-color: var(--btn) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--btn) 15%, transparent) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .relative > svg.absolute + input,
+.robin-students-admin .admin-workspace.is-embedded .admin-picker-search input {
+  padding-left: 42px !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded input[type="checkbox"],
+.robin-students-admin .admin-workspace.is-embedded input[type="radio"] {
+  accent-color: var(--btn);
+}
+
+.robin-students-admin .admin-workspace.is-embedded [class*="uppercase"]:not(.admin-page-title) {
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+/* KPI cards */
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)) !important;
+  gap: 18px !important;
+  margin: 0 0 22px !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis > div,
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis > div:first-child {
+  min-width: 0;
+  min-height: 0 !important;
+  padding: 22px 26px !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: var(--card) !important;
+  box-shadow: var(--shadow) !important;
+  color: var(--ink) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis > div::before {
+  display: none !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis > div > div:first-child,
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis > div:first-child > div:first-child {
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis > div > div:first-child svg {
+  display: none;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis > div > div:nth-child(2),
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis > div:first-child > div:nth-child(2) {
+  margin: 6px 0 2px;
+  color: var(--brand) !important;
+  font: 400 42px/1.1 var(--display) !important;
+  letter-spacing: .01em !important;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis > div > div:nth-child(3),
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis > div:first-child > div:nth-child(3) {
+  color: var(--muted) !important;
+  font-size: 13px !important;
+}
+
+/* Dashboard grids */
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis + .grid {
+  display: grid !important;
+  grid-template-columns: 1fr;
+  gap: 22px !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-content > .space-y-5 > .grid[class*="lg:grid-cols-3"] {
+  gap: 22px !important;
+}
+
+/* Pills and statuses */
+.robin-students-admin .admin-workspace.is-embedded .inline-flex.rounded-full {
+  padding: 3px 11px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: var(--soft) !important;
+  color: var(--brand) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .inline-flex.rounded-full.text-amber-700,
+.robin-students-admin .admin-workspace.is-embedded .admin-client-phase > span.is-onboarding {
+  background: var(--amber-bg) !important;
+  color: var(--amber) !important;
+}
+
+/* Lists: retain every original row and action, change only its surface. */
+.robin-students-admin .admin-workspace.is-embedded :is(.admin-alert-row, .admin-activity-row, .admin-client-row),
+.robin-students-admin .admin-workspace.is-embedded .ui-card-content > button.w-full,
+.robin-students-admin .admin-workspace.is-embedded .ui-card-content > div.space-y-2 > button.w-full {
+  width: 100%;
+  min-height: auto !important;
+  margin: 0;
+  padding: 14px 12px !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ink) !important;
+  transform: none !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded :is(.admin-alert-row, .admin-activity-row, .admin-client-row):hover,
+.robin-students-admin .admin-workspace.is-embedded .ui-card-content > button.w-full:hover,
+.robin-students-admin .admin-workspace.is-embedded .ui-card-content > div.space-y-2 > button.w-full:hover {
+  border: 0 !important;
+  background: var(--bg) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-alert-icon {
+  display: none !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-activity-row > div:first-child {
+  width: 8px !important;
+  height: 8px !important;
+  margin-top: 7px !important;
+  flex: 0 0 8px !important;
+  border-radius: 50% !important;
+  background: var(--faint) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row {
+  flex-wrap: nowrap;
+  gap: 16px !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row > div:first-child {
+  display: grid;
+  width: 36px !important;
+  height: 36px !important;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: 50% !important;
+  background: var(--btn) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: var(--btn-fg) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row .text-slate-900,
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row .text-slate-800 {
+  color: var(--ink) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row .text-slate-400,
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row .text-slate-500 {
+  color: var(--muted) !important;
+  font-size: 13px !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-client-row > svg:last-child {
+  color: var(--faint) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card:has(.admin-client-row) .ui-card-content > div:has(> .admin-client-row) {
+  display: block !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card-content[class*="max-h-"],
+.robin-students-admin .admin-workspace.is-embedded [class*="max-h-"][class*="overflow"] {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* Pipeline rows and progress */
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis + .grid > .ui-card:nth-child(2) .ui-card-content > div {
+  padding: 11px 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis + .grid > .ui-card:nth-child(2) .h-2 {
+  height: 6px !important;
+  border-radius: 999px !important;
+  background: var(--soft) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis + .grid > .ui-card:nth-child(2) .h-2 > div {
+  border-radius: 999px;
+  background: var(--btn) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis + .grid > .ui-card:nth-child(2) .ui-card-content > div:has(.text-amber-700) .h-2 > div {
+  background: var(--amber) !important;
+}
+
+/* Detail rows */
+.robin-students-admin .admin-workspace.is-embedded .ui-card-content > .flex.items-center.justify-between.py-1 {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card-content > .flex.items-center.justify-between.py-1 > div:first-child {
+  color: var(--muted) !important;
+  font-size: 13px !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .ui-card-content > .flex.items-center.justify-between.py-1 > div:last-child {
+  color: var(--brand) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .h-px.bg-slate-100 {
+  display: none;
+}
+
+/* Notifications */
+.robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .ui-card-content > div:first-child .grid button {
+  min-height: auto !important;
+  padding: 15px !important;
+  border: 1.5px solid var(--field) !important;
+  border-radius: 14px !important;
+  background: var(--card) !important;
+  box-shadow: none !important;
+  color: var(--ink) !important;
+  transform: none !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .ui-card-content > div:first-child .grid button[style*="background"] {
+  border-color: var(--btn) !important;
+  background: var(--soft) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .ui-card-content > div:first-child .grid button svg {
+  color: var(--brand) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .bg-amber-50 {
+  border: 0 !important;
+  background: var(--amber-bg) !important;
+  color: var(--amber) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .bg-slate-100.p-0\.5 {
+  border-radius: 999px !important;
+  background: var(--bg) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .bg-slate-100.p-0\.5 button {
+  padding: 7px 14px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .bg-slate-100.p-0\.5 button[style*="background"] {
+  background: var(--card) !important;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--brand) 12%, transparent) !important;
+  color: var(--brand) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .max-h-64 {
+  max-height: none !important;
+  overflow: visible !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .max-h-64 > button {
+  padding: 14px 12px !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .max-h-64 > button:hover {
+  background: var(--bg) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .notification-recipient-check,
+.robin-students-admin .admin-workspace.is-embedded .notification-recipient-check[data-selected="true"] {
+  border: 1.5px solid var(--field) !important;
+  border-radius: 6px !important;
+  background: var(--card) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .notification-recipient-check[data-selected="true"] {
+  border-color: var(--btn) !important;
+  background: var(--btn) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .notification-selection-count {
+  display: inline-flex;
+  margin-left: 6px;
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .notification-sent-item {
+  border: 0 !important;
+  background: var(--card) !important;
+  box-shadow: none !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .notification-sent-item > button {
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .notification-sent-item > button:hover,
+.robin-students-admin .admin-workspace.is-embedded .notification-sent-item > div {
+  background: var(--bg) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .divide-y > :not([hidden]) ~ :not([hidden]),
+.robin-students-admin .admin-workspace.is-embedded .border-t,
+.robin-students-admin .admin-workspace.is-embedded .border-b {
+  border-color: transparent !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .text-rose-600,
+.robin-students-admin .admin-workspace.is-embedded .text-rose-700 {
+  color: var(--danger) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .bg-rose-50 {
+  background: var(--danger-bg) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .text-emerald-600 {
+  color: var(--brand) !important;
+}
+
+/* FAQs */
+.robin-students-admin .admin-workspace.is-embedded .admin-content > .space-y-5 > .flex.justify-end button.inline-flex {
+  background: var(--btn) !important;
+  color: var(--btn-fg) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-content h3.font-semibold {
+  color: var(--brand) !important;
+  font: 600 17px/1.4 var(--body) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-content h3.font-semibold + p {
+  color: var(--muted) !important;
+  font-size: 15px !important;
+  line-height: 1.65;
+}
+
+/* Client dossier navigation */
+.robin-students-admin .admin-workspace.is-embedded .admin-client-context {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  margin-top: -14px;
+  margin-bottom: 22px;
+  padding-top: 14px;
+  border: 0;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-breadcrumb,
+.robin-students-admin .admin-workspace.is-embedded .admin-client-identity p,
+.robin-students-admin .admin-workspace.is-embedded .admin-client-phase {
+  color: var(--muted) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-breadcrumb button {
+  color: var(--brand) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-client-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--btn);
+  color: var(--btn-fg);
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-eyebrow:not(.admin-page-title) {
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-switch,
+.robin-students-admin .admin-workspace.is-embedded .admin-client-tabs button {
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--muted) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-switch:hover,
+.robin-students-admin .admin-workspace.is-embedded .admin-client-tabs button:hover {
+  background: var(--soft) !important;
+  color: var(--brand) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-client-tabs {
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 82%, var(--field));
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-client-tabs button[aria-current] {
+  border: 0 !important;
+  background: var(--card) !important;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--brand) 12%, transparent) !important;
+  color: var(--brand) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-client-phase > span {
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--brand);
+}
+
+/* Progress screen */
+.robin-students-admin .admin-workspace.is-embedded .admin-content > .space-y-5 > .rounded-2xl.p-6.relative.overflow-hidden {
+  padding: 26px !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: var(--card) !important;
+  background-image: none !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-content > .space-y-5 > .rounded-2xl.p-6.relative.overflow-hidden .text-white,
+.robin-students-admin .admin-workspace.is-embedded .admin-content > .space-y-5 > .rounded-2xl.p-6.relative.overflow-hidden .text-white\/50,
+.robin-students-admin .admin-workspace.is-embedded .admin-content > .space-y-5 > .rounded-2xl.p-6.relative.overflow-hidden .text-white\/60 {
+  color: var(--muted) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-content > .space-y-5 > .rounded-2xl.p-6.relative.overflow-hidden .text-xl {
+  color: var(--brand) !important;
+  font: 600 20px/1.3 var(--body) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-content > .space-y-5 > .rounded-2xl.p-6.relative.overflow-hidden .relative > div:first-child {
+  border-radius: 50% !important;
+  background: var(--btn) !important;
+  background-image: none !important;
+  color: var(--btn-fg) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-content > .space-y-5 > .ui-card .ui-card-content.space-y-2 > button.w-full.flex.items-center.gap-4 {
+  padding: 14px 16px !important;
+  border: 1.5px solid var(--field) !important;
+  border-radius: 14px !important;
+  background: var(--card) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-content > .space-y-5 > .ui-card .ui-card-content.space-y-2 > button.w-full.flex.items-center.gap-4:has(.text-slate-900) {
+  border-color: var(--btn) !important;
+  background: var(--soft) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-content > .space-y-5 > .ui-card .ui-card-content.space-y-2 > button.w-full.flex.items-center.gap-4 > div:first-child {
+  border-color: var(--field) !important;
+  background: var(--soft) !important;
+  color: var(--brand) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .admin-content > .space-y-5 > .ui-card .ui-card-content.space-y-2 > button.w-full.flex.items-center.gap-4:has(.text-slate-900) > div:first-child {
+  border-color: var(--btn) !important;
+  background: var(--btn) !important;
+  color: var(--btn-fg) !important;
+}
+
+/* Dialogs and assistant stay fully functional while sharing the content palette. */
+.robin-students-admin .admin-workspace.is-embedded .assign-client-modal,
+.robin-students-admin .admin-workspace.is-embedded .admin-client-picker {
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: var(--card) !important;
+  box-shadow: var(--shadow) !important;
+  color: var(--ink) !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .assign-client-row,
+.robin-students-admin .admin-workspace.is-embedded .admin-picker-results button {
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+}
+
+.robin-students-admin .admin-workspace.is-embedded .assign-client-row:hover,
+.robin-students-admin .admin-workspace.is-embedded .admin-picker-results button:hover {
+  background: var(--bg) !important;
+}
+
+.robin-students-admin .admin-assistant-launcher > span {
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: var(--card) !important;
+  box-shadow: var(--shadow) !important;
+  color: var(--brand) !important;
+}
+
+.robin-students-admin .admin-assistant-launcher img {
+  border-color: var(--amber) !important;
+  background: var(--card) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+@media (min-width: 1180px) {
+  .robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis + .grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .robin-students-admin .admin-workspace.is-embedded .admin-workarea {
+    padding: 20px 16px 80px;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .admin-page-heading {
+    margin-bottom: 18px;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .ui-card-header {
+    padding: 20px 20px 0 !important;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .ui-card-content {
+    padding: 18px 20px 20px !important;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis {
+    grid-template-columns: 1fr !important;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .admin-dashboard-kpis > div {
+    padding: 20px !important;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .admin-client-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .admin-switch {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .admin-client-tabs {
+    border-radius: 12px;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .ui-card-header > .shrink-0,
+  .robin-students-admin .admin-workspace.is-embedded .ui-card-header > .shrink-0 > div {
+    width: 100%;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .ui-card-header > .shrink-0 button.inline-flex {
+    width: 100%;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .admin-client-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .admin-client-row > .inline-flex.rounded-full {
+    margin-left: 52px;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .flex.justify-end button.inline-flex {
+    width: 100%;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .flex.items-center.gap-2.mb-2 {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .robin-students-admin .admin-workspace.is-embedded .robin-notifications-view .flex.items-center.gap-2.mb-2 > button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .robin-students-admin *,
+  .robin-students-admin *::before,
+  .robin-students-admin *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
