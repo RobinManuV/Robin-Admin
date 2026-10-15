@@ -63,7 +63,7 @@ type NavItem = [string, string, typeof LayoutDashboard];
 
 const workspaceTabs = [
   ["/", "Inicio", "home"],
-  ["/alumnos", "Portal del Alumno", "students"],
+  ["https://project-robin.com/login", "Portal del Alumno", "external"],
   ["/the-robin-plan", "The Robin Plan", "subscriptions"],
   ["/crm", "CRM", "crm"],
   ["/analiticas/ventas", "Otras métricas", "analytics"],
@@ -375,7 +375,11 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
         <header className="top">
           <button className="menub" onClick={() => setOpen(true)} aria-label="Abrir menú"><Menu /></button>
           <nav className="workspace-tabs" aria-label="Áreas del gestor">
-            {workspaceTabs.map(([href, label, tabArea]) => <a href={adminPath(href)} key={href} className={area === tabArea ? "active" : ""} onClick={(event) => { event.preventDefault(); event.stopPropagation(); window.location.assign(adminPath(href)); }}>{label}</a>)}
+            {workspaceTabs.map(([href, label, tabArea]) => {
+              const external = href.startsWith("https://");
+              const destination = external ? href : adminPath(href);
+              return <a href={destination} key={href} className={area === tabArea ? "active" : ""} rel={external ? "noreferrer" : undefined} onClick={external ? undefined : (event) => { event.preventDefault(); event.stopPropagation(); window.location.assign(destination); }}>{label}</a>;
+            })}
           </nav>
           <div className="top-actions">
             <span className="authenticated-user">{currentUser}</span>
