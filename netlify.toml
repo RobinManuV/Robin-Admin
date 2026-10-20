@@ -1,5 +1,5 @@
 # Project Robin · Netlify configuration
-# Plataforma de alumnos y administracion (funciones serverless + Supabase)
+# Panel de administración de Robin (funciones serverless + Supabase)
 
 [build]
   # Fuerza la raíz del repositorio y anula el antiguo directorio base guardado en Netlify.
@@ -16,7 +16,7 @@
   port = 8888
   autoLaunch = false
 
-# ---------- API del portal -> Netlify Functions ----------
+# ---------- API de administración e integraciones -> Netlify Functions ----------
 [[redirects]]
   from = "/api/auth/login"
   to = "/.netlify/functions/auth-login"
@@ -108,22 +108,6 @@
 [[redirects]]
   from = "/api/admin/payment-analytics"
   to = "/.netlify/functions/admin-payment-analytics"
-  status = 200
-[[redirects]]
-  from = "/api/robin-plan/admin/data"
-  to = "/.netlify/functions/robin-plan-admin-data"
-  status = 200
-[[redirects]]
-  from = "/api/robin-plan/admin/mutate"
-  to = "/.netlify/functions/robin-plan-admin-mutate"
-  status = 200
-[[redirects]]
-  from = "/api/robin-plan/admin/partner-logo"
-  to = "/.netlify/functions/robin-plan-admin-partner-logo"
-  status = 200
-[[redirects]]
-  from = "/api/robin-plan/admin/faqs"
-  to = "/.netlify/functions/robin-plan-admin-faqs"
   status = 200
 [[redirects]]
   from = "/api/me"
@@ -369,24 +353,6 @@
 [[redirects]]
   from = "/api/admin/chat"
   to = "/.netlify/functions/admin-chat"
-  status = 200
-
-# ---------- SPA pública del portal del alumno ----------
-[[redirects]]
-  from = "/login"
-  to = "/portal/index.html"
-  status = 200
-[[redirects]]
-  from = "/login/*"
-  to = "/portal/index.html"
-  status = 200
-[[redirects]]
-  from = "/portal"
-  to = "/portal/index.html"
-  status = 200
-[[redirects]]
-  from = "/portal/*"
-  to = "/portal/index.html"
   status = 200
 
 # ---------- Fallback SPA del gestor ----------

@@ -8,7 +8,6 @@ import {
   Bell,
   Building2,
   BriefcaseBusiness,
-  CalendarCheck,
   CalendarDays,
   ChevronDown,
   CircleDollarSign,
@@ -18,13 +17,11 @@ import {
   GraduationCap,
   Globe2,
   Handshake,
-  HelpCircle,
   Inbox,
   LayoutDashboard,
   LogOut,
   Menu,
   PieChart,
-  Plane,
   Percent,
   Settings,
   ShieldCheck,
@@ -57,7 +54,7 @@ import { adminDataClient } from "@/services/admin-data";
 import type { FutureAcademicYear } from "@/services/admin-data";
 import { integrationClient } from "@/services/integrations";
 import type { AnalyticsDateRange, HoldedSnapshot, SalesDashboard } from "@/services/integrations";
-import robinPlanWordmark from "@/robin-subscriptions/portal-source/src/assets/robin-wordmark.png";
+const robinPlanWordmark = "/robin-wordmark.png";
 import { DashboardLoader } from "@/components/dashboard-loader";
 
 type NavItem = [string, string, typeof LayoutDashboard];
@@ -65,7 +62,7 @@ type NavItem = [string, string, typeof LayoutDashboard];
 const workspaceTabs = [
   ["/", "Inicio", "home"],
   ["https://project-robin.com/login", "Portal del Alumno", "external"],
-  ["/the-robin-plan", "The Robin Plan", "subscriptions"],
+  ["https://project-robin.com/therobinplan/", "The Robin Plan", "subscriptions"],
   ["/crm", "CRM", "crm"],
   ["/analiticas/ventas", "Otras métricas", "analytics"],
 ] as const;
@@ -77,28 +74,6 @@ const sideMenus: Record<string, NavItem[]> = {
     ["/alumnos-global", "Vista de alumnos", GraduationCap],
     ["/analitica-global", "Analíticas generales", BarChart3],
     ["/configuracion", "Configuración", Settings],
-  ],
-  students: [
-    ["portal:inicio", "Resumen", LayoutDashboard],
-    ["portal:clientes", "Mis clientes", Users],
-    ["portal:notificaciones", "Notificaciones", Bell],
-    ["portal:faqs", "FAQs", HelpCircle],
-  ],
-  subscriptions: [
-    ["plan:panel", "Panel general", LayoutDashboard],
-    ["plan:usuarios", "Usuarios", Users],
-    ["plan:eventos", "Eventos", CalendarCheck],
-    ["plan:grupos", "Grupos", Users],
-    ["plan:asociaciones", "Asociaciones", Building2],
-    ["plan:empleos", "Empleos", BriefcaseBusiness],
-    ["plan:ofertas", "Ofertas", Tag],
-    ["plan:viajes", "Viajes", Plane],
-    ["plan:mentores", "Mentores", GraduationCap],
-    ["plan:partners", "Partners", Handshake],
-    ["plan:codigos", "Códigos", Percent],
-    ["plan:notificaciones", "Notificaciones", Bell],
-    ["plan:retos", "Retos", Sparkles],
-    ["plan:faqs", "FAQs", HelpCircle],
   ],
   crm: [
     ["/crm", "Por contactar", UserCheck],
@@ -116,15 +91,11 @@ const sideMenus: Record<string, NavItem[]> = {
 
 const areaNames: Record<string, string> = {
   home: "Inicio global",
-  students: "Portal del Alumno",
-  subscriptions: "The Robin Plan",
   crm: "CRM personal",
   analytics: "Otras métricas",
 };
 
 function getArea(path: string) {
-  if (path === "/alumnos" || path.startsWith("/alumnos/")) return "students";
-  if (path === "/the-robin-plan" || path.startsWith("/the-robin-plan/")) return "subscriptions";
   if (path.startsWith("/crm")) return "crm";
   if (path.startsWith("/analiticas") || path.startsWith("/campanas") || path.startsWith("/web")) return "analytics";
   return "home";
@@ -135,9 +106,7 @@ function adminPath(path: string) {
   return `/admin${path === "/" ? "" : path}`;
 }
 
-function isSideItemActive(path: string, href: string, portalSection = "inicio", subscriptionsSection = "panel") {
-  if (href.startsWith("portal:")) return href === `portal:${portalSection}`;
-  if (href.startsWith("plan:")) return href === `plan:${subscriptionsSection}`;
+function isSideItemActive(path: string, href: string) {
   if (href === "/") return path === "/";
   if (href === "/crm") return path === "/crm";
   if (href === "/campanas") return path.startsWith("/campanas");
@@ -151,8 +120,6 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
   const area = getArea(path);
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState("");
-  const [portalSection, setPortalSection] = useState("inicio");
-  const [subscriptionsSection, setSubscriptionsSection] = useState("panel");
   const [admins, setAdmins] = useState(["Noel", "Manuel", "María"]);
   const [currentUser] = useState(() => advisorName(authUser));
   const [crmContacts, setCrmContacts] = useState<Contact[]>([]);
@@ -214,15 +181,6 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
     return () => { active = false; unsubscribe(); };
   }, []);
 
-  useEffect(() => {
-    const syncSubscriptionsNavigation = (event: Event) => {
-      const section = (event as CustomEvent<{ section?: string }>).detail?.section;
-      if (section) setSubscriptionsSection(section);
-    };
-    window.addEventListener("robin:subscriptions-state", syncSubscriptionsNavigation);
-    return () => window.removeEventListener("robin:subscriptions-state", syncSubscriptionsNavigation);
-  }, []);
-
   useEffect(() => { void refreshPortalSnapshot(); }, [authUser.id]);
 
   useEffect(() => {
@@ -237,15 +195,6 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
     integrationClient.holded().then((data) => { if (active) setHoldedSnapshot(data); }).catch(() => { if (active) setHoldedSnapshot(null); }).finally(() => { if (active) setHoldedLoading(false); });
     return () => { active = false; };
   }, [authUser.id]);
-
-  useEffect(() => {
-    const syncPortalNavigation = (event: Event) => {
-      const section = (event as CustomEvent<{ section?: string }>).detail?.section;
-      if (section) setPortalSection(section);
-    };
-    window.addEventListener("robin:portal-state", syncPortalNavigation);
-    return () => window.removeEventListener("robin:portal-state", syncPortalNavigation);
-  }, []);
 
   useEffect(() => {
     let lastActivityAt = Date.now();
@@ -351,17 +300,11 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
         </div>
         <nav>
           {sideMenus[area].map(([href, label, Icon]) => (
-            <a href={adminPath(href.startsWith("portal:") ? "/alumnos" : href.startsWith("plan:") ? "/the-robin-plan" : href)} key={href} className={isSideItemActive(path, href, portalSection, subscriptionsSection) ? "active" : ""} onClick={(event) => {
+            <a href={adminPath(href)} key={href} className={isSideItemActive(path, href) ? "active" : ""} onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
               setOpen(false);
-              if (href.startsWith("portal:")) {
-                window.dispatchEvent(new CustomEvent("robin:portal-navigate", { detail: { section: href.slice(7) } }));
-              } else if (href.startsWith("plan:")) {
-                window.dispatchEvent(new CustomEvent("robin:subscriptions-navigate", { detail: { section: href.slice(5) } }));
-              } else {
-                window.location.assign(adminPath(href));
-              }
+              window.location.assign(adminPath(href));
             }}>
               <Icon /><span>{label}</span>
             </a>

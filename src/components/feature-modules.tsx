@@ -46,8 +46,7 @@ import type { CrmEmailDraft, CrmEmailTemplate, FutureAcademicYear, LeadCall, Lea
 import type { FinanceSnapshot, MetaSnapshot, PaymentAnalytics } from "@/services/integrations";
 import { portalClient } from "@/services/portal";
 import type { PortalAccessUser, PortalAdmin, PortalClient, PortalSnapshot, SalesTestStatus } from "@/services/portal";
-import { RobinStudentsAdmin } from "@/components/robin-students-admin";
-import { RobinSubscriptionsAdmin } from "@/components/robin-subscriptions-admin";
+import { ExternalAppRedirect } from "@/components/external-app-redirect";
 import { DashboardLoader } from "@/components/dashboard-loader";
 import {
   Area,
@@ -110,8 +109,8 @@ export function FeatureModule(props: FeatureModuleProps) {
   if (path === "/alumnos-global" || path.startsWith("/alumnos-global/")) return <GlobalStudents path={path} snapshot={props.portalSnapshot} connected={props.portalConnected} contacts={props.contacts} />;
   if (path === "/analitica-global" || path === "/pagos") return <GlobalAnalytics contacts={props.contacts} leadStages={props.leadStages} snapshot={props.portalSnapshot} connected={props.portalConnected} />;
   if (path === "/configuracion") return <Configuration {...props} />;
-  if (path === "/alumnos" || path.startsWith("/alumnos/")) return <RobinStudentsAdmin user={props.portalAdmin} />;
-  if (path === "/the-robin-plan" || path.startsWith("/the-robin-plan/")) return <RobinSubscriptionsAdmin user={props.portalAdmin} />;
+  if (path === "/alumnos" || path.startsWith("/alumnos/")) return <ExternalAppRedirect href="https://project-robin.com/login" name="Portal del Alumno" />;
+  if (path === "/the-robin-plan" || path.startsWith("/the-robin-plan/")) return <ExternalAppRedirect href="https://project-robin.com/therobinplan/" name="The Robin Plan" />;
   if (path.startsWith("/crm")) return <Crm {...props} />;
   if (path.startsWith("/analiticas")) return <PersonalAnalytics path={path} currentUser={props.currentUser} contacts={props.contacts} leadStages={props.leadStages} snapshot={props.portalSnapshot} />;
   if (path.startsWith("/campanas")) return <Campaigns currentUser={props.currentUser} notify={props.notify} />;

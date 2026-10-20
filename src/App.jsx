@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AdminApp } from "./components/admin-app";
 import { portalClient } from "./services/portal";
-import robinLogo from "./robin-platform/portal-source/src/assets/robin-wordmark.png";
+const robinLogo = "/robin-wordmark.png";
 
 export default function App() {
   const [user, setUser] = useState(null);
