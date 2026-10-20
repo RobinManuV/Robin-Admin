@@ -14,7 +14,6 @@ const {
 const { json, methodNotAllowed, serverError } = require('../../lib/http');
 const { attachStudentPhones } = require('../../lib/student-phone');
 const { getAdminSupabase } = require('../../lib/admin-supabase');
-const { activeSalesTestRun, testLeadIds } = require('../../lib/sales-test-mode');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') return methodNotAllowed(['GET']);
@@ -47,9 +46,10 @@ exports.handler = async (event) => {
     if (e2) throw e2;
 
     // Por seguridad, nunca devolver otro admin/supervisor como cliente.
-    const testRun = await activeSalesTestRun(getAdminSupabase());
-    const allowedLeadIds = testRun?.status === 'active' ? new Set(await testLeadIds(getAdminSupabase(), testRun.test_run)) : null;
-    const visibleClients = (clients || []).filter((client) => !hasApplicationAdminRole(client) && (!allowedLeadIds || allowedLeadIds.has(String(client.lead_id || ''))));
+    const { data: testLeads, error: testLeadsError } = await getAdminSupabase().from('crm_leads').select('id,source_payload,is_test').or('is_test.eq.true,source_payload->>simulated.eq.true');
+    if (testLeadsError) throw testLeadsError;
+    const testLeadIds = new Set((testLeads || []).map((lead) => String(lead.id)));
+    const visibleClients = (clients || []).filter((client) => !hasApplicationAdminRole(client) && !testLeadIds.has(String(client.lead_id || '')));
     const list = await attachStudentPhones(sb, visibleClients);
 
     return json({

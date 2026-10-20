@@ -8,7 +8,6 @@ src/
 │   ├── admin-app.tsx
 │   ├── feature-modules.tsx
 │   └── ui/
-├── data/mock-data.ts
 ├── services/
 │   ├── admin-data.ts
 │   ├── integrations.ts
@@ -21,7 +20,6 @@ src/
 - Una sola shell de administración.
 - Sidebar y topbar compartidos.
 - Routing real mediante `react-router-dom`.
-- Datos mock separados.
-- Servicios locales sin peticiones de red.
-- Ninguna dependencia de backend ni autenticación.
-- Ningún estado `Conectando con Robin`.
+- Las estadísticas y los registros proceden de sus APIs y bases de datos conectadas.
+- No se muestran datos de demostración como si fueran datos reales.
+- Si un gráfico no recibe datos, muestra una única barra neutra.

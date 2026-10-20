@@ -11,6 +11,7 @@ import {
   ChevronRight,
   CircleDollarSign,
   Copy,
+  Database,
   Download,
   ExternalLink,
   FileText,
@@ -26,11 +27,9 @@ import {
   PhoneCall,
   KeyRound,
   Plus,
-  PlayCircle,
   Search,
   Settings,
   ShieldCheck,
-  StopCircle,
   TrendingUp,
   Trash2,
   UserCheck,
@@ -46,9 +45,10 @@ import { adminDataClient } from "@/services/admin-data";
 import type { CrmEmailDraft, CrmEmailTemplate, FutureAcademicYear, LeadCall, LeadTeamNote } from "@/services/admin-data";
 import type { FinanceSnapshot, MetaSnapshot, PaymentAnalytics } from "@/services/integrations";
 import { portalClient } from "@/services/portal";
-import type { PortalAccessUser, PortalAdmin, PortalClient, PortalSnapshot, SalesTestStatus } from "@/services/portal";
+import type { PortalAccessUser, PortalAdmin, PortalClient, PortalSnapshot } from "@/services/portal";
 import { ExternalAppRedirect } from "@/components/external-app-redirect";
 import { DashboardLoader } from "@/components/dashboard-loader";
+import { EmptyChartBar } from "@/components/empty-chart-bar";
 import { adminTabPermissions, allAdminTabPermissions } from "@/lib/admin-permissions";
 import {
   Area,
@@ -104,6 +104,7 @@ type FeatureModuleProps = {
   onAddAdmin: (name: string) => void;
   onRemoveAdmin: (name: string) => void;
   isProAdmin: boolean;
+  isDeveloperAdmin: boolean;
 };
 
 export function FeatureModule(props: FeatureModuleProps) {
@@ -115,7 +116,7 @@ export function FeatureModule(props: FeatureModuleProps) {
   if (path === "/alumnos" || path.startsWith("/alumnos/")) return <ExternalAppRedirect href="https://project-robin.com/login" name="Portal del Alumno" />;
   if (path === "/the-robin-plan" || path.startsWith("/the-robin-plan/")) return <ExternalAppRedirect href="https://project-robin.com/therobinplan/" name="The Robin Plan" />;
   if (path.startsWith("/crm")) return <Crm {...props} />;
-  if (path.startsWith("/analiticas")) return <PersonalAnalytics path={path} currentUser={props.currentUser} contacts={props.contacts} leadStages={props.leadStages} snapshot={props.portalSnapshot} />;
+  if (path.startsWith("/analiticas")) return <PersonalAnalytics path={path} currentUser={props.currentUser} contacts={props.contacts} leadStages={props.leadStages} snapshot={props.portalSnapshot} isDeveloperAdmin={props.isDeveloperAdmin} />;
   if (path.startsWith("/campanas")) return <Campaigns currentUser={props.currentUser} notify={props.notify} />;
   if (path.startsWith("/web")) return <WebAnalytics notify={props.notify} />;
   return <div className="page"><div className="empty"><AlertTriangle /><h2>Vista no disponible</h2><p>Esta sección ya no forma parte de la nueva navegación.</p></div></div>;
@@ -736,7 +737,7 @@ function FinanceOverview({ selectedPeriod }: { selectedPeriod?: AnalyticsPeriod 
 
     <section className="panel finance-invoices"><ChartHeading title="Últimas facturas" sub="Tipo de cliente y cuota cruzados con el Portal" source="both" /><div className="data-table"><table><thead><tr><th>Factura</th><th>Cliente</th><th>Tipo de cliente</th><th>Pago</th><th>Fecha</th><th>Base</th><th>IVA</th><th>Total</th><th>Estado</th></tr></thead><tbody>{data.invoices.slice(0, invoiceLimit).map((invoice) => <tr key={invoice.id}><td><b>{invoice.number}</b></td><td>{invoice.customer}</td><td>{invoice.clientType || "—"}</td><td>{invoice.installment || "—"}</td><td>{invoice.date ? new Date(`${invoice.date}T12:00:00`).toLocaleDateString("es-ES") : "—"}</td><td>{money(invoice.base, invoice.currency)}</td><td>{money(invoice.tax, invoice.currency)}</td><td><b>{money(invoice.total, invoice.currency)}</b></td><td><Badge variant="outline">{statusLabels[invoice.status] || invoice.status}</Badge></td></tr>)}</tbody></table>{!data.invoices.length && <p className="finance-empty-row">No hay facturas en el periodo seleccionado.</p>}</div>{invoiceLimit < data.invoices.length && <button className="finance-load-more" type="button" onClick={() => setInvoiceLimit((limit) => limit + 5)}>Cargar 5 más</button>}</section>
 
-    <section className="panel finance-cash"><ChartHeading title="Caja" sub="Saldo conjunto de todas las cuentas de Tesorería, convertido a EUR con el cambio diario del BCE" source="holded" /><div className="finance-cash-cards">{cashCards.map((card) => { const delta = card.point && currentCash != null ? currentCash - card.point.balance : null; return <article key={card.tag} className={card.current ? "current" : ""}><span><b>{card.tag}</b>{card.name}</span><strong>{card.point ? money(card.point.balance) : "—"}</strong><small>{card.point ? `${new Date(`${card.point.date}T12:00:00`).toLocaleDateString("es-ES")} · ${card.current ? "saldo actual" : `${delta != null && delta >= 0 ? "+" : "−"}${money(Math.abs(delta || 0))} hasta hoy`}` : "Sin histórico disponible"}</small></article>; })}</div>{data.cash.available && cashPoints.length ? <ResponsiveContainer width="100%" height={270}><AreaChart data={cashPoints}><defs><linearGradient id="cash-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2f5a8a" stopOpacity={0.18} /><stop offset="100%" stopColor="#2f5a8a" stopOpacity={0.02} /></linearGradient></defs><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="date" tickFormatter={(value) => new Date(`${value}T12:00:00`).toLocaleDateString("es-ES", { month: "short", year: "2-digit" })} axisLine={false} tickLine={false} fontSize={10} /><YAxis tickFormatter={(value) => `${Math.round(value / 1000)}k €`} axisLine={false} tickLine={false} width={55} fontSize={10} domain={["auto", "auto"]} /><Tooltip content={<FinanceTooltip />} />{cashMarkers.map((marker) => <ReferenceLine key={marker.point!.date} x={marker.point!.date} stroke="#9ca9b8" strokeDasharray="3 4" label={{ value: marker.tag, position: "insideTopRight", fill: "#708096", fontSize: 9 }} />)}<Area type="monotone" dataKey="balance" name="Saldo" stroke="#2f5a8a" strokeWidth={2.5} fill="url(#cash-fill)" activeDot={{ r: 4 }} /></AreaChart></ResponsiveContainer> : <div className="finance-cash-empty"><Landmark /><strong>El histórico comienza hoy</strong><span>Las capturas diarias y los cierres mensuales aparecerán aquí.</span></div>}</section>
+    <section className="panel finance-cash"><ChartHeading title="Caja" sub="Saldo conjunto de todas las cuentas de Tesorería, convertido a EUR con el cambio diario del BCE" source="holded" /><div className="finance-cash-cards">{cashCards.map((card) => { const delta = card.point && currentCash != null ? currentCash - card.point.balance : null; return <article key={card.tag} className={card.current ? "current" : ""}><span><b>{card.tag}</b>{card.name}</span><strong>{card.point ? money(card.point.balance) : "—"}</strong><small>{card.point ? `${new Date(`${card.point.date}T12:00:00`).toLocaleDateString("es-ES")} · ${card.current ? "saldo actual" : `${delta != null && delta >= 0 ? "+" : "−"}${money(Math.abs(delta || 0))} hasta hoy`}` : "Sin histórico disponible"}</small></article>; })}</div>{data.cash.available && cashPoints.length ? <ResponsiveContainer width="100%" height={270}><AreaChart data={cashPoints}><defs><linearGradient id="cash-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2f5a8a" stopOpacity={0.18} /><stop offset="100%" stopColor="#2f5a8a" stopOpacity={0.02} /></linearGradient></defs><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="date" tickFormatter={(value) => new Date(`${value}T12:00:00`).toLocaleDateString("es-ES", { month: "short", year: "2-digit" })} axisLine={false} tickLine={false} fontSize={10} /><YAxis tickFormatter={(value) => `${Math.round(value / 1000)}k €`} axisLine={false} tickLine={false} width={55} fontSize={10} domain={["auto", "auto"]} /><Tooltip content={<FinanceTooltip />} />{cashMarkers.map((marker) => <ReferenceLine key={marker.point!.date} x={marker.point!.date} stroke="#9ca9b8" strokeDasharray="3 4" label={{ value: marker.tag, position: "insideTopRight", fill: "#708096", fontSize: 9 }} />)}<Area type="monotone" dataKey="balance" name="Saldo" stroke="#2f5a8a" strokeWidth={2.5} fill="url(#cash-fill)" activeDot={{ r: 4 }} /></AreaChart></ResponsiveContainer> : <EmptyChartBar />}</section>
   </div>;
 }
 
@@ -864,13 +865,13 @@ function SalesOverview({ personalUser, selectedPeriod }: { personalUser?: string
 
     <div className="sales-primary-grid">
       <section className="panel finance-chart sales-temporal-chart"><SalesHeading title="Clientes vs leads" sub="Leads por fecha de adquisición; las barras de clientes solo usan firmas con fecha conocida y la conversión incluye clientes históricos de la cohorte" sources={["portal"]} granularity={data.granularity} /><ResponsiveContainer width="100%" height={290}><ComposedChart data={data.buckets}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="label" tickFormatter={(_, index) => data.buckets[index]?.tick || ""} axisLine={false} tickLine={false} fontSize={10} /><YAxis yAxisId="count" hide domain={[0, "auto"]} /><YAxis yAxisId="conversion" orientation="right" domain={[0, "auto"]} tickFormatter={(value) => `${value}%`} axisLine={false} tickLine={false} width={38} fontSize={9} /><Tooltip formatter={(value: any, name: any) => [name === "Conversión" ? percent(Number(value)) : Number(value).toLocaleString("es-ES"), name]} /><Bar yAxisId="count" dataKey="leads" name="Leads CRM + histórico" fill="#b9c9df" radius={[4,4,0,0]} /><Bar yAxisId="count" dataKey="contracts" name="Firmas con fecha" fill="#2f5a8a" radius={[4,4,0,0]} /><Line yAxisId="conversion" type="monotone" dataKey="conversion" name="Conversión de cohorte" stroke="#c8742a" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls={false} /></ComposedChart></ResponsiveContainer></section>
-      <section className="panel finance-chart sales-channel-chart"><SalesHeading title="Contratado por canal" sub="Importe contratado en Portal según el canal del lead" sources={["portal"]} />{totalContracted > 0 && channelPie.length ? <><ResponsiveContainer width="100%" height={210}><RechartsPieChart><Pie data={channelPie} dataKey="value" nameKey="label" innerRadius={58} outerRadius={88} paddingAngle={2}>{channelPie.map((channel) => <Cell key={channel.key} fill={SALES_CHANNEL_COLORS[channel.key]} />)}<LabelList dataKey="value" position="outside" formatter={(value: any) => money(Number(value))} /></Pie><Tooltip formatter={(value: any, _name: any, item: any) => [`${money(Number(value))} · ${percent(item?.payload?.percentage)}`, item?.payload?.label]} /></RechartsPieChart></ResponsiveContainer><div className="sales-donut-total"><strong>{money(channelPie.reduce((total, channel) => total + channel.value, 0))}</strong><span>contratado con canal</span></div><div className="sales-channel-legend">{visibleChannels.map((channel) => <div key={channel.key}><span><i style={{ background: SALES_CHANNEL_COLORS[channel.key] }} />{channel.label}</span><strong>{percent(channel.percentage)}</strong></div>)}</div></> : <div className="sales-empty-chart">No hay importe contratado con un canal identificable en el periodo.</div>}</section>
+      <section className="panel finance-chart sales-channel-chart"><SalesHeading title="Contratado por canal" sub="Importe contratado en Portal según el canal del lead" sources={["portal"]} />{totalContracted > 0 && channelPie.length ? <><ResponsiveContainer width="100%" height={210}><RechartsPieChart><Pie data={channelPie} dataKey="value" nameKey="label" innerRadius={58} outerRadius={88} paddingAngle={2}>{channelPie.map((channel) => <Cell key={channel.key} fill={SALES_CHANNEL_COLORS[channel.key]} />)}<LabelList dataKey="value" position="outside" formatter={(value: any) => money(Number(value))} /></Pie><Tooltip formatter={(value: any, _name: any, item: any) => [`${money(Number(value))} · ${percent(item?.payload?.percentage)}`, item?.payload?.label]} /></RechartsPieChart></ResponsiveContainer><div className="sales-donut-total"><strong>{money(channelPie.reduce((total, channel) => total + channel.value, 0))}</strong><span>contratado con canal</span></div><div className="sales-channel-legend">{visibleChannels.map((channel) => <div key={channel.key}><span><i style={{ background: SALES_CHANNEL_COLORS[channel.key] }} />{channel.label}</span><strong>{percent(channel.percentage)}</strong></div>)}</div></> : <EmptyChartBar />}</section>
     </div>
 
-    <section className="panel finance-chart sales-campaign-wide"><SalesHeading title="Leads vs clientes por campaña" sub="Cohortes de CRM + histórico; Meta aporta la inversión y Portal el importe contratado" sources={["meta", "portal"]} />{data.campaigns.length ? <ResponsiveContainer width="100%" height={310}><BarChart data={data.campaigns} margin={{ top: 42, right: 12, left: 0, bottom: 46 }}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="name" interval={0} angle={-18} textAnchor="end" axisLine={false} tickLine={false} height={62} fontSize={10} /><YAxis hide domain={[0, campaignMax * 1.3]} /><Tooltip formatter={(value: any, name: any, item: any) => [name === "Conversión" ? percent(Number(value)) : Number(value).toLocaleString("es-ES"), name]} /><Bar dataKey="leads" name="Leads CRM + histórico" fill="#b9c9df" radius={[4,4,0,0]}><LabelList dataKey="leads" position="top" fill="#65758a" fontSize={10} /><LabelList dataKey="conversion" name="Conversión" position="top" offset={20} fill="#c8742a" fontSize={9} formatter={(value: any) => percent(Number(value))} /></Bar><Bar dataKey="contracts" name="Clientes de cohorte" fill="#2f5a8a" radius={[4,4,0,0]}><LabelList dataKey="contracts" position="top" fill="#1f3d63" fontSize={10} /></Bar></BarChart></ResponsiveContainer> : <div className="sales-empty-chart">No hay campañas con leads para el periodo.</div>}</section>
+      <section className="panel finance-chart sales-campaign-wide"><SalesHeading title="Leads vs clientes por campaña" sub="Cohortes de CRM + histórico; Meta aporta la inversión y Portal el importe contratado" sources={["meta", "portal"]} />{data.campaigns.length ? <ResponsiveContainer width="100%" height={310}><BarChart data={data.campaigns} margin={{ top: 42, right: 12, left: 0, bottom: 46 }}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="name" interval={0} angle={-18} textAnchor="end" axisLine={false} tickLine={false} height={62} fontSize={10} /><YAxis hide domain={[0, campaignMax * 1.3]} /><Tooltip formatter={(value: any, name: any, item: any) => [name === "Conversión" ? percent(Number(value)) : Number(value).toLocaleString("es-ES"), name]} /><Bar dataKey="leads" name="Leads CRM + histórico" fill="#b9c9df" radius={[4,4,0,0]}><LabelList dataKey="leads" position="top" fill="#65758a" fontSize={10} /><LabelList dataKey="conversion" name="Conversión" position="top" offset={20} fill="#c8742a" fontSize={9} formatter={(value: any) => percent(Number(value))} /></Bar><Bar dataKey="contracts" name="Clientes de cohorte" fill="#2f5a8a" radius={[4,4,0,0]}><LabelList dataKey="contracts" position="top" fill="#1f3d63" fontSize={10} /></Bar></BarChart></ResponsiveContainer> : <EmptyChartBar />}</section>
 
     <div className="sales-secondary-grid">
-      <section className="panel finance-chart"><SalesHeading title="CAC por campaña" sub="Inversión de Meta Ads ÷ contratos firmados en Portal atribuidos a la campaña" sources={["meta", "portal"]} />{cacCampaigns.length ? <ResponsiveContainer width="100%" height={275}><BarChart data={cacCampaigns} margin={{ top: 28, right: 10, left: 0, bottom: 42 }}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="name" interval={0} angle={-18} textAnchor="end" axisLine={false} tickLine={false} height={58} fontSize={9} /><YAxis hide /><Tooltip formatter={(value: any) => money(Number(value))} /><Bar dataKey="cac" name="CAC" fill="#c8742a" radius={[5,5,0,0]}><LabelList dataKey="cac" position="top" fill="#1f3d63" fontSize={9} formatter={(value: any) => money(Number(value))} /></Bar></BarChart></ResponsiveContainer> : <div className="sales-empty-chart">No hay contratos del Portal atribuidos a campañas de Meta en el periodo.</div>}</section>
+      <section className="panel finance-chart"><SalesHeading title="CAC por campaña" sub="Inversión de Meta Ads ÷ contratos firmados en Portal atribuidos a la campaña" sources={["meta", "portal"]} />{cacCampaigns.length ? <ResponsiveContainer width="100%" height={275}><BarChart data={cacCampaigns} margin={{ top: 28, right: 10, left: 0, bottom: 42 }}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="name" interval={0} angle={-18} textAnchor="end" axisLine={false} tickLine={false} height={58} fontSize={9} /><YAxis hide /><Tooltip formatter={(value: any) => money(Number(value))} /><Bar dataKey="cac" name="CAC" fill="#c8742a" radius={[5,5,0,0]}><LabelList dataKey="cac" position="top" fill="#1f3d63" fontSize={9} formatter={(value: any) => money(Number(value))} /></Bar></BarChart></ResponsiveContainer> : <EmptyChartBar />}</section>
       <section className="panel finance-chart"><SalesHeading title="Margen por canal" sub="(Pagado por los clientes del canal − coste del canal) ÷ pagado" sources={["portal", "meta"]} /><ResponsiveContainer width="100%" height={225}><BarChart data={data.marginsByChannel} margin={{ top: 28, right: 10, left: 0, bottom: 14 }}><CartesianGrid vertical={false} stroke="#eef1f5" /><XAxis dataKey="label" interval={0} axisLine={false} tickLine={false} fontSize={9} /><YAxis hide domain={["auto", "auto"]} /><Tooltip formatter={(value: any) => percent(Number(value))} /><Bar dataKey="margin" name="Margen" fill="#5f9c86" radius={[5,5,0,0]}><LabelList dataKey="margin" position="top" fill="#2d6150" fontSize={10} formatter={(value: any) => percent(Number(value))} /></Bar></BarChart></ResponsiveContainer></section>
     </div>
 
@@ -908,6 +909,7 @@ function GlobalPayments({ snapshot, connected, embedded = false }: { snapshot: P
   const month = holded?.currentMonth;
   const year = holded?.currentYear;
   const maxMonthly = Math.max(...(holded?.last12Months.flatMap((item) => [item.sales, item.previousYearSales]) || [0]), 1);
+  const hasMonthlySales = Boolean(holded?.last12Months.some((item) => item.sales > 0 || item.previousYearSales > 0));
   const byId = new Map((snapshot?.clients || []).map((client) => [client.id, client]));
   const portalBilled = (snapshot?.payments || []).reduce((total, payment) => total + Number(payment.amount || 0), 0);
   const portalCollected = (snapshot?.payments || []).filter((payment) => payment.status === "paid").reduce((total, payment) => total + Number(payment.amount || 0), 0);
@@ -919,36 +921,36 @@ function GlobalPayments({ snapshot, connected, embedded = false }: { snapshot: P
 
     <div className="finance-group-title"><h2>Mes actual</h2><p>Facturas emitidas y cobros registrados en Holded.</p></div>
     <section className="stats mini">
-      <article><i><FileText /></i><div><span>Ventas</span><strong>{euro(month?.sales || 0)}</strong><small>{month?.invoices || 0} facturas · sin impuestos</small></div></article>
-      <article><i className="green"><Check /></i><div><span>Cobrado</span><strong>{euro(month?.collected || 0)}</strong><small>{(month?.collectionRate || 0).toFixed(1)}% del total emitido</small></div></article>
-      <article className={(month?.pending || 0) > 0 ? "pending-money-card" : ""}><i className="red"><CircleDollarSign /></i><div><span>Pendiente vencido</span><strong>{euro(month?.pending || 0)}</strong><small>{month?.pendingInvoices || 0} facturas vencidas</small></div></article>
-      <article><i className="red"><AlertTriangle /></i><div><span>Vencido</span><strong>{euro(month?.overdue || 0)}</strong><small>{month?.overdueInvoices || 0} facturas vencidas</small></div></article>
+      <article><i><FileText /></i><div><span>Ventas</span><strong>{month ? euro(month.sales) : "—"}</strong><small>{month ? `${month.invoices} facturas · sin impuestos` : "Sin datos"}</small></div></article>
+      <article><i className="green"><Check /></i><div><span>Cobrado</span><strong>{month ? euro(month.collected) : "—"}</strong><small>{month ? `${month.collectionRate.toFixed(1)}% del total emitido` : "Sin datos"}</small></div></article>
+      <article className={(month?.pending || 0) > 0 ? "pending-money-card" : ""}><i className="red"><CircleDollarSign /></i><div><span>Pendiente vencido</span><strong>{month ? euro(month.pending) : "—"}</strong><small>{month ? `${month.pendingInvoices} facturas vencidas` : "Sin datos"}</small></div></article>
+      <article><i className="red"><AlertTriangle /></i><div><span>Vencido</span><strong>{month ? euro(month.overdue) : "—"}</strong><small>{month ? `${month.overdueInvoices} facturas vencidas` : "Sin datos"}</small></div></article>
     </section>
 
     <section className="ads-kpi-grid">
-      <article><span>Total emitido · mes</span><strong>{euro(month?.billed || 0)}</strong><small>Ventas más impuestos</small></article>
-      <article><span>Impuestos · mes</span><strong>{euro(month?.tax || 0)}</strong><small>IVA facturado</small></article>
-      <article><span>Ticket medio · mes</span><strong>{euro(month?.averageTicket || 0)}</strong><small>Por factura</small></article>
-      <article><span>Facturas pagadas · mes</span><strong>{month?.paidInvoices || 0}</strong><small>De {month?.invoices || 0} emitidas</small></article>
-      <article><span>Ventas · año</span><strong>{euro(year?.sales || 0)}</strong><small>{year?.invoices || 0} facturas · sin impuestos</small></article>
-      <article><span>Cobrado · año</span><strong>{euro(year?.collected || 0)}</strong><small>{(year?.collectionRate || 0).toFixed(1)}% del total emitido</small></article>
-      <article className={(year?.pending || 0) > 0 ? "pending-money-card" : ""}><span>Pendiente vencido · año</span><strong>{euro(year?.pending || 0)}</strong><small>{year?.pendingInvoices || 0} facturas vencidas</small></article>
-      <article><span>Vencido · año</span><strong>{euro(year?.overdue || 0)}</strong><small>{year?.overdueInvoices || 0} vencidas</small></article>
+      <article><span>Total emitido · mes</span><strong>{month ? euro(month.billed) : "—"}</strong><small>{month ? "Ventas más impuestos" : "Sin datos"}</small></article>
+      <article><span>Impuestos · mes</span><strong>{month ? euro(month.tax) : "—"}</strong><small>{month ? "IVA facturado" : "Sin datos"}</small></article>
+      <article><span>Ticket medio · mes</span><strong>{month ? euro(month.averageTicket) : "—"}</strong><small>{month ? "Por factura" : "Sin datos"}</small></article>
+      <article><span>Facturas pagadas · mes</span><strong>{month ? month.paidInvoices : "—"}</strong><small>{month ? `De ${month.invoices} emitidas` : "Sin datos"}</small></article>
+      <article><span>Ventas · año</span><strong>{year ? euro(year.sales) : "—"}</strong><small>{year ? `${year.invoices} facturas · sin impuestos` : "Sin datos"}</small></article>
+      <article><span>Cobrado · año</span><strong>{year ? euro(year.collected) : "—"}</strong><small>{year ? `${year.collectionRate.toFixed(1)}% del total emitido` : "Sin datos"}</small></article>
+      <article className={(year?.pending || 0) > 0 ? "pending-money-card" : ""}><span>Pendiente vencido · año</span><strong>{year ? euro(year.pending) : "—"}</strong><small>{year ? `${year.pendingInvoices} facturas vencidas` : "Sin datos"}</small></article>
+      <article><span>Vencido · año</span><strong>{year ? euro(year.overdue) : "—"}</strong><small>{year ? `${year.overdueInvoices} vencidas` : "Sin datos"}</small></article>
     </section>
 
-    <section className="panel clean-chart"><div className="panel-heading"><div><h2>Ventas de los últimos 12 meses</h2><p>Comparativa con el mismo mes del año anterior</p></div><div className="comparison-legend"><span className="current">Actual</span><span className="previous">Anterior</span></div></div><div className="metric-bars comparison">{holded?.last12Months.map((item) => <div key={item.month} title={`${item.month}: ${euro(item.sales)} · año anterior: ${euro(item.previousYearSales)}`}><i className="comparison-bars"><span className="previous-year" style={{ height: `${Math.max(2, item.previousYearSales / maxMonthly * 100)}%` }} /><span className="current-year" style={{ height: `${Math.max(2, item.sales / maxMonthly * 100)}%` }} /></i><small>{item.label}</small></div>)}</div></section>
+    <section className="panel clean-chart"><div className="panel-heading"><div><h2>Ventas de los últimos 12 meses</h2><p>Comparativa con el mismo mes del año anterior</p></div><div className="comparison-legend"><span className="current">Actual</span><span className="previous">Anterior</span></div></div>{hasMonthlySales ? <div className="metric-bars comparison">{holded!.last12Months.map((item) => <div key={item.month} title={`${item.month}: ${euro(item.sales)} · año anterior: ${euro(item.previousYearSales)}`}><i className="comparison-bars"><span className="previous-year" style={{ height: `${item.previousYearSales ? Math.max(2, item.previousYearSales / maxMonthly * 100) : 0}%` }} /><span className="current-year" style={{ height: `${item.sales ? Math.max(2, item.sales / maxMonthly * 100) : 0}%` }} /></i><small>{item.label}</small></div>)}</div> : <EmptyChartBar />}</section>
 
     <section className="panel campaign-panel"><div className="panel-heading"><div><h2>Últimas facturas de Holded</h2><p>Desglose fiscal y estado de cobro</p></div></div><div className="data-table"><table><thead><tr><th>Factura</th><th>Cliente</th><th>Fecha</th><th>Base</th><th>IVA</th><th>Total</th><th>Cobrado</th><th>Pendiente</th><th>Estado</th></tr></thead><tbody>{holded?.recentInvoices.map((invoice) => <tr key={invoice.id}><td><b>{invoice.number}</b></td><td>{invoice.customer}</td><td>{invoice.date ? new Date(`${invoice.date}T12:00:00`).toLocaleDateString("es-ES") : "—"}</td><td>{euro(invoice.subtotal, invoice.currency)}</td><td>{euro(invoice.tax, invoice.currency)}</td><td>{euro(invoice.total, invoice.currency)}</td><td>{euro(invoice.paid, invoice.currency)}</td><td>{euro(invoice.pending, invoice.currency)}</td><td><Badge variant="outline">{statusLabel[invoice.status] || invoice.status}</Badge></td></tr>)}</tbody></table></div></section>
 
     <div className="finance-group-title"><h2>Pagos del portal</h2><p>Cuotas previstas y cobros registrados en Supabase/Stripe.</p></div>
     {connected && !snapshot ? <div className="empty compact"><WalletCards /><h2>Cargando pagos del portal…</h2></div> : <>
-      <section className="stats mini"><article><i><WalletCards /></i><div><span>Planificado</span><strong>{euro(portalBilled)}</strong><small>{snapshot?.payments.length || 0} cuotas</small></div></article><article><i className="green"><Check /></i><div><span>Cobrado</span><strong>{euro(portalCollected)}</strong><small>Stripe y transferencias</small></div></article><article><i className="gold"><CircleDollarSign /></i><div><span>Pendiente</span><strong>{euro(portalPending)}</strong><small>Cuotas abiertas o bloqueadas</small></div></article><article><i className="red"><AlertTriangle /></i><div><span>Fallidos</span><strong>{snapshot?.payments.filter((payment) => payment.status === "failed").length || 0}</strong><small>Requieren atención</small></div></article></section>
+      <section className="stats mini"><article><i><WalletCards /></i><div><span>Planificado</span><strong>{snapshot ? euro(portalBilled) : "—"}</strong><small>{snapshot ? `${snapshot.payments.length} cuotas` : "Sin datos"}</small></div></article><article><i className="green"><Check /></i><div><span>Cobrado</span><strong>{snapshot ? euro(portalCollected) : "—"}</strong><small>Stripe y transferencias</small></div></article><article><i className="gold"><CircleDollarSign /></i><div><span>Pendiente</span><strong>{snapshot ? euro(portalPending) : "—"}</strong><small>Cuotas abiertas o bloqueadas</small></div></article><article><i className="red"><AlertTriangle /></i><div><span>Fallidos</span><strong>{snapshot ? snapshot.payments.filter((payment) => payment.status === "failed").length : "—"}</strong><small>Requieren atención</small></div></article></section>
       <section className="panel"><div className="panel-heading"><div><h2>Cuotas del portal</h2><p>Estado financiero operativo</p></div></div><div className="data-table"><table><thead><tr><th>Cliente</th><th>Concepto</th><th>Importe</th><th>Estado</th><th>Factura</th></tr></thead><tbody>{snapshot?.payments.map((payment) => { const client = byId.get(payment.user_id); return <tr key={payment.id}><td><b>{[client?.nombre, client?.apellidos].filter(Boolean).join(" ") || client?.email || payment.user_id}</b></td><td>{payment.concept || `Cuota ${payment.installment}`}</td><td>{Number(payment.amount).toLocaleString("es-ES")} {payment.currency || "EUR"}</td><td><Badge variant="outline">{payment.status}</Badge></td><td>{payment.invoice_number || "—"}</td></tr>; })}</tbody></table></div></section>
     </>}
   </div>;
 }
 
-function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, notify }: FeatureModuleProps) {
+function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, notify, isDeveloperAdmin }: FeatureModuleProps) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -963,8 +965,10 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [testBusy, setTestBusy] = useState(false);
-  const [testStatus, setTestStatus] = useState<SalesTestStatus | null>(null);
+  const [databaseTarget, setDatabaseTarget] = useState<"portal" | "admin" | "robinplan">("portal");
+  const [sqlStatement, setSqlStatement] = useState("SELECT current_database(), current_user;");
+  const [sqlResult, setSqlResult] = useState<unknown>(null);
+  const [sqlBusy, setSqlBusy] = useState(false);
   async function refreshAdminUsers() {
     setUsersLoading(true);
     setUsersError("");
@@ -978,23 +982,6 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
     }
   }
   useEffect(() => { void refreshAdminUsers(); }, []);
-  useEffect(() => { portalClient.salesTestStatus().then(setTestStatus).catch(() => setTestStatus(null)); }, []);
-
-  async function launchTest() {
-    setTestBusy(true);
-    try { const result = await portalClient.launchSalesTest(); setTestStatus(result); notify("Modo de prueba activado para todos los administradores"); }
-    catch (error) { notify(error instanceof Error ? error.message : "No se pudo activar el modo de prueba"); }
-    finally { setTestBusy(false); }
-  }
-
-  async function stopTest() {
-    if (!window.confirm("Se borrarán todos los leads, clientes, pagos y campañas creados por el test. Los datos reales no se modificarán. ¿Continuar?")) return;
-    setTestBusy(true);
-    try { const result = await portalClient.stopSalesTest(); setTestStatus(result); notify(`Test detenido: ${result.removed?.leads || 0} leads y ${result.removed?.users || 0} clientes eliminados`); }
-    catch (error) { notify(error instanceof Error ? error.message : "No se pudo detener y limpiar el test"); }
-    finally { setTestBusy(false); }
-  }
-
   async function createUser(event: React.FormEvent) {
     event.preventDefault(); setBusy(true);
     try { const result = await portalClient.createAdmin({ name, email, username, password }); setUsers((items) => [...items, result.user]); onAddAdmin(name); setName(""); setEmail(""); setUsername(""); setPassword(""); setAdding(false); notify("Usuario administrador creado"); }
@@ -1009,8 +996,8 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
   }
   function prepareSantiProfile() {
     setName("Santi");
-    setEmail("santiago.martin.ab@gmail.com");
-    setUsername("santiago.martin.ab");
+    setEmail("santimartin1203@gmail.com");
+    setUsername("santimartin1203");
     setAdding(true);
   }
   async function savePermissions() {
@@ -1023,6 +1010,22 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
       notify("Pestañas del perfil actualizadas");
     } catch (error) { notify(error instanceof Error ? error.message : "No se pudieron guardar las pestañas"); }
     finally { setBusy(false); }
+  }
+  async function runDeveloperSql(event: React.FormEvent) {
+    event.preventDefault();
+    const statement = sqlStatement.trim();
+    if (!statement) return;
+    const targetName = { portal: "Portal", admin: "CRM / Admin", robinplan: "The Robin Plan" }[databaseTarget];
+    if (!window.confirm(`Vas a ejecutar SQL en ${targetName}. Puede modificar o borrar datos y estructura de forma irreversible. ¿Continuar?`)) return;
+    setSqlBusy(true);
+    setSqlResult(null);
+    try {
+      const result = await portalClient.runDeveloperSql(databaseTarget, statement);
+      setSqlResult(result.result);
+      notify("Consulta ejecutada");
+    } catch (error) {
+      setSqlResult({ error: error instanceof Error ? error.message : "No se pudo ejecutar la consulta" });
+    } finally { setSqlBusy(false); }
   }
   return (
     <div className="page">
@@ -1042,13 +1045,6 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
         <form className="panel profile-photo-card" onSubmit={(event) => event.preventDefault()}><div className="settings-avatar">{avatarUrl ? <img src={avatarUrl} alt="Foto de perfil" /> : currentUser.slice(0, 2).toUpperCase()}</div><div><h2>Foto de perfil</h2><p>JPG, PNG o WEBP de hasta 5 MB.</p><label className="ui-button outline"><Camera />Cambiar foto<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; try { const result = await portalClient.uploadAvatar(file); setAvatarUrl(result.avatar_url); notify("Foto de perfil actualizada"); } catch (error) { notify(error instanceof Error ? error.message : "No se pudo subir la foto"); } }} /></label></div></form>
         <form className="panel password-card" onSubmit={async (event) => { event.preventDefault(); setBusy(true); try { await portalClient.changePassword(currentPassword, newPassword); setCurrentPassword(""); setNewPassword(""); notify("Contraseña actualizada"); } catch (error) { notify(error instanceof Error ? error.message : "No se pudo cambiar la contraseña"); } finally { setBusy(false); } }}><div><h2><KeyRound /> Cambiar mi contraseña</h2><p>Usa al menos 10 caracteres.</p></div><input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} placeholder="Contraseña actual" required /><input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Nueva contraseña" minLength={10} required /><Button type="submit" disabled={busy}>Actualizar</Button></form>
       </section>
-      <section className={`panel sales-test-card ${testStatus?.active ? "is-active" : ""}`}>
-        <div><h2>{testStatus?.active ? "Modo de prueba activo" : "Modo de prueba de ventas"}</h2><p>{testStatus?.active ? "Visible para todos los administradores. Puedes mover los leads, convertirlos en clientes o marcarlos como Lost; Detener test eliminará todo el conjunto." : "Crea 20 leads simulados, campañas de Meta y clientes de prueba. Los clientes tienen contrato firmado y solo la primera cuota pagada."}</p></div>
-        <Badge variant="outline">{testStatus?.active ? "TEST ACTIVO" : "INACTIVO"}</Badge>
-        {testStatus?.active
-          ? <Button type="button" variant="outline" onClick={() => void stopTest()} disabled={testBusy}><StopCircle />{testBusy ? "Deteniendo…" : "Detener test"}</Button>
-          : <Button type="button" onClick={() => void launchTest()} disabled={testBusy}><PlayCircle />{testBusy ? "Activando…" : "Launch test"}</Button>}
-      </section>
       <section className="panel">
         <div className="panel-heading"><div><h2>Usuarios administradores</h2><p>{users.length} perfiles con acceso al panel</p></div><Button variant="outline" type="button" onClick={() => void refreshAdminUsers()} disabled={usersLoading}>{usersLoading ? "Actualizando…" : "Actualizar"}</Button></div>
         {usersLoading && users.length === 0 ? <p role="status">Cargando usuarios administradores…</p>
@@ -1058,6 +1054,16 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
         {users.map((user) => { const label = user.nombre || user.email || user.username || "Administrador"; const current = user.id === portalAdmin.id; return <article className="panel" key={user.id}><i className={user.avatar_url ? "has-photo" : ""}>{user.avatar_url ? <img src={user.avatar_url} alt="" /> : label.slice(0, 2).toUpperCase()}</i><div><h3>{label}</h3><p>{user.email || "Administrador"} · {user.username || "sin usuario"}{user.display_id ? ` · ${user.display_id}` : ""}{current ? " · Usuario actual" : ""}</p></div><Badge variant="outline">{user.is_pro ? "Pro" : "Activo"}</Badge>{isProAdmin && !user.is_pro && <button type="button" className="ui-button outline" aria-label={`Configurar pestañas de ${label}`} title="Configurar pestañas" onClick={() => { setEditingPermissions(user); setSelectedTabs(user.visible_tabs || [...allAdminTabPermissions]); }}><Settings /></button>}{isProAdmin && !user.is_pro && !current ? <button type="button" className="remove-admin" aria-label={`Eliminar ${label}`} onClick={() => void removeUser(user)}><Trash2 /></button> : <span />}</article>; })}
               </div>}
       </section>
+      {isDeveloperAdmin && <section className="panel developer-database-console">
+        <div className="panel-heading"><div><h2><Database /> Consola de base de datos</h2><p>Acceso de desarrollador a los tres proyectos Supabase. Cada envío ejecuta una sola instrucción.</p></div><Badge variant="outline">DESARROLLADOR</Badge></div>
+        <form onSubmit={(event) => void runDeveloperSql(event)}>
+          <label>Proyecto<select value={databaseTarget} onChange={(event) => setDatabaseTarget(event.target.value as typeof databaseTarget)}><option value="portal">Portal del alumno</option><option value="admin">CRM / Admin</option><option value="robinplan">The Robin Plan</option></select></label>
+          <label>SQL<textarea value={sqlStatement} onChange={(event) => setSqlStatement(event.target.value)} rows={8} spellCheck={false} placeholder="SELECT * FROM public.users LIMIT 20;" /></label>
+          <p>La consulta se ejecuta con privilegios de servidor. No compartas esta cuenta. Los cambios de datos o esquema pueden ser irreversibles.</p>
+          <Button type="submit" disabled={sqlBusy || !sqlStatement.trim()}>{sqlBusy ? "Ejecutando…" : "Ejecutar SQL"}</Button>
+        </form>
+        {sqlResult !== null && <pre className="developer-database-result" aria-live="polite">{JSON.stringify(sqlResult, null, 2)}</pre>}
+      </section>}
       {editingPermissions && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditingPermissions(null); }}><section className="panel" role="dialog" aria-modal="true" aria-labelledby="admin-permissions-title"><div className="panel-heading"><div><h2 id="admin-permissions-title">Pestañas visibles · {editingPermissions.nombre || editingPermissions.email}</h2><p>Elige qué áreas y secciones puede abrir este perfil.</p></div><button type="button" aria-label="Cerrar" onClick={() => setEditingPermissions(null)}><X /></button></div><div className="permission-checklist">{adminTabPermissions.map((item) => <label key={item.key}><input type="checkbox" checked={selectedTabs.includes(item.key)} onChange={(event) => setSelectedTabs((current) => event.target.checked ? [...current, item.key] : current.filter((key) => key !== item.key))} /><span><small>{item.group}</small>{item.label}</span></label>)}</div><div className="team-surprise-actions"><Button variant="outline" type="button" onClick={() => setSelectedTabs([...allAdminTabPermissions])}>Marcar todas</Button><Button variant="outline" type="button" onClick={() => setSelectedTabs([])}>Quitar todas</Button><Button type="button" onClick={() => void savePermissions()} disabled={busy}>{busy ? "Guardando…" : "Guardar cambios"}</Button></div></section></div>}
     </div>
   );
@@ -1243,7 +1249,7 @@ function EmailComposer({ contacts, notify, onClose }: { contacts: Contact[]; not
   </section></div>;
 }
 
-function Crm({ path, currentUser, admins, contacts, leadOwners, onAssignLead, leadStages, onMoveLead, onMoveLeadToFuture, onQualifyLead, onDeleteLead, leadCategories: categories, onCategorizeLead, leadHeat, onSetLeadHeat, onSetLeadContactRole, leadNotes, onSetLeadNotes, leadLostDates, portalSnapshot, portalConnected, onPortalRefresh, notify }: FeatureModuleProps) {
+function Crm({ path, currentUser, admins, contacts, leadOwners, onAssignLead, leadStages, onMoveLead, onMoveLeadToFuture, onQualifyLead, onDeleteLead, leadCategories: categories, onCategorizeLead, leadHeat, onSetLeadHeat, onSetLeadContactRole, leadNotes, onSetLeadNotes, leadLostDates, portalSnapshot, portalConnected, onPortalRefresh, notify, isDeveloperAdmin }: FeatureModuleProps) {
   const [query, setQuery] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [leadView, setLeadView] = useState<"cards" | "table">("cards");
@@ -1279,11 +1285,11 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, onAssignLead, le
   const [stageReminderClosable, setStageReminderClosable] = useState(false);
   const [stageReminderVersion, setStageReminderVersion] = useState(0);
   const boardWrapRef = useRef<HTMLDivElement>(null);
-  const owned = useMemo(() => contacts.filter((contact) => leadOwners[contact.id] === currentUser && `${contact.name} ${contact.email} ${contact.source}`.toLowerCase().includes(query.toLowerCase())), [contacts, currentUser, leadOwners, query]);
+  const owned = useMemo(() => contacts.filter((contact) => (isDeveloperAdmin || leadOwners[contact.id] === currentUser) && `${contact.name} ${contact.email} ${contact.source}`.toLowerCase().includes(query.toLowerCase())), [contacts, currentUser, isDeveloperAdmin, leadOwners, query]);
   const campaigns = useMemo(() => Array.from(new Set(contacts
-    .filter((contact) => leadOwners[contact.id] === currentUser && (leadStages[contact.id] || contact.stage || "Por contactar") === "Por contactar")
+    .filter((contact) => (isDeveloperAdmin || leadOwners[contact.id] === currentUser) && (leadStages[contact.id] || contact.stage || "Por contactar") === "Por contactar")
     .map((contact) => leadCampaignLabel(contact.campaign))))
-    .sort((a, b) => a.localeCompare(b, "es")), [contacts, currentUser, leadOwners, leadStages]);
+    .sort((a, b) => a.localeCompare(b, "es")), [contacts, currentUser, isDeveloperAdmin, leadOwners, leadStages]);
   const porContactarLeads = owned.filter((contact) => {
     if ((leadStages[contact.id] || contact.stage || "Por contactar") !== "Por contactar") return false;
     if (categoryFilter !== "all" && categories[contact.id] !== categoryFilter) return false;
@@ -1447,7 +1453,7 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, onAssignLead, le
   const title = path === "/crm/contactados" ? "Pipeline de contactados" : path === "/crm/clientes" ? "Clientes" : path === "/crm/lost" ? "Lost" : "Por contactar";
   return (
     <div className="page">
-      <Title name={title} sub={`Cartera comercial de ${currentUser}.`} eyebrow="CRM PERSONAL"><Badge variant="outline">{owned.length} REGISTROS</Badge></Title>
+      <Title name={title} sub={isDeveloperAdmin ? "Acceso global de desarrollo · todos los leads." : `Cartera comercial de ${currentUser}.`} eyebrow="CRM PERSONAL"><Badge variant="outline">{owned.length} REGISTROS</Badge></Title>
       <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label>{path === "/crm" && <><Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{activeCrmFilters > 0 && <span className="filter-count">{activeCrmFilters}</span>}</Button><Button variant="outline" aria-pressed={leadView === "table"} onClick={() => setLeadView((view) => view === "cards" ? "table" : "cards")}>{leadView === "cards" ? <List /> : <LayoutGrid />}{leadView === "cards" ? "Vista tabla" : "Vista tarjetas"}</Button><Button className="crm-email-button" variant="outline" onClick={() => setEmailComposerOpen(true)}><Mail />Correo electrónico</Button></>}{path === "/crm/clientes" && <Button variant="outline" disabled={exportingClients} onClick={() => void exportClientDatabase()}><Download />{exportingClients ? "Preparando…" : "Descargar base de datos"}</Button>}</div>
 
       {path === "/crm" && (
@@ -1508,7 +1514,7 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, onAssignLead, le
         </div>
       )}
 
-      {path === "/crm/clientes" && <div className="personal-leads">{portalConnected && !portalSnapshot ? <div className="empty compact"><GraduationCap /><h2>Cargando clientes…</h2></div> : portalSnapshot ? portalSnapshot.clients.filter((client) => client.assigned_to === portalSnapshot.admin.email).map((client) => <a className="lead-card" key={client.id} href={`${portalSnapshot.portalUrl}/portal/`} target="_blank" rel="noreferrer"><small>{client.tipo || "general"}</small><h3>{[client.nombre, client.apellidos].filter(Boolean).join(" ") || client.email}</h3><p>{client.email}</p><div><span>Fase {client.application_phase || 1}</span><strong>{client.pago_completed ? "Al corriente" : "Onboarding"}</strong></div><footer>Abrir en portal<ChevronRight /></footer></a>) : owned.filter((contact) => leadStages[contact.id] === "Cliente").map((contact) => <button className="lead-card" key={contact.id} onClick={() => openContact(contact)}><small>{categories[contact.id]}</small><h3>{contact.name}</h3><p>{contact.email}</p><div><span>Agente de venta: {currentUser}</span><strong>{contact.value.toLocaleString("es-ES")} €</strong></div><footer>Ver portal del cliente<ChevronRight /></footer></button>)}</div>}
+      {path === "/crm/clientes" && <div className="personal-leads">{portalConnected && !portalSnapshot ? <div className="empty compact"><GraduationCap /><h2>Cargando clientes…</h2></div> : portalSnapshot ? portalSnapshot.clients.filter((client) => isDeveloperAdmin || client.assigned_to === portalSnapshot.admin.email).map((client) => <a className="lead-card" key={client.id} href={`${portalSnapshot.portalUrl}/portal/`} target="_blank" rel="noreferrer"><small>{client.tipo || "general"}</small><h3>{[client.nombre, client.apellidos].filter(Boolean).join(" ") || client.email}</h3><p>{client.email}</p><div><span>Fase {client.application_phase || 1}</span><strong>{client.pago_completed ? "Al corriente" : "Onboarding"}</strong></div><footer>Abrir portal<ChevronRight /></footer></a>) : owned.filter((contact) => leadStages[contact.id] === "Cliente").map((contact) => <button className="lead-card" key={contact.id} onClick={() => openContact(contact)}><small>{categories[contact.id]}</small><h3>{contact.name}</h3><p>{contact.email}</p><div><span>Agente de venta: {leadOwners[contact.id] || currentUser}</span><strong>{contact.value.toLocaleString("es-ES")} €</strong></div><footer>Ver portal del cliente<ChevronRight /></footer></button>)}</div>}
 
       {path === "/crm/lost" && <><div className="lost-filters"><label>Desde<input type="date" value={lostFrom} onChange={(event) => setLostFrom(event.target.value)} /></label><label>Hasta<input type="date" value={lostTo} onChange={(event) => setLostTo(event.target.value)} /></label><label>Categoría<select value={lostCategory} onChange={(event) => setLostCategory(event.target.value)}><option value="">Todas</option>{leadCategories.map((category) => <option key={category}>{category}</option>)}</select></label><label>Heat mínimo<input type="number" min="0" max="100" value={lostHeat} onChange={(event) => setLostHeat(event.target.value)} /></label></div><div className="data-table panel"><table><thead><tr><th>Lead</th><th>Categoría</th><th>Heat final</th><th>Origen</th><th>Motivo</th><th>Fecha Lost</th></tr></thead><tbody>{owned.filter((contact) => { const lostDate = (leadLostDates[contact.id] || "").slice(0, 10); return leadStages[contact.id] === "Lost" && (!lostCategory || categories[contact.id] === lostCategory) && leadHeat[contact.id] >= Number(lostHeat || 0) && (!lostFrom || lostDate >= lostFrom) && (!lostTo || lostDate <= lostTo); }).map((contact) => <tr key={contact.id} onClick={() => openContact(contact)}><td><b>{contact.name}</b><small>{contact.email}</small></td><td>{categories[contact.id]}</td><td>{leadHeat[contact.id]}</td><td>{contact.source}</td><td>{lostReasonLabel(contact.lostReason)}{contact.lostReasonDetail && <small>{contact.lostReasonDetail}</small>}</td><td>{leadLostDates[contact.id]?.slice(0, 10) || "—"}</td></tr>)}</tbody></table></div></>}
 
@@ -1522,10 +1528,10 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, onAssignLead, le
   );
 }
 
-function PersonalAnalytics({ path, currentUser, contacts, leadStages, snapshot }: { path: string; currentUser: string; contacts: Contact[]; leadStages: Record<string, CrmStage>; snapshot: PortalSnapshot | null }) {
+function PersonalAnalytics({ path, currentUser, contacts, leadStages, snapshot, isDeveloperAdmin }: { path: string; currentUser: string; contacts: Contact[]; leadStages: Record<string, CrmStage>; snapshot: PortalSnapshot | null; isDeveloperAdmin: boolean }) {
   const key = path.split("/").filter(Boolean)[1] || "ventas";
   if (key === "ventas" || key === "finanzas" || key === "pagos") return <div className="page"><SalesOverview personalUser={currentUser} /></div>;
-  const owned = contacts.filter((lead) => lead.owner === currentUser);
+  const owned = contacts.filter((lead) => isDeveloperAdmin || lead.owner === currentUser);
   const metrics = [
     { label: "Alumnos del portal", value: String(snapshot?.clients.length || 0), detail: "Datos del portal" },
     { label: "Leads asignados", value: String(owned.length), detail: currentUser },
@@ -1555,7 +1561,7 @@ function Campaigns({ currentUser, notify }: { currentUser: string; notify: (mess
   }
   useEffect(() => { void syncMeta(false); }, []);
   const euro = (value: number) => `${value.toLocaleString("es-ES", { maximumFractionDigits: 2 })} €`;
-  const summary = snapshot?.summary ?? { spend: 0, impressions: 0, clicks: 0, reach: 0, ctr: 0, cpc: 0, cpm: 0, leads: 0, purchases: 0, revenue: 0, cpl: 0, cac: 0, roas: 0 };
+  const summary = snapshot?.summary;
   const maxSpend = Math.max(...(snapshot?.daily.map((day) => day.spend) ?? [0]), 1);
   const maxCpm = Math.max(...(snapshot?.daily.map((day) => day.cpm) ?? [0]), 1);
   const statusLabel: Record<string, string> = { ACTIVE: "Activa", PAUSED: "Pausada", ARCHIVED: "Archivada", DELETED: "Eliminada", CAMPAIGN_PAUSED: "Pausada", ADSET_PAUSED: "Pausada", IN_PROCESS: "En revisión", WITH_ISSUES: "Con incidencias" };
@@ -1565,11 +1571,11 @@ function Campaigns({ currentUser, notify }: { currentUser: string; notify: (mess
       <Title name="Meta Ads" sub={`Resultados reales de la cuenta publicitaria · acceso de ${currentUser}.`} eyebrow="CAMPAÑAS"><Button variant="outline" onClick={() => void syncMeta(true)} disabled={syncing}><Megaphone />{syncing ? "Sincronizando…" : "Actualizar datos"}</Button></Title>
       <div className="meta-banner"><ShieldCheck /><div><strong>{connection}</strong><p>Periodo: últimos 30 días · importes en {snapshot?.account.currency || "EUR"} · zona horaria {snapshot?.account.timezone || "de la cuenta"}</p></div><Badge variant="outline">DATOS REALES</Badge></div>
       <section className="ads-kpi-grid">{[
-        ["Inversión", euro(summary.spend), "Gasto total"], ["Impresiones", summary.impressions.toLocaleString("es-ES"), `${(summary.impressions / 1000).toFixed(1)}k`], ["Clics", summary.clicks.toLocaleString("es-ES"), `${summary.ctr.toFixed(2)}% CTR`], ["CTR", `${summary.ctr.toFixed(2)}%`, "Clics / impresiones"],
-        ["CPC medio", euro(summary.cpc), "Coste por clic"], ["CPM", euro(summary.cpm), "Coste por mil"], ["Alcance", summary.reach.toLocaleString("es-ES"), "Personas únicas"], ["Leads", summary.leads.toLocaleString("es-ES"), "Conversiones atribuidas"],
-        ["CPL real", euro(summary.cpl), "Inversión / leads"], ["Ventas", summary.purchases.toLocaleString("es-ES"), "Compras atribuidas"], ["CAC", euro(summary.cac), "Inversión / ventas"], ["ROAS", `${summary.roas.toFixed(2)}×`, euro(summary.revenue)],
+        ["Inversión", summary ? euro(summary.spend) : "—", "Gasto total"], ["Impresiones", summary ? summary.impressions.toLocaleString("es-ES") : "—", summary ? `${(summary.impressions / 1000).toFixed(1)}k` : "—"], ["Clics", summary ? summary.clicks.toLocaleString("es-ES") : "—", summary ? `${summary.ctr.toFixed(2)}% CTR` : "—"], ["CTR", summary ? `${summary.ctr.toFixed(2)}%` : "—", "Clics / impresiones"],
+        ["CPC medio", summary ? euro(summary.cpc) : "—", "Coste por clic"], ["CPM", summary ? euro(summary.cpm) : "—", "Coste por mil"], ["Alcance", summary ? summary.reach.toLocaleString("es-ES") : "—", "Personas únicas"], ["Leads", summary ? summary.leads.toLocaleString("es-ES") : "—", "Conversiones atribuidas"],
+        ["CPL real", summary ? euro(summary.cpl) : "—", "Inversión / leads"], ["Ventas", summary ? summary.purchases.toLocaleString("es-ES") : "—", "Compras atribuidas"], ["CAC", summary ? euro(summary.cac) : "—", "Inversión / ventas"], ["ROAS", summary ? `${summary.roas.toFixed(2)}×` : "—", summary ? euro(summary.revenue) : "—"],
       ].map(([label, value, detail]) => <article key={label}><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>)}</section>
-      <div className="sales-analysis-grid"><section className="panel clean-chart"><h2>Inversión diaria</h2><div className="metric-bars">{snapshot?.daily.map((day) => <div key={day.date} title={`${day.date}: ${euro(day.spend)}`}><span style={{ height: `${Math.max(2, day.spend / maxSpend * 100)}%` }} /><small>{new Date(`${day.date}T12:00:00`).toLocaleDateString("es-ES", { day: "2-digit" })}</small></div>)}</div></section><section className="panel clean-chart"><h2>CPM diario</h2><div className="metric-bars gold-bars">{snapshot?.daily.map((day) => <div key={day.date} title={`${day.date}: ${euro(day.cpm)}`}><span style={{ height: `${Math.max(2, day.cpm / maxCpm * 100)}%` }} /><small>{new Date(`${day.date}T12:00:00`).toLocaleDateString("es-ES", { day: "2-digit" })}</small></div>)}</div></section></div>
+      <div className="sales-analysis-grid"><section className="panel clean-chart"><h2>Inversión diaria</h2>{snapshot?.daily.length ? <div className="metric-bars">{snapshot.daily.map((day) => <div key={day.date} title={`${day.date}: ${euro(day.spend)}`}><span style={{ height: `${day.spend > 0 ? Math.max(2, day.spend / maxSpend * 100) : 0}%` }} /><small>{new Date(`${day.date}T12:00:00`).toLocaleDateString("es-ES", { day: "2-digit" })}</small></div>)}</div> : <EmptyChartBar />}</section><section className="panel clean-chart"><h2>CPM diario</h2>{snapshot?.daily.length ? <div className="metric-bars gold-bars">{snapshot.daily.map((day) => <div key={day.date} title={`${day.date}: ${euro(day.cpm)}`}><span style={{ height: `${day.cpm > 0 ? Math.max(2, day.cpm / maxCpm * 100) : 0}%` }} /><small>{new Date(`${day.date}T12:00:00`).toLocaleDateString("es-ES", { day: "2-digit" })}</small></div>)}</div> : <EmptyChartBar />}</section></div>
       <section className="panel campaign-panel"><div className="panel-heading"><div><h2>Campañas</h2><p>Datos reales · últimos 30 días</p></div></div><div className="data-table"><table><thead><tr><th>Campaña</th><th>Estado</th><th>Inversión</th><th>Leads</th><th>CPL</th><th>ROAS</th></tr></thead><tbody>{snapshot?.campaigns.map((row) => <tr key={row.id}><td><b>{row.name}</b><small>ID: {row.id}</small></td><td><Badge variant="outline">{statusLabel[row.status] || row.status}</Badge></td><td>{euro(row.spend)}</td><td>{row.leads.toLocaleString("es-ES")}</td><td>{euro(row.cpl)}</td><td>{row.roas.toFixed(2)}×</td></tr>)}{snapshot && snapshot.campaigns.length === 0 && <tr><td colSpan={6}>No hay campañas con entrega en los últimos 30 días.</td></tr>}</tbody></table></div></section>
     </div>
   );

@@ -20,6 +20,10 @@ export type AdminTabPermission = (typeof adminTabPermissions)[number]["key"];
 export const allAdminTabPermissions = adminTabPermissions.map(({ key }) => key) as AdminTabPermission[];
 
 export function isProAdminEmail(email?: string) {
-  return ["noel@project-robin.com", "maria@project-robin.com", "manuel@project-robin.com", "santiago.martin.ab@gmail.com"]
+  return ["noel@project-robin.com", "maria@project-robin.com", "manuel@project-robin.com", "santimartin1203@gmail.com"]
     .includes(String(email || "").trim().toLowerCase());
+}
+
+export function isDeveloperAdminEmail(email?: string) {
+  return String(email || "").trim().toLowerCase() === "santimartin1203@gmail.com";
 }

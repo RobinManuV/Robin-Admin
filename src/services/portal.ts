@@ -3,7 +3,6 @@ export type PortalAccessUser = { id: string; display_id?: string; email?: string
 export type PortalClient = { id: string; display_id?: string; email?: string; username?: string; nombre?: string; apellidos?: string; tipo?: string; origin?: string; assigned_to?: string; application_phase?: number; application_level?: string; requires_onboarding?: boolean; dni_completed?: boolean; profile_completed?: boolean; contract_signed?: boolean; pago_completed?: boolean; pais?: string; telefono_alumno?: string; intereses?: string[]; created_at?: string; updated_at?: string };
 export type PortalPayment = { id: string; user_id: string; installment: number; amount: number; currency: string; status: string; invoice_number?: string; concept?: string };
 export type PortalSnapshot = { admin: PortalAdmin; clients: PortalClient[]; payments: PortalPayment[]; connections: { stripe: boolean; holded: boolean; email: boolean }; portalUrl: string };
-export type SalesTestStatus = { active: boolean; test_run?: string; launched_at?: string; leads?: number; clients?: number; removed?: { leads: number; users: number } };
 
 import { apiPath } from "@/lib/api-path";
 
@@ -66,10 +65,8 @@ export const portalClient = {
   createAdmin: (payload: { name: string; email: string; username: string; password: string }) => api.post<{ user: PortalAccessUser }>("/api/admin/users", { action: "create", ...payload }),
   deleteAdmin: (id: string) => api.post<{ ok: boolean }>("/api/admin/users", { action: "delete", id }),
   setAdminPermissions: (id: string, visibleTabs: string[]) => api.post<{ ok: boolean; visible_tabs: string[] }>("/api/admin/users", { action: "permissions", id, visible_tabs: visibleTabs }),
+  runDeveloperSql: (database: "portal" | "admin" | "robinplan", statement: string) => api.post<{ database: string; result: unknown }>("/api/admin/database", { database, statement }),
   changePassword: (currentPassword: string, newPassword: string) => api.post<{ ok: boolean }>("/api/auth/change-password", { current_password: currentPassword, new_password: newPassword }),
-  salesTestStatus: () => api.get<SalesTestStatus>("/api/admin/sales/test"),
-  launchSalesTest: () => api.post<SalesTestStatus>("/api/admin/sales/test", { action: "launch" }),
-  stopSalesTest: () => api.post<SalesTestStatus>("/api/admin/sales/test", { action: "stop" }),
   async uploadAvatar(file: File) {
     const ticket = await api.post<{ upload?: { signed_url?: string; path?: string } }>("/api/profile/avatar", { action: "upload_ticket", file_filename: file.name, file_mime: file.type, file_size: file.size });
     const upload = ticket?.upload;

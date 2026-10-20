@@ -9,7 +9,6 @@ const { isApplicationAdmin, normalizeEmail } = require('../../lib/authorization'
 const { json, methodNotAllowed, serverError } = require('../../lib/http');
 const { attachStudentPhones } = require('../../lib/student-phone');
 const { getAdminSupabase } = require('../../lib/admin-supabase');
-const { activeSalesTestRun, testLeadIds } = require('../../lib/sales-test-mode');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') return methodNotAllowed(['GET']);
@@ -37,11 +36,12 @@ exports.handler = async (event) => {
       .order('created_at', { ascending: false });
     if (e2) throw e2;
 
-    const testRun = await activeSalesTestRun(getAdminSupabase());
-    const allowedLeadIds = testRun?.status === 'active' ? new Set(await testLeadIds(getAdminSupabase(), testRun.test_run)) : null;
+    const { data: testLeads, error: testLeadsError } = await getAdminSupabase().from('crm_leads').select('id,source_payload,is_test').or('is_test.eq.true,source_payload->>simulated.eq.true');
+    if (testLeadsError) throw testLeadsError;
+    const testLeadIds = new Set((testLeads || []).map((lead) => String(lead.id)));
     const clients = await attachStudentPhones(sb, (rows || []).filter((r) => {
       const isAdminRow = isApplicationAdmin(r);
-      return !isAdminRow && (!allowedLeadIds || allowedLeadIds.has(String(r.lead_id || '')));
+      return !isAdminRow && !testLeadIds.has(String(r.lead_id || ''));
     }));
 
     return json({ admin_email: adminEmail, clients });

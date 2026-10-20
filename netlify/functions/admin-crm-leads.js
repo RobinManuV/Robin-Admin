@@ -5,7 +5,6 @@ const { isApplicationAdmin } = require('../../lib/authorization');
 const { json, methodNotAllowed, serverError, parseJsonBody } = require('../../lib/http');
 const { isBlockedLeadName } = require('../../lib/crm-lead-ingest');
 const { resolveCrmOwner, syncCrmIdentity } = require('../../lib/crm-identity');
-const { activeSalesTestRun, isLeadInTestRun } = require('../../lib/sales-test-mode');
 
 const campaignNameCache = new Map();
 const CAMPAIGN_CACHE_MS = 6 * 60 * 60 * 1000;
@@ -61,13 +60,12 @@ exports.handler = async (event) => {
     if (!admin) return json({ error: 'unauthorized' }, { statusCode: 401 });
     const crm = getAdminSupabase();
     const portal = getSupabase();
-    const testRun = await activeSalesTestRun(crm);
     if (event.httpMethod === 'GET') {
       const { data, error } = await crm.from('crm_leads').select('*')
         .order('source_created_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false, nullsFirst: false });
       if (error) throw error;
-      const leads = testRun?.status === 'active' ? (data || []).filter((lead) => isLeadInTestRun(lead, testRun.test_run)) : (data || []);
+      const leads = (data || []).filter((lead) => !lead.is_test && lead.source_payload?.simulated !== true);
       const campaignNames = await metaCampaignNames(leads);
       return json({ leads: leads.map((lead) => {
         const adId = lead.source_payload?.ad_id || String(lead.campaign_notion_urls?.[0] || '').match(/^meta-ad:(.+)$/)?.[1];
@@ -92,7 +90,6 @@ exports.handler = async (event) => {
       if (invalidEnum) return json({ error: 'invalid_lead_fields' }, { statusCode: 400 });
       const now = new Date().toISOString();
       const actor = await syncCrmIdentity(crm, admin);
-      const simulated = testRun?.status === 'active';
       const inserts = await Promise.all(inputs.map(async (input) => {
         const name = String(input.name || '').trim();
         const email = String(input.email || '').trim().toLowerCase() || null;
@@ -104,14 +101,14 @@ exports.handler = async (event) => {
         const ownerName = String(input.owner || '').trim();
         const owner = ownerName ? await resolveCrmOwner({ portal, crm, ownerName }) : { available: actor.available, user: null };
         const insert = {
-          name: simulated && !name.startsWith('TEST ·') ? `TEST · ${name}` : name,
+          name,
           email, phone, school_name: schoolName,
           area: input.area || null, lead_type: input.leadType || null, lifecycle: input.lifecycle || null, task_status: input.taskStatus || null,
           heat: input.heat == null ? 50 : Number(input.heat),
           comment: notes, body_text: notes,
           crm_stage: 'Por contactar', owner_names: ownerName ? [ownerName] : [],
-          is_test: simulated,
-          source_payload: { source, created_via: isGroup ? 'manual_group' : 'manual', created_by: admin.id, ...(input.campaign ? { campaign_name: String(input.campaign).trim() } : {}), ...(groupName ? { manual_group: groupName } : {}), ...(schoolName || source === 'schools' ? { form_name: 'colegios' } : {}), ...(simulated ? { simulated: true, test_run: testRun.test_run } : {}) },
+          is_test: false,
+          source_payload: { source, created_via: isGroup ? 'manual_group' : 'manual', created_by: admin.id, ...(input.campaign ? { campaign_name: String(input.campaign).trim() } : {}), ...(groupName ? { manual_group: groupName } : {}), ...(schoolName || source === 'schools' ? { form_name: 'colegios' } : {}) },
           source_created_at: now, source_updated_at: now,
         };
         if (actor.available && owner.available) { insert.updated_by_user_id = admin.id; insert.owner_id = owner.user?.id || null; }
@@ -124,9 +121,7 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'DELETE') {
       const ids = Array.isArray(body.ids) ? body.ids.filter(Boolean).slice(0, 200) : (body.id ? [body.id] : []);
       if (!ids.length) return json({ error: 'invalid_request' }, { statusCode: 400 });
-      let deletion = crm.from('crm_leads').delete().in('id', ids);
-      if (testRun?.status === 'active') deletion = deletion.eq('is_test', true).contains('source_payload', { test_run: testRun.test_run });
-      const { error } = await deletion;
+      const { error } = await crm.from('crm_leads').delete().in('id', ids);
       if (error) throw error;
       return json({ ok: true, deleted: ids.length });
     }
@@ -163,9 +158,7 @@ exports.handler = async (event) => {
         if (owner.available) update.owner_id = owner.user?.id || null;
       }
     }
-    let mutation = crm.from('crm_leads').update(update).eq('id', body.id);
-    if (testRun?.status === 'active') mutation = mutation.eq('is_test', true).contains('source_payload', { test_run: testRun.test_run });
-    const { data, error } = await mutation.select('*').single();
+    const { data, error } = await crm.from('crm_leads').update(update).eq('id', body.id).select('*').single();
     if (error) throw error;
     return json({ lead: data });
   } catch (error) {

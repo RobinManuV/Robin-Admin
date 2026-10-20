@@ -9,7 +9,6 @@ const { json, methodNotAllowed, serverError } = require('../../lib/http');
 const stripe = require('../../lib/stripe');
 const holded = require('../../lib/holded');
 const { getAdminSupabase } = require('../../lib/admin-supabase');
-const { activeSalesTestRun, testLeadIds } = require('../../lib/sales-test-mode');
 const { effectivePaymentStatus } = require('../../lib/payments');
 
 exports.handler = async (event) => {
@@ -31,9 +30,11 @@ exports.handler = async (event) => {
       .select('id, lead_id, username, email, role, requires_onboarding, dni_completed, profile_completed, contract_signed, nombre, apellidos, tipo, origin, assigned_to, application_phase, application_level, pais, telefono_alumno, intereses, pago_completed, created_at, updated_at')
       .order('created_at', { ascending: false });
     if (clientsError) throw clientsError;
-    const testRun = await activeSalesTestRun(getAdminSupabase());
-    const allowedLeadIds = testRun?.status === 'active' ? new Set(await testLeadIds(getAdminSupabase(), testRun.test_run)) : null;
-    const clientRows = (clients || []).filter((row) => !isApplicationAdmin(row) && (!allowedLeadIds || allowedLeadIds.has(String(row.lead_id || ''))));
+    const { data: testLeads, error: testLeadsError } = await getAdminSupabase()
+      .from('crm_leads').select('id,source_payload,is_test').or('is_test.eq.true,source_payload->>simulated.eq.true');
+    if (testLeadsError) throw testLeadsError;
+    const testLeadIds = new Set((testLeads || []).map((lead) => String(lead.id)));
+    const clientRows = (clients || []).filter((row) => !isApplicationAdmin(row) && !testLeadIds.has(String(row.lead_id || '')));
     const clientIds = clientRows.map((row) => row.id);
     let payments = [];
     if (clientIds.length) {

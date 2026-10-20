@@ -266,6 +266,10 @@
   to = "/.netlify/functions/admin-users"
   status = 200
 [[redirects]]
+  from = "/api/admin/database"
+  to = "/.netlify/functions/admin-database"
+  status = 200
+[[redirects]]
   from = "/api/admin/tasks"
   to = "/.netlify/functions/admin-tasks"
   status = 200

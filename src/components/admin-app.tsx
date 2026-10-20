@@ -58,7 +58,8 @@ const robinPlanWordmark = /(^|\.)project-robin\.com$/i.test(window.location.host
   ? "/admin/robin-wordmark.png"
   : "/robin-wordmark.png";
 import { DashboardLoader } from "@/components/dashboard-loader";
-import { allAdminTabPermissions, isProAdminEmail } from "@/lib/admin-permissions";
+import { EmptyChartBar } from "@/components/empty-chart-bar";
+import { allAdminTabPermissions, isDeveloperAdminEmail, isProAdminEmail } from "@/lib/admin-permissions";
 
 type NavItem = [string, string, typeof LayoutDashboard, string];
 
@@ -69,6 +70,21 @@ const workspaceTabs = [
   ["/crm", "CRM", "crm", "crm."],
   ["/analiticas/ventas", "Otras métricas", "analytics", "analytics."],
 ] as const;
+
+const teamSurprisePhotos = [
+  "/team-surprises/photo-01.jpg",
+  "/team-surprises/photo-02.jpg",
+  "/team-surprises/photo-03.jpg",
+  "/team-surprises/photo-04.jpg",
+  "/team-surprises/photo-05.jpg",
+  "/team-surprises/photo-06.jpg",
+  "/team-surprises/photo-07.jpg",
+  "/team-surprises/photo-08.png",
+  "/team-surprises/photo-09.jpg",
+  "/team-surprises/photo-10.jpg",
+  "/team-surprises/photo-11.jpg",
+  "/team-surprises/photo-12.png",
+];
 
 const sideMenus: Record<string, NavItem[]> = {
   home: [
@@ -123,8 +139,9 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
   const area = getArea(path);
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState("");
-  const [admins, setAdmins] = useState(["Noel", "Manuel", "María"]);
+  const [admins, setAdmins] = useState(() => ["Noel", "Manuel", "María", ...(isDeveloperAdminEmail(authUser.email) ? ["Santi"] : [])]);
   const isProAdmin = isProAdminEmail(authUser.email) || authUser.is_pro_admin === true;
+  const isDeveloperAdmin = isDeveloperAdminEmail(authUser.email);
   const visibleTabs = isProAdmin ? allAdminTabPermissions : (authUser.visible_tabs || allAdminTabPermissions);
   const canSee = (key: string) => visibleTabs.includes(key);
   const routePermission = path === "/" || path.startsWith("/informes/inicio") ? "home.summary"
@@ -157,7 +174,38 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
   const [portalLoading, setPortalLoading] = useState(true);
   const [holdedSnapshot, setHoldedSnapshot] = useState<HoldedSnapshot | null>(null);
   const [holdedLoading, setHoldedLoading] = useState(true);
+  const [teamSurpriseIndex, setTeamSurpriseIndex] = useState<number | null>(null);
+  const [usedTeamSurprisePhotos, setUsedTeamSurprisePhotos] = useState<number[]>([]);
+  const teamSurpriseSessionKey = `robin-team-surprise-seen-${authUser.id}`;
   const initials = currentUser.slice(0, 2).toUpperCase();
+
+  useEffect(() => {
+    const identity = [currentUser, authUser.nombre, authUser.email, authUser.username].filter(Boolean).join(" ")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    if (!/\b(noel|maria|candela|manuel)\b/.test(identity)) return;
+    try { if (window.sessionStorage.getItem(teamSurpriseSessionKey)) return; } catch { /* Continue without session storage. */ }
+    const selected = Math.floor(Math.random() * teamSurprisePhotos.length);
+    try { window.sessionStorage.setItem(teamSurpriseSessionKey, "1"); } catch { /* Popup remains available for this page. */ }
+    setUsedTeamSurprisePhotos([selected]);
+    setTeamSurpriseIndex(selected);
+  }, [authUser.email, authUser.id, authUser.nombre, authUser.username, currentUser, teamSurpriseSessionKey]);
+
+  function generateNewTeamSurprise() {
+    let used = usedTeamSurprisePhotos;
+    let available = teamSurprisePhotos.map((_, index) => index).filter((index) => !used.includes(index));
+    if (!available.length) {
+      used = teamSurpriseIndex == null ? [] : [teamSurpriseIndex];
+      available = teamSurprisePhotos.map((_, index) => index).filter((index) => !used.includes(index));
+    }
+    const next = available[Math.floor(Math.random() * available.length)];
+    setUsedTeamSurprisePhotos([...used, next]);
+    setTeamSurpriseIndex(next);
+  }
+
+  async function logout() {
+    try { window.sessionStorage.removeItem(teamSurpriseSessionKey); } catch { /* Ignore unavailable session storage. */ }
+    await onLogout();
+  }
 
   function advisorName(user: PortalAdmin) {
     if (user.nombre) return user.nombre;
@@ -350,12 +398,12 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
           </nav>
           <div className="top-actions">
             <span className="authenticated-user">{currentUser}</span>
-            <button aria-label="Cerrar sesión" onClick={() => void onLogout()}><LogOut /></button>
+            <button aria-label="Cerrar sesión" onClick={() => void logout()}><LogOut /></button>
           </div>
         </header>
 
         <main>
-          {accessDenied ? <div className="page"><div className="empty"><ShieldCheck /><h2>Sección no disponible</h2><p>Tu perfil no tiene acceso a esta sección. Pide a un administrador Pro que ajuste tus pestañas.</p>{firstAllowedHref && <a className="portal-link-button" href={adminPath(firstAllowedHref)}>Ir a una sección disponible</a>}</div></div> : dashboardLoading || ((path === "/" || path.startsWith("/informes/inicio")) && holdedLoading) ? <div className="page"><DashboardLoader /></div> : path === "/" ? <Dashboard snapshot={portalSnapshot} contacts={crmContacts} leadStages={leadStages} currentUser={currentUser} holded={holdedSnapshot} /> : path.startsWith("/informes/inicio") ? <DashboardReport snapshot={portalSnapshot} contacts={crmContacts} leadStages={leadStages} holded={holdedSnapshot} /> : (
+          {accessDenied ? <div className="page"><div className="empty"><ShieldCheck /><h2>Sección no disponible</h2><p>Tu perfil no tiene acceso a esta sección. Pide a un administrador Pro que ajuste sus pestañas.</p>{firstAllowedHref && <a className="portal-link-button" href={adminPath(firstAllowedHref)}>Ir a una sección disponible</a>}</div></div> : dashboardLoading || ((path === "/" || path.startsWith("/informes/inicio")) && holdedLoading) ? <div className="page"><DashboardLoader /></div> : path === "/" ? <Dashboard snapshot={portalSnapshot} contacts={crmContacts} leadStages={leadStages} currentUser={currentUser} holded={holdedSnapshot} isDeveloperAdmin={isDeveloperAdmin} /> : path.startsWith("/informes/inicio") ? <DashboardReport snapshot={portalSnapshot} contacts={crmContacts} leadStages={leadStages} holded={holdedSnapshot} /> : (
             <FeatureModule
               path={path}
               notify={setNotice}
@@ -385,6 +433,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
               portalConnected={true}
               portalAdmin={authUser}
               isProAdmin={isProAdmin}
+              isDeveloperAdmin={isDeveloperAdmin}
               onPortalRefresh={refreshPortalSnapshot}
               onAddAdmin={addAdmin}
               onRemoveAdmin={removeAdmin}
@@ -392,6 +441,8 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
           )}
         </main>
       </div>
+
+      {teamSurpriseIndex != null && <div className="team-surprise-backdrop" role="presentation"><section className="team-surprise-dialog" role="dialog" aria-modal="true" aria-labelledby="team-surprise-title"><button className="team-surprise-close" type="button" aria-label="Cerrar" onClick={() => setTeamSurpriseIndex(null)}><X /></button><span>ROBIN · EQUIPO</span><h2 id="team-surprise-title">Una sorpresa para empezar</h2><img src={teamSurprisePhotos[teamSurpriseIndex]} alt="Foto sorpresa del equipo" /><div className="team-surprise-actions"><Button variant="outline" onClick={generateNewTeamSurprise}><Sparkles />Generar nueva</Button><Button onClick={() => setTeamSurpriseIndex(null)}>Continuar</Button></div></section></div>}
 
       {notice && <div className="toast"><ShieldCheck /><span>{notice}</span><button onClick={() => setNotice("")}><X /></button></div>}
     </div>
@@ -439,7 +490,7 @@ function dashboardAcquisitionPeriod(period: "7" | "15" | "30" | "all"): Analytic
   return { from: localDateKey(start), to: localDateKey(end) };
 }
 
-function Dashboard({ snapshot, contacts, leadStages, currentUser, holded }: { snapshot: PortalSnapshot | null; contacts: Contact[]; leadStages: Record<string, CrmStage>; currentUser: string; holded: HoldedSnapshot | null }) {
+function Dashboard({ snapshot, contacts, leadStages, currentUser, holded, isDeveloperAdmin }: { snapshot: PortalSnapshot | null; contacts: Contact[]; leadStages: Record<string, CrmStage>; currentUser: string; holded: HoldedSnapshot | null; isDeveloperAdmin: boolean }) {
   const [period, setPeriod] = useState<"7" | "15" | "30" | "all">("all");
   const [acquisition, setAcquisition] = useState<SalesDashboard["acquisition"] | null>(null);
   useEffect(() => {
@@ -472,7 +523,8 @@ function Dashboard({ snapshot, contacts, leadStages, currentUser, holded }: { sn
   const visibleDays = Math.max(1, Math.floor((today.getTime() - rangeStart.getTime()) / 86400000) + 1);
   const chartData = acquisition?.buckets.map((bucket) => ({ day: bucket.tick || bucket.label, leads: bucket.leads, clients: bucket.clients }))
     || (period === "all" ? monthlySeries(rangeStart, today, contacts, clients) : dailySeries(rangeStart, visibleDays, contacts, clients));
-  const hotLeads = contacts.filter((lead) => lead.owner === currentUser && (lead.heat || 0) >= 80 && !["Cliente", "Lost"].includes(leadStages[lead.id] || lead.stage || "Por contactar"));
+  const chartHasValues = chartData.some((point) => point.leads > 0 || point.clients > 0);
+  const hotLeads = contacts.filter((lead) => (isDeveloperAdmin || lead.owner === currentUser) && (lead.heat || 0) >= 80 && !["Cliente", "Lost"].includes(leadStages[lead.id] || lead.stage || "Por contactar"));
   const funnelStages: Array<[string, CrmStage]> = [["Por contactar", "Por contactar"], ["Contactados", "Contactado"], ["Llamadas", "Llamada programada"], ["Propuestas", "Propuesta enviada"], ["Clientes", "Cliente"]];
   const funnel = funnelStages.map(([label, stage]) => [label, contacts.filter((lead) => (leadStages[lead.id] || lead.stage || "Por contactar") === stage).length] as const);
   const funnelBase = Math.max(1, contacts.length);
@@ -492,9 +544,9 @@ function Dashboard({ snapshot, contacts, leadStages, currentUser, holded }: { sn
         <a className="panel chart report-chart" href={dashboardReportUrl("altas", period)} target="_blank" rel="noreferrer" aria-label="Abrir informe de nuevos leads y clientes">
           <header className="phead"><div><h2>Nuevos leads y clientes</h2><p>Altas diarias · {periodLabel.toLowerCase()}</p></div><span className="report-hint">Ver informe <ExternalLink /></span></header>
           <div className="chart-legend"><span className="leads">Leads</span><span className="clients">Clientes</span></div>
-          <ResponsiveContainer width="100%" height={270}>
+          {chartHasValues ? <ResponsiveContainer width="100%" height={270}>
             <LineChart data={chartData} margin={{ top: 18, left: -16, right: 18, bottom: 4 }}><CartesianGrid vertical={false} stroke="#e8edf3" /><XAxis dataKey="day" axisLine={false} tickLine={false} /><YAxis allowDecimals={false} axisLine={false} tickLine={false} padding={{ top: 12 }} /><Tooltip /><Line type="monotone" dataKey="leads" name="Leads" stroke="#1f416f" strokeWidth={3} dot={{ r: 3, fill: "#1f416f" }} activeDot={{ r: 5 }} /><Line type="monotone" dataKey="clients" name="Clientes" stroke="#d69b3b" strokeWidth={3} dot={{ r: 3, fill: "#d69b3b" }} activeDot={{ r: 5 }} /></LineChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer> : <EmptyChartBar className="dashboard-empty-chart" />}
         </a>
 
         <section className="panel attention">
