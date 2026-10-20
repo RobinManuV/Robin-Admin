@@ -71,21 +71,6 @@ const workspaceTabs = [
   ["/analiticas/ventas", "Otras métricas", "analytics", "analytics."],
 ] as const;
 
-const teamSurprisePhotos = [
-  "/team-surprises/photo-01.jpg",
-  "/team-surprises/photo-02.jpg",
-  "/team-surprises/photo-03.jpg",
-  "/team-surprises/photo-04.jpg",
-  "/team-surprises/photo-05.jpg",
-  "/team-surprises/photo-06.jpg",
-  "/team-surprises/photo-07.jpg",
-  "/team-surprises/photo-08.png",
-  "/team-surprises/photo-09.jpg",
-  "/team-surprises/photo-10.jpg",
-  "/team-surprises/photo-11.jpg",
-  "/team-surprises/photo-12.png",
-];
-
 const sideMenus: Record<string, NavItem[]> = {
   home: [
     ["/", "Resumen", LayoutDashboard, "home.summary"],
@@ -174,36 +159,9 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
   const [portalLoading, setPortalLoading] = useState(true);
   const [holdedSnapshot, setHoldedSnapshot] = useState<HoldedSnapshot | null>(null);
   const [holdedLoading, setHoldedLoading] = useState(true);
-  const [teamSurpriseIndex, setTeamSurpriseIndex] = useState<number | null>(null);
-  const [usedTeamSurprisePhotos, setUsedTeamSurprisePhotos] = useState<number[]>([]);
-  const teamSurpriseSessionKey = `robin-team-surprise-seen-${authUser.id}`;
   const initials = currentUser.slice(0, 2).toUpperCase();
 
-  useEffect(() => {
-    const identity = [currentUser, authUser.nombre, authUser.email, authUser.username].filter(Boolean).join(" ")
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    if (!/\b(noel|maria|candela|manuel)\b/.test(identity)) return;
-    try { if (window.sessionStorage.getItem(teamSurpriseSessionKey)) return; } catch { /* Continue without session storage. */ }
-    const selected = Math.floor(Math.random() * teamSurprisePhotos.length);
-    try { window.sessionStorage.setItem(teamSurpriseSessionKey, "1"); } catch { /* Popup remains available for this page. */ }
-    setUsedTeamSurprisePhotos([selected]);
-    setTeamSurpriseIndex(selected);
-  }, [authUser.email, authUser.id, authUser.nombre, authUser.username, currentUser, teamSurpriseSessionKey]);
-
-  function generateNewTeamSurprise() {
-    let used = usedTeamSurprisePhotos;
-    let available = teamSurprisePhotos.map((_, index) => index).filter((index) => !used.includes(index));
-    if (!available.length) {
-      used = teamSurpriseIndex == null ? [] : [teamSurpriseIndex];
-      available = teamSurprisePhotos.map((_, index) => index).filter((index) => !used.includes(index));
-    }
-    const next = available[Math.floor(Math.random() * available.length)];
-    setUsedTeamSurprisePhotos([...used, next]);
-    setTeamSurpriseIndex(next);
-  }
-
   async function logout() {
-    try { window.sessionStorage.removeItem(teamSurpriseSessionKey); } catch { /* Ignore unavailable session storage. */ }
     await onLogout();
   }
 
@@ -441,8 +399,6 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
           )}
         </main>
       </div>
-
-      {teamSurpriseIndex != null && <div className="team-surprise-backdrop" role="presentation"><section className="team-surprise-dialog" role="dialog" aria-modal="true" aria-label="Foto sorpresa del equipo"><button className="team-surprise-close" type="button" aria-label="Cerrar" onClick={() => setTeamSurpriseIndex(null)}><X /></button><span>ROBIN · EQUIPO</span><img src={teamSurprisePhotos[teamSurpriseIndex]} alt="Foto sorpresa del equipo" /><div className="team-surprise-actions"><Button variant="outline" onClick={generateNewTeamSurprise}><Sparkles />Generar nueva</Button><Button onClick={() => setTeamSurpriseIndex(null)}>Continuar</Button></div></section></div>}
 
       {notice && <div className="toast"><ShieldCheck /><span>{notice}</span><button onClick={() => setNotice("")}><X /></button></div>}
     </div>
