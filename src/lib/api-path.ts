@@ -5,9 +5,16 @@ export function apiPath(path: string): string {
 
   const isProjectRobin = /(^|\.)project-robin\.com$/i.test(window.location.hostname);
   const pathname = window.location.pathname;
-  const usesPortalProxy = ["/portal", "/login", "/admin"].some(
+  const usesPortalProxy = ["/portal", "/login"].some(
     (base) => pathname === base || pathname.startsWith(`${base}/`),
   );
+  // /admin is served by the admin app directly, so its /api/admin and
+  // /api/internal functions stay at the domain root. Only the shared portal
+  // authentication/profile endpoints need the Worker proxy there.
+  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
+  const isPortalEndpoint = !/^\/api\/(admin|internal)\//.test(path);
 
-  return isProjectRobin && usesPortalProxy ? `/portal${path}` : path;
+  return isProjectRobin && (usesPortalProxy || (isAdminRoute && isPortalEndpoint))
+    ? `/portal${path}`
+    : path;
 }
