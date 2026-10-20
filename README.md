@@ -1,31 +1,32 @@
 # Robin Admin
 
-Panel administrativo de Robin. El portal del alumno se sirve desde el proyecto
-`robin-platform` (`https://project-robin.com/login`) y The Robin Plan desde
-`suscriptions-santi` (`https://project-robin.com/therobinplan/`). Este repositorio
-mantiene el panel de administración y las integraciones que este necesita.
+Panel interno de Project Robin para CRM, operaciones, finanzas, analítica e integraciones. El navegador ejecuta React/Vite; las rutas de datos se sirven con Netlify Functions y servicios de dominio en `lib/`.
 
-## Ejecutar
+## Inicio rápido
+
+Requisitos: Node.js compatible con la versión de Vite y npm.
 
 ```bash
-npm install
+npm ci
+cp .env.example .env
 npx netlify dev
 ```
 
-## Contenido
+Configura solo variables necesarias para el flujo local. Las claves de servicio pertenecen al backend y no deben usar el prefijo `VITE_`.
 
-- Inicio compartido y bandeja global de leads
-- Vista global de alumnos, pagos y analíticas conectada a `robin-platform`
-- CRM personal por etapas
-- Analíticas personales de pagos, finanzas, operaciones y ventas
-- Campañas de Meta Ads
-- Configuración de administradores e integraciones
+## Documentación
 
-Los accesos del menú superior abren los portales independientes. Las rutas
-antiguas `/alumnos` y `/the-robin-plan` redirigen a esos mismos portales.
+- [READMELONG](READMELONG.md): descripción extensa del producto y sus límites técnicos.
+- [USERGUIDE](USERGUIDE.md): árbol de navegación para entender el repositorio y seguir flujos entre repos.
+- [Arquitectura](docs/ARCHITECTURE.md): capas, dependencias y datos.
+- [Cloudflare y enrutamiento](docs/CLOUDFLARE_ROUTING.md): entrada desde `project-robin.com` hasta Netlify y Functions.
+- [Mapa técnico de archivos](docs/FILE_MAP.md), mantenido manualmente, y [índice generado](docs/FILE_INDEX.generated.md) con el [árbol de código](docs/codebase/README.md).
+- [Inventario de API](docs/API_INVENTORY.md): rutas de Netlify y handlers.
+- [Análisis CRM histórico](docs/crm-historical-metrics.md) y [mapeo CRM de Notion](docs/notion-crm-mapping.md).
 
-## Configuración
+## Repos relacionados
 
-Copia `.env.example` a `.env` y completa al menos `JWT_SECRET`, `SUPABASE_URL` y
-`SUPABASE_SERVICE_ROLE_KEY`. Las claves privadas solo las leen las Netlify
-Functions; nunca deben llevar el prefijo `VITE_`.
+- [Robin Platform cliente](https://github.com/RobinManuV/Robin-platform-cliente): portal de alumnos y origen de identidad compartida.
+- [Robin Subscriptions](https://github.com/saantimartinn/robin-subscriptions): The Robin Plan, con backend y base de datos propios.
+
+El árbol y los contratos de los otros repos se enlazan desde [USERGUIDE](USERGUIDE.md).
