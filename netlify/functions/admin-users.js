@@ -1,6 +1,6 @@
 const { getSupabase } = require('../../lib/supabase');
 const { hashPassword, readSessionFromEvent } = require('../../lib/auth');
-const { isApplicationAdmin } = require('../../lib/authorization');
+const { findAdminForSession } = require('../../lib/admin-auth');
 const { json, methodNotAllowed, parseJsonBody, serverError, verifyOrigin } = require('../../lib/http');
 const { passwordPolicy } = require('../../shared/password-policy.cjs');
 const { signedUrl } = require('../../lib/storage');
@@ -10,8 +10,7 @@ const { isProAdmin, normalizeVisibleTabs } = require('../../lib/admin-profiles')
 async function requireAdmin(sb, event) {
   const session = readSessionFromEvent(event);
   if (!session) return null;
-  const { data } = await sb.from('users').select('id,email,username,role').eq('id', session.uid).single();
-  return isApplicationAdmin(data) ? data : null;
+  return findAdminForSession(sb, session);
 }
 
 async function serializeUsers(sb, rows) {

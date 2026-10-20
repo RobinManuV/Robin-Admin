@@ -1,7 +1,7 @@
 const { getSupabase } = require('../../lib/supabase');
 const { getAdminSupabase } = require('../../lib/admin-supabase');
 const { readSessionFromEvent } = require('../../lib/auth');
-const { isApplicationAdmin } = require('../../lib/authorization');
+const { findAdminForSession } = require('../../lib/admin-auth');
 const { json, methodNotAllowed, parseJsonBody, serverError, verifyOrigin } = require('../../lib/http');
 const { activeSalesTestRun } = require('../../lib/sales-test-mode');
 
@@ -9,8 +9,7 @@ async function requireAdmin(event) {
   const session = readSessionFromEvent(event);
   if (!session) return null;
   const portal = getSupabase();
-  const { data } = await portal.from('users').select('id,email,username,nombre,apellidos,role').eq('id', session.uid).single();
-  return data && isApplicationAdmin(data) ? data : null;
+  return findAdminForSession(portal, session, 'id,email,username,nombre,apellidos,role');
 }
 
 async function stop(portal, crm) {

@@ -54,4 +54,3 @@ export const webAnalyticsClient = {
     return payload as { msg?: string };
   },
 };
-import { apiPath } from "@/lib/api-path";

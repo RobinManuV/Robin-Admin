@@ -1,7 +1,7 @@
 const { getSupabase } = require('../../lib/supabase');
 const { getAdminSupabase } = require('../../lib/admin-supabase');
 const { readSessionFromEvent } = require('../../lib/auth');
-const { isApplicationAdmin } = require('../../lib/authorization');
+const { findAdminForSession } = require('../../lib/admin-auth');
 const { json, methodNotAllowed, serverError, parseJsonBody } = require('../../lib/http');
 const { isBlockedLeadName } = require('../../lib/crm-lead-ingest');
 const { resolveCrmOwner, syncCrmIdentity } = require('../../lib/crm-identity');
@@ -14,8 +14,7 @@ const CONTACT_ROLES = new Set(['madre', 'padre', 'hijo', 'hija']);
 async function requireAdmin(event) {
   const session = readSessionFromEvent(event);
   if (!session) return null;
-  const { data: user } = await getSupabase().from('users').select('id,email,username,nombre,apellidos,role').eq('id', session.uid).single();
-  return user && isApplicationAdmin(user) ? user : null;
+  return findAdminForSession(getSupabase(), session, 'id,email,username,nombre,apellidos,role');
 }
 
 async function metaCampaignNames(leads) {
