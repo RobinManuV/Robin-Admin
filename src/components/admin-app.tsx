@@ -120,14 +120,24 @@ function isSideItemActive(path: string, href: string) {
 }
 
 export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogout: () => Promise<void> }) {
+  const [permissionProfile, setPermissionProfile] = useState(authUser);
+  useEffect(() => {
+    let active = true;
+    const refreshPermissions = () => {
+      if (document.visibilityState === "visible") void portalClient.me().then((user) => { if (active) setPermissionProfile(user); }).catch(() => undefined);
+    };
+    window.addEventListener("focus", refreshPermissions);
+    document.addEventListener("visibilitychange", refreshPermissions);
+    return () => { active = false; window.removeEventListener("focus", refreshPermissions); document.removeEventListener("visibilitychange", refreshPermissions); };
+  }, [authUser.id]);
   const path = window.location.pathname.replace(/^\/admin(?=\/|$)/, "") || "/";
   const area = getArea(path);
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [admins, setAdmins] = useState(() => ["Noel", "Manuel", "María", ...(isDeveloperAdminEmail(authUser.email) ? ["Santi"] : [])]);
-  const isProAdmin = isProAdminEmail(authUser.email) || authUser.is_pro_admin === true;
+  const isProAdmin = isProAdminEmail(permissionProfile.email) || permissionProfile.is_pro_admin === true;
   const isDeveloperAdmin = isDeveloperAdminEmail(authUser.email);
-  const visibleTabs = isProAdmin ? allAdminTabPermissions : (authUser.visible_tabs || allAdminTabPermissions);
+  const visibleTabs = isProAdmin ? allAdminTabPermissions : (permissionProfile.visible_tabs || []);
   const canSee = (key: string) => visibleTabs.includes(key);
   const routePermission = path === "/" || path.startsWith("/informes/inicio") ? "home.summary"
     : path === "/bandeja-leads" ? "home.leads"

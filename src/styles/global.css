@@ -190,4 +190,23 @@ body,.work,.page{background:#fff!important}
 .developer-database-console textarea { min-height: 180px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.55; }
 .developer-database-console form p { color: #8a5b20; font-size: 12px; margin: 0; }
 .developer-database-console .panel-heading h2 { display: flex; align-items: center; gap: 8px; }
+.developer-records { padding: 0; overflow: hidden; }
+.developer-records header,.developer-records footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; }
+.developer-records header h2 { margin: 0; color: #1c3961; font: 700 1rem Georgia,serif; }
+.developer-records header p { margin: .25rem 0 0; color: #71829a; font-size: .65rem; }
+.developer-records header button,.developer-records footer button,.developer-cell-editor button { border: 1px solid #cbd9e8; border-radius: .5rem; background: #f0f6fd; color: #244775; padding: .5rem .8rem; font-weight: 700; cursor: pointer; }
+.developer-records button:disabled { opacity: .5; cursor: default; }
+.developer-records-scroll { overflow: auto; max-height: 70vh; border-block: 1px solid #dce5ee; }
+.developer-records table { border-collapse: collapse; background: white; white-space: nowrap; }
+.developer-records th { position: sticky; top: 0; z-index: 1; background: #edf5fd; color: #244775; text-align: left; font-size: .66rem; }
+.developer-records th,.developer-records td { min-width: 9rem; max-width: 18rem; border: 1px solid #e3ebf2; padding: .42rem .55rem; }
+.developer-records td button,.developer-records td span { display: block; width: 100%; overflow: hidden; border: 0; background: transparent; color: #263d59; text-align: left; text-overflow: ellipsis; font-size: .66rem; cursor: pointer; }
+.developer-records td button:hover { background: #eaf3fd; }
+.developer-records footer span { color: #576c84; font-size: .7rem; }
+.developer-records-error { margin: .5rem 1rem; color: #aa3648; font-size: .7rem; }
+.developer-cell-editor { width: min(36rem, 95vw); padding: 1.3rem; }
+.developer-cell-editor h2 { color: #1c3961; font: 700 1.15rem Georgia,serif; }
+.developer-cell-editor p,.developer-cell-editor small { color: #6f8095; font-size: .7rem; }
+.developer-cell-editor textarea { display: block; width: 100%; margin: 1rem 0 .4rem; padding: .75rem; border: 1px solid #cbd9e8; border-radius: .5rem; font: .75rem ui-monospace,monospace; }
+.developer-cell-editor>div { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem; }
 .developer-database-result { max-height: 420px; overflow: auto; margin: 16px 0 0; padding: 14px; border: 1px solid #d6e0ec; border-radius: 10px; background: #f4f8fc; color: #17345b; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }

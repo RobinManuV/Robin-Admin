@@ -1,5 +1,6 @@
 "use client";
 
+import { DeveloperLeadsTable } from "@/components/developer-leads-table";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -115,6 +116,7 @@ export function FeatureModule(props: FeatureModuleProps) {
   if (path === "/configuracion") return <Configuration {...props} />;
   if (path === "/alumnos" || path.startsWith("/alumnos/")) return <ExternalAppRedirect href="https://project-robin.com/login" name="Portal del Alumno" />;
   if (path === "/the-robin-plan" || path.startsWith("/the-robin-plan/")) return <ExternalAppRedirect href="https://project-robin.com/therobinplan/" name="The Robin Plan" />;
+  if (path === "/crm/base-datos") return props.isDeveloperAdmin ? <div className="page"><Title name="Base de datos de leads" sub="Todos los registros y columnas de Supabase, con edición directa." eyebrow="CRM · DESARROLLADOR" /><DeveloperLeadsTable /></div> : <div className="page"><div className="empty"><ShieldCheck /><h2>Acceso restringido</h2></div></div>;
   if (path.startsWith("/crm")) return <Crm {...props} />;
   if (path.startsWith("/analiticas")) return <PersonalAnalytics path={path} currentUser={props.currentUser} contacts={props.contacts} leadStages={props.leadStages} snapshot={props.portalSnapshot} isDeveloperAdmin={props.isDeveloperAdmin} />;
   if (path.startsWith("/campanas")) return <Campaigns currentUser={props.currentUser} notify={props.notify} />;
@@ -994,12 +996,6 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
     try { await portalClient.deleteAdmin(user.id); setUsers((items) => items.filter((item) => item.id !== user.id)); onRemoveAdmin(user.nombre || user.email || ""); notify("Acceso eliminado"); }
     catch (error) { notify(error instanceof Error ? error.message : "No se pudo eliminar el usuario"); }
   }
-  function prepareSantiProfile() {
-    setName("Santi");
-    setEmail("santimartin1203@gmail.com");
-    setUsername("santimartin1203");
-    setAdding(true);
-  }
   async function savePermissions() {
     if (!editingPermissions) return;
     setBusy(true);
@@ -1029,7 +1025,7 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
   }
   return (
     <div className="page">
-      <Title name="Configuración" sub="Gestiona los usuarios con acceso al portal." eyebrow="INICIO · VISTA GLOBAL">{isProAdmin && <><Button variant="outline" onClick={prepareSantiProfile}><UserPlus />Preparar perfil de Santi</Button><Button onClick={() => setAdding(true)}><UserPlus />Añadir usuario</Button></>}</Title>
+      <Title name="Configuración" sub="Gestiona los usuarios con acceso al portal." eyebrow="INICIO · VISTA GLOBAL">{isProAdmin && <Button onClick={() => setAdding(true)}><UserPlus />Añadir usuario</Button>}</Title>
       {!isProAdmin && <div className="sync-status"><ShieldCheck /><span>Tu perfil puede consultar los administradores y gestionar su propia cuenta. Solo los perfiles Pro pueden añadir usuarios, eliminarlos o configurar sus pestañas.</span></div>}
       {adding && (
         <form className="panel add-user-form" onSubmit={createUser}>
@@ -1454,7 +1450,7 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, onAssignLead, le
   return (
     <div className="page">
       <Title name={title} sub={isDeveloperAdmin ? "Acceso global de desarrollo · todos los leads." : `Cartera comercial de ${currentUser}.`} eyebrow="CRM PERSONAL"><Badge variant="outline">{owned.length} REGISTROS</Badge></Title>
-      <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label>{path === "/crm" && <><Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{activeCrmFilters > 0 && <span className="filter-count">{activeCrmFilters}</span>}</Button><Button variant="outline" aria-pressed={leadView === "table"} onClick={() => setLeadView((view) => view === "cards" ? "table" : "cards")}>{leadView === "cards" ? <List /> : <LayoutGrid />}{leadView === "cards" ? "Vista tabla" : "Vista tarjetas"}</Button><Button className="crm-email-button" variant="outline" onClick={() => setEmailComposerOpen(true)}><Mail />Correo electrónico</Button></>}{path === "/crm/clientes" && <Button variant="outline" disabled={exportingClients} onClick={() => void exportClientDatabase()}><Download />{exportingClients ? "Preparando…" : "Descargar base de datos"}</Button>}</div>
+      <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label>{path === "/crm" && <><Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{activeCrmFilters > 0 && <span className="filter-count">{activeCrmFilters}</span>}</Button><Button variant="outline" aria-pressed={leadView === "table"} onClick={() => setLeadView((view) => view === "cards" ? "table" : "cards")}>{leadView === "cards" ? <List /> : <LayoutGrid />}{leadView === "cards" ? "Vista tabla" : "Vista tarjetas"}</Button><Button className="crm-email-button" variant="outline" onClick={() => setEmailComposerOpen(true)}><Mail />Correo electrónico</Button></>}{isDeveloperAdmin && <a className="ui-button outline" href={`${window.location.pathname.startsWith("/admin") ? "/admin" : ""}/crm/base-datos`}><Database />Base de datos</a>}{path === "/crm/clientes" && <Button variant="outline" disabled={exportingClients} onClick={() => void exportClientDatabase()}><Download />{exportingClients ? "Preparando…" : "Descargar base de datos"}</Button>}</div>
 
       {path === "/crm" && (
         <>

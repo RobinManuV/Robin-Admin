@@ -66,6 +66,8 @@ export const portalClient = {
   deleteAdmin: (id: string) => api.post<{ ok: boolean }>("/api/admin/users", { action: "delete", id }),
   setAdminPermissions: (id: string, visibleTabs: string[]) => api.post<{ ok: boolean; visible_tabs: string[] }>("/api/admin/users", { action: "permissions", id, visible_tabs: visibleTabs }),
   runDeveloperSql: (database: "portal" | "admin" | "robinplan", statement: string) => api.post<{ database: string; result: unknown }>("/api/admin/database", { database, statement }),
+  developerLeads: (page: number) => api.get<{ rows: Array<Record<string, unknown>>; total: number; page: number; pageSize: number }>(`/api/admin/developer-leads?page=${page}`),
+  updateDeveloperLeadCell: (id: string, column: string, value: unknown) => api.post<{ row: Record<string, unknown> }>("/api/admin/developer-leads", { id, column, value }),
   changePassword: (currentPassword: string, newPassword: string) => api.post<{ ok: boolean }>("/api/auth/change-password", { current_password: currentPassword, new_password: newPassword }),
   async uploadAvatar(file: File) {
     const ticket = await api.post<{ upload?: { signed_url?: string; path?: string } }>("/api/profile/avatar", { action: "upload_ticket", file_filename: file.name, file_mime: file.type, file_size: file.size });
