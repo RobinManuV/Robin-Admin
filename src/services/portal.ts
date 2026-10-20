@@ -6,19 +6,10 @@ export type PortalSnapshot = { admin: PortalAdmin; clients: PortalClient[]; paym
 export type SalesTestStatus = { active: boolean; test_run?: string; launched_at?: string; leads?: number; clients?: number; removed?: { leads: number; users: number } };
 
 import { api, login, logout, me } from "@/robin-platform/portal-source/src/api.js";
-
-function portalApiUrl(path: string) {
-  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
-  const usePortalProxy = pathname === "/portal" || pathname.startsWith("/portal/")
-    || pathname === "/login" || pathname.startsWith("/login/");
-  if (typeof window !== "undefined" && /(^|\.)project-robin\.com$/i.test(window.location.hostname) && usePortalProxy && path.startsWith("/api/")) {
-    return `/portal${path}`;
-  }
-  return path;
-}
+import { apiPath } from "@/lib/api-path";
 
 async function downloadClientDatabase() {
-  const response = await fetch(portalApiUrl("/api/admin/clients/export"), { credentials: "same-origin" });
+  const response = await fetch(apiPath("/api/admin/clients/export"), { credentials: "same-origin" });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload.detail || payload.error || `No se pudo descargar la base de datos (HTTP ${response.status})`);

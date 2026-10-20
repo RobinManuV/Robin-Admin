@@ -1,6 +1,7 @@
 // Cliente HTTP para la API real del portal Robin (Netlify functions + Supabase).
 // Todas las llamadas usan cookies ('same-origin').
 import { getLocalPreviewResponse } from "./preview-api.js";
+import { apiPath } from "../../../lib/api-path.ts";
 
 async function request(method, url, body) {
   const preview = await getLocalPreviewResponse(method, url);
@@ -10,16 +11,7 @@ async function request(method, url, body) {
     opts.headers["Content-Type"] = "application/json";
     opts.body = JSON.stringify(body);
   }
-  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
-  const usePortalProxy = pathname === "/portal" || pathname.startsWith("/portal/")
-    || pathname === "/login" || pathname.startsWith("/login/");
-  const publicUrl = typeof window !== "undefined"
-    && /(^|\.)project-robin\.com$/i.test(window.location.hostname)
-    && usePortalProxy
-    && url.startsWith("/api/")
-      ? "/portal" + url
-      : url;
-  const resp = await fetch(publicUrl, opts);
+  const resp = await fetch(apiPath(url), opts);
   let data = null;
   try { data = await resp.json(); } catch (error) { console.warn("[api] optional operation failed", error && error.message); }
   if (!resp.ok) {

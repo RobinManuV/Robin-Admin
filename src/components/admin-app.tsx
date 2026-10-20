@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiPath } from "@/lib/api-path";
 import {
   Activity,
   BarChart3,
@@ -252,7 +253,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
     const markActivity = () => { lastActivityAt = Date.now(); };
     const sendHeartbeat = () => {
       if (stopped || document.visibilityState !== "visible" || Date.now() - lastActivityAt > 5 * 60_000) return;
-      void fetch("/api/admin/crm/heartbeat", { method: "POST", credentials: "include", keepalive: true }).catch(() => undefined);
+      void fetch(apiPath("/api/admin/crm/heartbeat"), { method: "POST", credentials: "include", keepalive: true }).catch(() => undefined);
     };
     const onVisibility = () => { if (document.visibilityState === "visible") { markActivity(); sendHeartbeat(); } };
     const activityEvents: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "scroll", "touchstart"];

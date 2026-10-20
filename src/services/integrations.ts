@@ -1,3 +1,8 @@
+import { apiPath } from "@/lib/api-path";
+
+const apiFetch = (input: RequestInfo | URL, init?: RequestInit) =>
+  globalThis.fetch(typeof input === "string" ? apiPath(input) : input, init);
+
 export type IntegrationStatus = { holded: boolean; meta: boolean; stripe: boolean; email: boolean; applicationPortal: boolean; adminDatabase: boolean };
 export type FinanceTotals = { sales: number; billed: number; base: number; tax: number; collected: number; pending: number; overdue: number; invoices: number; paidInvoices: number; pendingInvoices: number; partialInvoices: number; overdueInvoices: number; drafts: number; averageTicket: number; collectionRate: number };
 export type HoldedSnapshot = { syncedAt: string; currency: string; currentMonth: FinanceTotals; currentYear: FinanceTotals; previousYear: FinanceTotals; last12Months: { month: string; label: string; sales: number; previousYearSales: number; billed: number; collected: number; pending: number; invoices: number }[]; recentInvoices: { id: string; number: string; customer: string; date: string | null; dueDate: string | null; subtotal: number; tax: number; total: number; paid: number; pending: number; status: string; currency: string }[] };
@@ -211,7 +216,7 @@ export const integrationClient = {
   status: async (): Promise<IntegrationStatus> => ({ holded: false, meta: false, stripe: false, email: false, applicationPortal: false, adminDatabase: false }),
   holded: async (): Promise<HoldedSnapshot> => {
     if (isLocalAdminPreview()) return previewHolded();
-    const response = await fetch('/api/admin/holded/snapshot', { credentials: 'include' });
+    const response = await apiFetch('/api/admin/holded/snapshot', { credentials: 'include' });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || 'No se pudieron cargar los datos de Holded');
     return payload as HoldedSnapshot;
@@ -220,7 +225,7 @@ export const integrationClient = {
     if (isLocalAdminPreview()) return { period: 'preview', account: { id: 'preview', name: 'Cuenta demo', currency: 'EUR', timezone: 'Europe/Madrid' }, summary: { spend: 0, impressions: 0, clicks: 0, reach: 0, ctr: 0, cpc: 0, cpm: 0, leads: 0, purchases: 0, revenue: 0, cpl: 0, cac: 0, roas: 0 }, campaigns: [], daily: [], syncedAt: new Date().toISOString() };
     const cached = !force ? cachedMeta() : null;
     if (cached) return cached;
-    const response = await fetch(`/api/admin/meta/insights${force ? '?refresh=1' : ''}`, { credentials: 'include' });
+    const response = await apiFetch(`/api/admin/meta/insights${force ? '?refresh=1' : ''}`, { credentials: 'include' });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       const fallback = cachedMeta();
@@ -234,14 +239,14 @@ export const integrationClient = {
   },
   paymentAnalytics: async (): Promise<PaymentAnalytics> => {
     if (isLocalAdminPreview()) return { application: { paid: 0, pending: 0 }, subscriptions: { paid: 0, pending: 0 } };
-    const response = await fetch('/api/admin/payment-analytics', { credentials: 'include' });
+    const response = await apiFetch('/api/admin/payment-analytics', { credentials: 'include' });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || 'No se pudieron cargar los pagos de Supabase');
     return payload as PaymentAnalytics;
   },
   financeDashboard: async (period: AnalyticsPeriod): Promise<FinanceDashboard> => {
     if (isLocalAdminPreview()) return previewFinanceDashboard(period);
-    const response = await fetch(`/api/admin/finance/dashboard?${periodQuery(period)}`, { credentials: 'include' });
+    const response = await apiFetch(`/api/admin/finance/dashboard?${periodQuery(period)}`, { credentials: 'include' });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || 'No se pudieron cargar las finanzas');
     return payload as FinanceDashboard;
@@ -261,14 +266,14 @@ export const integrationClient = {
       const buckets = Array.from({ length }, (_, index) => ({ key: `preview-${index}`, label: '', tick: '', leads: 0, contracts: 0, conversion: null }));
       return { period: periodId(period), rangeLabel: 'Vista previa local', granularity: previewGranularity(period), syncedAt: now.toISOString(), kpis: { contracted: 0, contracts: 5, leads: null, conversion: null, cac: 172, lac: null }, buckets, acquisition: { leads: 0, newClients: 0, buckets: buckets.map((bucket) => ({ key: bucket.key, label: bucket.label, tick: bucket.tick, leads: 0, clients: 0 })) }, channels: channels.map((channel) => ({ ...channel, leads: 0, contracts: 0, contracted: 0, percentage: null })), campaigns: [], marginsByChannel: channels.map((channel) => ({ ...channel, status: 'unavailable' as const, paid: null, spend: null, margin: null })), agents: ['Noel', 'Manuel', 'María'].map((name) => ({ key: name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), name, leads: 0, sales: 0, conversion: null })).concat([{ key: 'team', name: 'Media del equipo', leads: null, sales: null, conversion: null }]), teamAverage: null, sources: { portal: true, adminCrm: true, holdedMarketing: true, meta: true, historical: false }, meta: { currency: 'EUR', spend: 860 }, team: previewCrmPerformance(), scope: { type: scope, userName: scope === 'personal' ? 'Manuel' : undefined, metaSpend: 'global' } };
     }
-    const response = await fetch(`/api/admin/sales/dashboard?${periodQuery(period)}&scope=${scope}`, { credentials: 'include' });
+    const response = await apiFetch(`/api/admin/sales/dashboard?${periodQuery(period)}&scope=${scope}`, { credentials: 'include' });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || 'No se pudieron cargar las ventas');
     return payload as SalesDashboard;
   },
   sendWhatsApp: async () => ({ messageId: "demo" }),
   convertLead: async (lead: { leadId: string; name: string; email: string; advisor: string; clientType: string }) => {
-    const response = await fetch("/api/internal/crm/convert", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(lead) });
+    const response = await apiFetch("/api/internal/crm/convert", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(lead) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       const messages: Record<string, string> = { lead_email_required: "El lead necesita un email antes de pasar a IN", advisor_required: "Debes elegir el asesor del cliente", advisor_invalid: "El asesor elegido no tiene acceso activo al portal", identity_collision: "Ya existe un usuario con ese email o identificador", invalid_bootstrap_password_configuration: "Falta configurar una contraseña inicial válida" };

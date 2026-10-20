@@ -1,4 +1,8 @@
 import type { Contact, CrmStage, LeadCategory, LeadContactRole, LostReason } from "@/types/domain";
+import { apiPath } from "@/lib/api-path";
+
+const apiFetch = (input: RequestInfo | URL, init?: RequestInit) =>
+  globalThis.fetch(typeof input === "string" ? apiPath(input) : input, init);
 
 function isLocalAdminPreview() {
   if (import.meta.env?.VITE_ENABLE_LOCAL_PREVIEW !== "1"
@@ -150,14 +154,14 @@ export const adminDataClient = {
       if (index >= 0) previewLeads.splice(index, 1);
       return { ok: true, academicYear };
     }
-    const response = await fetch("/api/admin/crm/future-leads", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ leadId, academicYear }) });
+    const response = await apiFetch("/api/admin/crm/future-leads", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ leadId, academicYear }) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || "No se pudo mover el lead al próximo curso");
     return payload;
   },
   async listLeadCalls(leadId: string): Promise<LeadCall[]> {
     if (isLocalAdminPreview()) return previewCalls.filter((call) => call.leadId === leadId).map((call) => ({ ...call }));
-    const response = await fetch(`/api/admin/crm/lead-calls?leadId=${encodeURIComponent(leadId)}`, { credentials: "include" });
+    const response = await apiFetch(`/api/admin/crm/lead-calls?leadId=${encodeURIComponent(leadId)}`, { credentials: "include" });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || "No se pudieron cargar las llamadas");
     return payload.calls || [];
@@ -168,28 +172,28 @@ export const adminDataClient = {
       previewCalls.push(call);
       return { ...call };
     }
-    const response = await fetch("/api/admin/crm/lead-calls", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ leadId, durationMinutes, notes }) });
+    const response = await apiFetch("/api/admin/crm/lead-calls", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ leadId, durationMinutes, notes }) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || "No se pudo registrar la llamada");
     return payload.call;
   },
   async listLeadTeamNotes(leadId: string): Promise<LeadTeamNote[]> {
     if (isLocalAdminPreview()) return [];
-    const response = await fetch(`/api/admin/crm/lead-notes?leadId=${encodeURIComponent(leadId)}`, { credentials: "include" });
+    const response = await apiFetch(`/api/admin/crm/lead-notes?leadId=${encodeURIComponent(leadId)}`, { credentials: "include" });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || "No se pudieron cargar las notas del equipo");
     return payload.notes || [];
   },
   async addLeadTeamNote(leadId: string, body: string): Promise<LeadTeamNote> {
     if (isLocalAdminPreview()) return { id: `preview-${Date.now()}`, leadId, body, authorName: "Vista previa", createdAt: new Date().toISOString() };
-    const response = await fetch("/api/admin/crm/lead-notes", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ leadId, body }) });
+    const response = await apiFetch("/api/admin/crm/lead-notes", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ leadId, body }) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || "No se pudo guardar la nota del equipo");
     return payload.note;
   },
   async listLeads(): Promise<Contact[]> {
     if (isLocalAdminPreview()) return previewLeads.map((lead) => ({ ...lead }));
-    const response = await fetch("/api/admin/crm/leads", { credentials: "include" });
+    const response = await apiFetch("/api/admin/crm/leads", { credentials: "include" });
     if (!response.ok) throw new Error(response.status === 503 ? "Falta configurar la base de datos del CRM" : "No se pudieron cargar los leads");
     const payload = await response.json();
     return (payload.leads || []).map(toContact);
@@ -222,60 +226,60 @@ export const adminDataClient = {
     if (patch.lostAt !== undefined) update.lost_at = patch.lostAt || null;
     if (patch.lostReason !== undefined) update.lost_reason = patch.lostReason || null;
     if (patch.lostReasonDetail !== undefined) update.lost_reason_detail = patch.lostReasonDetail.trim() || null;
-    const response = await fetch("/api/admin/crm/leads", { method: "PATCH", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, patch: update }) });
+    const response = await apiFetch("/api/admin/crm/leads", { method: "PATCH", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, patch: update }) });
     if (!response.ok) throw new Error("No se pudo actualizar el lead");
     return { ok: true };
   },
   async deleteLead(id: string) {
-    const response = await fetch("/api/admin/crm/leads", { method: "DELETE", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) });
+    const response = await apiFetch("/api/admin/crm/leads", { method: "DELETE", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) });
     if (!response.ok) throw new Error("No se pudo eliminar el lead");
     return { ok: true };
   },
   async deleteLeads(ids: string[]) {
-    const response = await fetch("/api/admin/crm/leads", { method: "DELETE", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) });
+    const response = await apiFetch("/api/admin/crm/leads", { method: "DELETE", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) });
     if (!response.ok) throw new Error("No se pudieron eliminar los leads seleccionados");
     return { ok: true };
   },
   async createLead(input: { name: string; email?: string; phone?: string; notes?: string; owner?: string; source?: string }): Promise<Contact> {
-    const response = await fetch("/api/admin/crm/leads", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    const response = await apiFetch("/api/admin/crm/leads", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error === "name_required" ? "El nombre es obligatorio" : "No se pudo crear el lead");
     return toContact(payload.lead);
   },
   async createLeads(inputs: Array<{ name: string; email?: string; phone?: string; schoolName?: string; area?: string; leadType?: string; lifecycle?: string; taskStatus?: string; heat?: number; campaign?: string; notes?: string; owner?: string; groupName?: string }>): Promise<Contact[]> {
-    const response = await fetch("/api/admin/crm/leads", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ leads: inputs }) });
+    const response = await apiFetch("/api/admin/crm/leads", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ leads: inputs }) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error === "name_required" ? "Todas las filas completadas necesitan un nombre" : "No se pudo guardar el grupo de leads");
     return (payload.leads || []).map(toContact);
   },
   async getCrmEmailWorkspace(): Promise<{ draft: CrmEmailDraft | null; templates: CrmEmailTemplate[] }> {
-    const response = await fetch("/api/admin/crm/email", { credentials: "include" });
+    const response = await apiFetch("/api/admin/crm/email", { credentials: "include" });
     if (!response.ok) throw new Error("No se pudieron cargar borradores y plantillas de correo");
     return response.json();
   },
   async getCrmGmailStatus(): Promise<{ ready: boolean; reason?: string; sender?: string }> {
-    const response = await fetch("/api/admin/crm/email?action=gmail-status", { credentials: "include" });
+    const response = await apiFetch("/api/admin/crm/email?action=gmail-status", { credentials: "include" });
     if (!response.ok) throw new Error("No se pudo comprobar la conexión con Gmail");
     return response.json();
   },
   async sendCrmEmail(input: { recipientIds: string[]; subject: string; body: string }): Promise<{ sent: Array<{ id: string; email: string; messageId: string }>; skipped: Array<{ id: string; reason: string }>; failed: Array<{ id: string; email: string; reason: string }> }> {
-    const response = await fetch("/api/admin/crm/email?action=send", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    const response = await apiFetch("/api/admin/crm/email?action=send", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "No se pudo enviar el correo");
     return payload;
   },
   async saveCrmEmailDraft(draft: CrmEmailDraft): Promise<void> {
-    const response = await fetch("/api/admin/crm/email", { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) });
+    const response = await apiFetch("/api/admin/crm/email", { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) });
     if (!response.ok) throw new Error("No se pudo guardar el borrador en la base de datos");
   },
   async saveCrmEmailTemplate(template: Partial<CrmEmailTemplate> & Pick<CrmEmailTemplate, "name" | "subject" | "body">): Promise<CrmEmailTemplate> {
-    const response = await fetch("/api/admin/crm/email", { method: template.id ? "PATCH" : "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(template) });
+    const response = await apiFetch("/api/admin/crm/email", { method: template.id ? "PATCH" : "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(template) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "No se pudo guardar la plantilla");
     return payload.template;
   },
   async deleteCrmEmailTemplate(id: string): Promise<void> {
-    const response = await fetch("/api/admin/crm/email", { method: "DELETE", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) });
+    const response = await apiFetch("/api/admin/crm/email", { method: "DELETE", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) });
     if (!response.ok) throw new Error("No se pudo eliminar la plantilla");
   },
   subscribe(onChange: () => void) {

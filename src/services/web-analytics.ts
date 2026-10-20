@@ -1,3 +1,5 @@
+import { apiPath } from "@/lib/api-path";
+
 // Cliente de la pestaña "Web": habla con las funciones /api/admin/web/* del propio gestor.
 export type WebRange = { from: string; to: string; days: number };
 export type WebAnalytics = {
@@ -20,7 +22,7 @@ export type HeatmapData = {
 export type BlogStatus = { available: boolean; reason?: string; currentWeek?: string; current?: any; history?: any[]; publishDates?: any; config?: any };
 
 async function getJson<T>(url: string, fallbackError: string): Promise<T> {
-  const response = await fetch(url, { credentials: 'include' });
+  const response = await fetch(apiPath(url), { credentials: 'include' });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.detail || payload.reason || fallbackError);
   return payload as T;
@@ -41,7 +43,7 @@ export const webAnalyticsClient = {
     getJson<HeatmapData>(`/api/admin/web/heatmap?${qs({ path, device, from, to })}`, 'No se pudo cargar el mapa de calor'),
   blog: () => getJson<BlogStatus>('/api/admin/web/blog', 'No se pudo cargar la máquina de blogs'),
   blogAction: async (accion: 'investigar' | 'forzar' | 'redactar') => {
-    const response = await fetch('/api/admin/web/blog', {
+    const response = await fetch(apiPath('/api/admin/web/blog'), {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -52,3 +54,4 @@ export const webAnalyticsClient = {
     return payload as { msg?: string };
   },
 };
+import { apiPath } from "@/lib/api-path";
