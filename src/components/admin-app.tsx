@@ -519,8 +519,8 @@ function Dashboard({ snapshot, contacts, leadStages, currentUser, holded, isDeve
         </a>
 
         <section className="panel attention">
-          <Head title="Leads calientes" sub={isDeveloperAdmin ? "Heat igual o superior a 80 · equipo completo" : `Heat igual o superior a 80 · ${currentUser}`} />
-          <div>{hotLeads.length ? hotLeads.map((lead) => <button key={lead.id} onClick={() => window.location.assign(adminPath("/crm"))}><i className="red" /><div><strong>{lead.name}</strong><small>{isDeveloperAdmin ? `Responsable: ${lead.owner?.trim() || "Sin asignar"}` : (leadStages[lead.id] || lead.stage)}</small></div><em className="red">Heat {lead.heat}</em></button>) : <p className="empty-copy">{isDeveloperAdmin ? "No hay leads calientes." : "No hay leads calientes asignados."}</p>}</div>
+          <Head title="Leads calientes" sub={`Heat igual o superior a 80 · ${currentUser}`} />
+          <div>{hotLeads.length ? hotLeads.map((lead) => <button key={lead.id} onClick={() => window.location.assign(adminPath("/crm"))}><i className="red" /><div><strong>{lead.name}</strong><small>{leadStages[lead.id] || lead.stage}</small></div><em className="red">Heat {lead.heat}</em></button>) : <p className="empty-copy">No hay leads calientes asignados.</p>}</div>
         </section>
       </div>
 
