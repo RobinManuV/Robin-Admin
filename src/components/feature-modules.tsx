@@ -950,7 +950,7 @@ function GlobalPayments({ snapshot, connected, embedded = false }: { snapshot: P
   </div>;
 }
 
-function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, notify, isDeveloperAdmin }: FeatureModuleProps) {
+function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, notify, isProAdmin, isDeveloperAdmin }: FeatureModuleProps) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

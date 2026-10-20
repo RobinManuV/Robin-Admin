@@ -442,7 +442,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
         </main>
       </div>
 
-      {teamSurpriseIndex != null && <div className="team-surprise-backdrop" role="presentation"><section className="team-surprise-dialog" role="dialog" aria-modal="true" aria-labelledby="team-surprise-title"><button className="team-surprise-close" type="button" aria-label="Cerrar" onClick={() => setTeamSurpriseIndex(null)}><X /></button><span>ROBIN · EQUIPO</span><h2 id="team-surprise-title">Una sorpresa para empezar</h2><img src={teamSurprisePhotos[teamSurpriseIndex]} alt="Foto sorpresa del equipo" /><div className="team-surprise-actions"><Button variant="outline" onClick={generateNewTeamSurprise}><Sparkles />Generar nueva</Button><Button onClick={() => setTeamSurpriseIndex(null)}>Continuar</Button></div></section></div>}
+      {teamSurpriseIndex != null && <div className="team-surprise-backdrop" role="presentation"><section className="team-surprise-dialog" role="dialog" aria-modal="true" aria-label="Foto sorpresa del equipo"><button className="team-surprise-close" type="button" aria-label="Cerrar" onClick={() => setTeamSurpriseIndex(null)}><X /></button><span>ROBIN · EQUIPO</span><img src={teamSurprisePhotos[teamSurpriseIndex]} alt="Foto sorpresa del equipo" /><div className="team-surprise-actions"><Button variant="outline" onClick={generateNewTeamSurprise}><Sparkles />Generar nueva</Button><Button onClick={() => setTeamSurpriseIndex(null)}>Continuar</Button></div></section></div>}
 
       {notice && <div className="toast"><ShieldCheck /><span>{notice}</span><button onClick={() => setNotice("")}><X /></button></div>}
     </div>
