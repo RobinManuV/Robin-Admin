@@ -54,7 +54,9 @@ import { adminDataClient } from "@/services/admin-data";
 import type { FutureAcademicYear } from "@/services/admin-data";
 import { integrationClient } from "@/services/integrations";
 import type { AnalyticsDateRange, HoldedSnapshot, SalesDashboard } from "@/services/integrations";
-const robinPlanWordmark = "/robin-wordmark.png";
+const robinPlanWordmark = /(^|\.)project-robin\.com$/i.test(window.location.hostname)
+  ? "/admin/robin-wordmark.png"
+  : "/robin-wordmark.png";
 import { DashboardLoader } from "@/components/dashboard-loader";
 
 type NavItem = [string, string, typeof LayoutDashboard];

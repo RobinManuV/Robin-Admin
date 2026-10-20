@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { AdminApp } from "./components/admin-app";
 import { portalClient } from "./services/portal";
-const robinLogo = "/robin-wordmark.png";
+const robinLogo = /(^|\.)project-robin\.com$/i.test(window.location.hostname)
+  ? "/admin/robin-wordmark.png"
+  : "/robin-wordmark.png";
 
 export default function App() {
   const [user, setUser] = useState(null);
