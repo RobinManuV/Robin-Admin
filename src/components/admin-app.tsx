@@ -498,7 +498,7 @@ function Dashboard({ snapshot, contacts, leadStages, currentUser, holded }: { sn
   const liveStats = [
     ["Leads activos", String(activeLeads.length), "CRM conectado", Users, "blue", null],
     ["Nuevos leads", String(acquisition?.leads ?? newLeads.length), `${periodLabel} · CRM + histórico`, Sparkles, "gold", null],
-    ["Nuevos clientes", String(acquisition?.newClients ?? newClients.length), `${periodLabel} · fecha de firma conocida`, GraduationCap, "green", dashboardReportUrl("altas", period)],
+    ["Nuevos clientes", String(acquisition?.newClients ?? newClients.length), `${periodLabel} · conversión CRM o firma`, GraduationCap, "green", dashboardReportUrl("altas", period)],
     ["Ventas este año", holded ? `${Math.round(holded.currentYear.sales).toLocaleString("es-ES")} €` : "—", holded ? `${holded.currentYear.invoices} facturas en Holded` : "Holded no disponible", CircleDollarSign, "red", dashboardReportUrl("facturacion", period)],
   ] as const;
   const visibleDays = Math.max(1, Math.floor((today.getTime() - rangeStart.getTime()) / 86400000) + 1);
@@ -592,6 +592,9 @@ function DashboardReport({ snapshot, contacts, leadStages, holded }: { snapshot:
   const clients = snapshot?.clients || [];
   const leadsInRange = contacts.filter((lead) => inRange(lead.createdAt));
   const clientsInRange = clients.filter((client) => inRange(client.created_at));
+  const crmClientsInRange = contacts.filter((lead) => (leadStages[lead.id] || lead.stage) === "Cliente" && inRange(lead.clientAt || lead.createdAt));
+  const portalClientEmails = new Set(clientsInRange.map((client) => client.email?.trim().toLowerCase()).filter(Boolean));
+  const listedCrmClients = crmClientsInRange.filter((lead) => !lead.email || !portalClientEmails.has(lead.email.trim().toLowerCase()));
   const periodLabel = periodDays ? `Últimos ${periodDays} días` : "Todo el histórico";
   const stages: Array<[string, CrmStage]> = [["Por contactar", "Por contactar"], ["Contactados", "Contactado"], ["Llamadas programadas", "Llamada programada"], ["Propuestas enviadas", "Propuesta enviada"], ["Clientes", "Cliente"]];
   const title = type === "facturacion" ? "Informe de facturación anual" : type === "embudo" ? "Informe del embudo de captación" : "Informe de nuevos leads y clientes";
@@ -600,9 +603,9 @@ function DashboardReport({ snapshot, contacts, leadStages, holded }: { snapshot:
     <div className="title"><div><span>INFORME DETALLADO</span><h1>{title}</h1><p>Origen, criterio de cálculo y registros que componen el resultado.</p></div><button className="report-close" onClick={() => window.close()}>Cerrar pestaña</button></div>
 
     {type === "altas" && <>
-      <section className="report-summary"><article><span>Leads</span><strong>{acquisition?.leads ?? leadsInRange.length}</strong><small>CRM actual más histórico validado</small></article><article><span>Clientes</span><strong>{acquisition?.newClients ?? clientsInRange.length}</strong><small>Altas con fecha de firma conocida</small></article><article><span>Periodo</span><strong>{periodLabel}</strong><small>{start ? `${start.toLocaleDateString("es-ES")} – ${today.toLocaleDateString("es-ES")}` : "Desde mayo de 2025"}</small></article></section>
-      <ReportMethod text="El total de leads combina el histórico validado de Notion hasta el 22 de septiembre de 2026 con los leads nativos del CRM desde el 23 de septiembre. Los clientes históricos sin una fecha contractual verificable cuentan en la conversión de su cohorte, pero no se inventa una fecha de alta. Por privacidad, el desglose inferior solo muestra registros identificables ya presentes en los sistemas vivos; los hechos históricos seudónimos aparecen únicamente en los totales y gráficos." />
-      <ReportTable headers={["Tipo", "Nombre", "Email", "Fecha"]} rows={[...leadsInRange.map((lead) => ["Lead", lead.name, lead.email, formatReportDate(lead.createdAt)]), ...clientsInRange.map((client) => ["Cliente", [client.nombre, client.apellidos].filter(Boolean).join(" ") || client.username || "—", client.email || "—", formatReportDate(client.created_at)])]} />
+      <section className="report-summary"><article><span>Leads</span><strong>{acquisition?.leads ?? leadsInRange.length}</strong><small>CRM actual más histórico validado</small></article><article><span>Clientes</span><strong>{acquisition?.newClients ?? clientsInRange.length}</strong><small>Conversiones CRM o firmas registradas</small></article><article><span>Periodo</span><strong>{periodLabel}</strong><small>{start ? `${start.toLocaleDateString("es-ES")} – ${today.toLocaleDateString("es-ES")}` : "Desde mayo de 2025"}</small></article></section>
+      <ReportMethod text="El total de leads combina el histórico validado de Notion hasta el 22 de septiembre de 2026 con los leads nativos del CRM desde el 23 de septiembre. Los clientes incluyen las conversiones actuales del CRM —con la fecha de entrada o el evento de conversión— y usuarios con firma registrada, deduplicados. Los registros históricos seudónimos aparecen solo en los totales y gráficos; la tabla muestra filas identificables." />
+      <ReportTable headers={["Tipo", "Nombre", "Email", "Fecha"]} rows={[...leadsInRange.map((lead) => ["Lead", lead.name, lead.email, formatReportDate(lead.createdAt)]), ...clientsInRange.map((client) => ["Cliente", [client.nombre, client.apellidos].filter(Boolean).join(" ") || client.username || "—", client.email || "—", formatReportDate(client.created_at)]), ...listedCrmClients.map((lead) => ["Cliente · CRM", lead.name, lead.email, formatReportDate(lead.clientAt || lead.createdAt)])]} />
     </>}
 
     {type === "embudo" && <>

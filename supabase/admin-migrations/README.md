@@ -20,3 +20,5 @@ navegador.
   añadir registros a la bandeja, clientes ni eventos operativos.
 - `202610080002_seed_crm_historical_metrics.sql`: lote validado de 1.168 hechos
   históricos seudonimizados (109 clientes), sin nombres, emails ni teléfonos.
+- `202610190003_add_crm_leads_display_id.sql`: añade IDs legibles `ID-N` a
+  los leads; conserva sus UUID internos como claves y referencias.

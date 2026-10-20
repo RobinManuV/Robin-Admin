@@ -21,7 +21,7 @@ exports.handler = async (event) => {
 
     const [uRes, eRes, pRes, rRes, rsvpRes, dcRes] = await Promise.all([
       sb.from('subscribers')
-        .select('id, role, lead_id, nombre, apellidos, email, username, ciudad, subscription_status, subscription_plan, current_period_end, created_at, subscription_started_at, robin_level_override')
+        .select('id, display_id, role, lead_id, nombre, apellidos, email, username, ciudad, subscription_status, subscription_plan, current_period_end, created_at, subscription_started_at, robin_level_override')
         .or('is_subscriber.eq.true,role.eq.subscriber')
         .order('created_at', { ascending: false }),
       sb.from('community_events').select('*').order('sort_order', { ascending: true }).order('starts_at', { ascending: true }),

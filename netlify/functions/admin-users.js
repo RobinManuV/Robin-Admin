@@ -4,6 +4,7 @@ const { isApplicationAdmin } = require('../../lib/authorization');
 const { json, methodNotAllowed, parseJsonBody, serverError, verifyOrigin } = require('../../lib/http');
 const { passwordPolicy } = require('../../shared/password-policy.cjs');
 const { signedUrl } = require('../../lib/storage');
+const { identityExists } = require('../../lib/identity');
 
 async function requireAdmin(sb, event) {
   const session = readSessionFromEvent(event);
@@ -14,7 +15,7 @@ async function requireAdmin(sb, event) {
 
 async function serializeUsers(sb, rows) {
   return Promise.all(rows.map(async (row) => ({
-    id: row.id, email: row.email, username: row.username, nombre: row.nombre,
+    id: row.id, display_id: row.display_id, email: row.email, username: row.username, nombre: row.nombre,
     apellidos: row.apellidos, role: row.role,
     avatar_url: row.avatar_path ? await signedUrl(sb, row.avatar_path, { expiresIn: 3600 }) : null,
   })));
@@ -28,7 +29,7 @@ exports.handler = async (event) => {
     const actor = await requireAdmin(sb, event);
     if (!actor) return json({ error: 'forbidden' }, { statusCode: 403 });
     if (event.httpMethod === 'GET') {
-      const { data, error } = await sb.from('users').select('id,email,username,nombre,apellidos,role,avatar_path').order('nombre');
+      const { data, error } = await sb.from('users').select('id,display_id,email,username,nombre,apellidos,role,avatar_path').order('nombre');
       if (error) throw error;
       return json({ users: await serializeUsers(sb, (data || []).filter(isApplicationAdmin)) });
     }
@@ -45,11 +46,12 @@ exports.handler = async (event) => {
     if (body.action !== 'create') return json({ error: 'invalid_action' }, { statusCode: 400 });
     const name = String(body.name || '').trim();
     const email = String(body.email || '').trim().toLowerCase();
+    const username = String(body.username || email.split('@')[0] || '').trim().toLowerCase();
     const password = String(body.password || '');
-    if (!name || !email || !email.includes('@')) return json({ error: 'invalid_fields' }, { statusCode: 400 });
+    if (!name || !email || !email.includes('@') || !/^[a-z0-9._-]{3,50}$/.test(username)) return json({ error: 'invalid_fields' }, { statusCode: 400 });
     if (!passwordPolicy(password).ok) return json({ error: 'weak_password' }, { statusCode: 400 });
-    const username = email.split('@')[0];
-    const { data, error } = await sb.from('users').insert({ nombre: name, email, username, role: 'admin', password_hash: hashPassword(password), requires_onboarding: false }).select('id,email,username,nombre,apellidos,role,avatar_path').single();
+    if (await identityExists(sb, [email, username])) return json({ error: 'user_already_exists' }, { statusCode: 409 });
+    const { data, error } = await sb.from('users').insert({ nombre: name, email, username, role: 'admin', password_hash: hashPassword(password), requires_onboarding: false }).select('id,display_id,email,username,nombre,apellidos,role,avatar_path').single();
     if (error) throw error;
     return json({ user: (await serializeUsers(sb, [data]))[0] }, { statusCode: 201 });
   } catch (error) {

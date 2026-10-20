@@ -30,7 +30,7 @@ function AdminUsers({ users, requests, onChanged }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-slate-400 uppercase tracking-wide border-b border-slate-100">
-                <th className="px-4 py-3">Usuario</th><th className="px-4 py-3">Ciudad</th><th className="px-4 py-3">Plan</th>
+                <th className="px-4 py-3">ID</th><th className="px-4 py-3">Usuario</th><th className="px-4 py-3">Ciudad</th><th className="px-4 py-3">Plan</th>
                 <th className="px-4 py-3">Solicitudes</th><th className="px-4 py-3">Eventos</th><th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -39,6 +39,7 @@ function AdminUsers({ users, requests, onChanged }) {
                 const st = SUB_STATUS_LABELS[u.subscription_status] || SUB_STATUS_LABELS.none;
                 return (
                   <tr key={u.id} className="border-b border-slate-50 hover:bg-slate-50/60">
+                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{u.display_id || "—"}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-800">{u.name}</div>
                       <div className="text-xs text-slate-400">{u.email}</div>
@@ -55,7 +56,7 @@ function AdminUsers({ users, requests, onChanged }) {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">Sin resultados.</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-6 text-center text-slate-400">Sin resultados.</td></tr>}
             </tbody>
           </table>
         </CardContent>

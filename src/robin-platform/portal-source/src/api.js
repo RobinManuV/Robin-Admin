@@ -10,8 +10,12 @@ async function request(method, url, body) {
     opts.headers["Content-Type"] = "application/json";
     opts.body = JSON.stringify(body);
   }
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+  const usePortalProxy = pathname === "/portal" || pathname.startsWith("/portal/")
+    || pathname === "/login" || pathname.startsWith("/login/");
   const publicUrl = typeof window !== "undefined"
     && /(^|\.)project-robin\.com$/i.test(window.location.hostname)
+    && usePortalProxy
     && url.startsWith("/api/")
       ? "/portal" + url
       : url;

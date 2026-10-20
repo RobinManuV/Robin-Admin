@@ -1,6 +1,6 @@
 export type PortalAdmin = { id: string; email: string; username?: string; nombre?: string; apellidos?: string; avatar_url?: string | null };
-export type PortalAccessUser = { id: string; email?: string; username?: string; nombre?: string; apellidos?: string; role?: string; avatar_url?: string | null };
-export type PortalClient = { id: string; email?: string; username?: string; nombre?: string; apellidos?: string; tipo?: string; origin?: string; assigned_to?: string; application_phase?: number; application_level?: string; requires_onboarding?: boolean; dni_completed?: boolean; profile_completed?: boolean; contract_signed?: boolean; pago_completed?: boolean; pais?: string; telefono_alumno?: string; intereses?: string[]; created_at?: string; updated_at?: string };
+export type PortalAccessUser = { id: string; display_id?: string; email?: string; username?: string; nombre?: string; apellidos?: string; role?: string; avatar_url?: string | null };
+export type PortalClient = { id: string; display_id?: string; email?: string; username?: string; nombre?: string; apellidos?: string; tipo?: string; origin?: string; assigned_to?: string; application_phase?: number; application_level?: string; requires_onboarding?: boolean; dni_completed?: boolean; profile_completed?: boolean; contract_signed?: boolean; pago_completed?: boolean; pais?: string; telefono_alumno?: string; intereses?: string[]; created_at?: string; updated_at?: string };
 export type PortalPayment = { id: string; user_id: string; installment: number; amount: number; currency: string; status: string; invoice_number?: string; concept?: string };
 export type PortalSnapshot = { admin: PortalAdmin; clients: PortalClient[]; payments: PortalPayment[]; connections: { stripe: boolean; holded: boolean; email: boolean }; portalUrl: string };
 export type SalesTestStatus = { active: boolean; test_run?: string; launched_at?: string; leads?: number; clients?: number; removed?: { leads: number; users: number } };
@@ -8,7 +8,10 @@ export type SalesTestStatus = { active: boolean; test_run?: string; launched_at?
 import { api, login, logout, me } from "@/robin-platform/portal-source/src/api.js";
 
 function portalApiUrl(path: string) {
-  if (typeof window !== "undefined" && /(^|\.)project-robin\.com$/i.test(window.location.hostname) && path.startsWith("/api/")) {
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+  const usePortalProxy = pathname === "/portal" || pathname.startsWith("/portal/")
+    || pathname === "/login" || pathname.startsWith("/login/");
+  if (typeof window !== "undefined" && /(^|\.)project-robin\.com$/i.test(window.location.hostname) && usePortalProxy && path.startsWith("/api/")) {
     return `/portal${path}`;
   }
   return path;
@@ -32,7 +35,7 @@ export const portalClient = {
   snapshot: () => api.get("/api/admin/integration-snapshot") as Promise<PortalSnapshot>,
   downloadClientDatabase,
   adminUsers: () => api.get("/api/admin/users") as Promise<{ users: PortalAccessUser[] }>,
-  createAdmin: (payload: { name: string; email: string; password: string }) => api.post("/api/admin/users", { action: "create", ...payload }) as Promise<{ user: PortalAccessUser }>,
+  createAdmin: (payload: { name: string; email: string; username: string; password: string }) => api.post("/api/admin/users", { action: "create", ...payload }) as Promise<{ user: PortalAccessUser }>,
   deleteAdmin: (id: string) => api.post("/api/admin/users", { action: "delete", id }) as Promise<{ ok: boolean }>,
   changePassword: (currentPassword: string, newPassword: string) => api.post("/api/auth/change-password", { current_password: currentPassword, new_password: newPassword }) as Promise<{ ok: boolean }>,
   salesTestStatus: () => api.get("/api/admin/sales/test") as Promise<SalesTestStatus>,

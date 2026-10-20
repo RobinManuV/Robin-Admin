@@ -157,11 +157,11 @@ async function optionalRows(queryFactory) {
 }
 
 async function loadCrmLeads(crm) {
-  const fields = 'id,email,name,source_created_at,created_at,owner_names,owner_id,source_payload,crm_stage,lead_type,heat,contact_at,meeting_at,inside_at,lost_at,stage_entered_at,is_test,price_at_signature';
+  const fields = 'id,email,name,source_created_at,created_at,updated_at,owner_names,owner_id,source_payload,crm_stage,lead_type,heat,contact_at,meeting_at,inside_at,lost_at,stage_entered_at,is_test,price_at_signature';
   const result = await pagedRows(() => crm.from('crm_leads').select(fields));
   if (!result.error) return result.data || [];
   if (!isMissingPerformanceSchema(result.error)) throw result.error;
-  const fallback = await pagedRows(() => crm.from('crm_leads').select('id,email,name,source_created_at,created_at,owner_names,source_payload,crm_stage,lead_type,heat,contact_at,meeting_at,inside_at,lost_at'));
+  const fallback = await pagedRows(() => crm.from('crm_leads').select('id,email,name,source_created_at,created_at,updated_at,owner_names,source_payload,crm_stage,lead_type,heat,contact_at,meeting_at,inside_at,lost_at'));
   if (fallback.error) throw fallback.error;
   return fallback.data || [];
 }
