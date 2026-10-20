@@ -953,13 +953,27 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [users, setUsers] = useState<PortalAccessUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState("");
   const [avatarUrl, setAvatarUrl] = useState(portalAdmin.avatar_url || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [testBusy, setTestBusy] = useState(false);
   const [testStatus, setTestStatus] = useState<SalesTestStatus | null>(null);
-  useEffect(() => { portalClient.adminUsers().then((result) => setUsers(result.users)).catch(() => setUsers([])); }, []);
+  async function refreshAdminUsers() {
+    setUsersLoading(true);
+    setUsersError("");
+    try {
+      const result = await portalClient.adminUsers();
+      setUsers(result.users);
+    } catch (error) {
+      setUsersError(error instanceof Error ? error.message : "No se pudieron cargar los administradores");
+    } finally {
+      setUsersLoading(false);
+    }
+  }
+  useEffect(() => { void refreshAdminUsers(); }, []);
   useEffect(() => { portalClient.salesTestStatus().then(setTestStatus).catch(() => setTestStatus(null)); }, []);
 
   async function launchTest() {
@@ -1013,8 +1027,14 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
           ? <Button type="button" variant="outline" onClick={() => void stopTest()} disabled={testBusy}><StopCircle />{testBusy ? "Deteniendo…" : "Detener test"}</Button>
           : <Button type="button" onClick={() => void launchTest()} disabled={testBusy}><PlayCircle />{testBusy ? "Activando…" : "Launch test"}</Button>}
       </section>
-      <section className="admin-grid">
+      <section className="panel">
+        <div className="panel-heading"><div><h2>Usuarios administradores</h2><p>{users.length} perfiles con acceso al panel</p></div><Button variant="outline" type="button" onClick={() => void refreshAdminUsers()} disabled={usersLoading}>{usersLoading ? "Actualizando…" : "Actualizar"}</Button></div>
+        {usersLoading && users.length === 0 ? <p role="status">Cargando usuarios administradores…</p>
+          : usersError ? <p role="alert">{usersError}</p>
+            : users.length === 0 ? <p>No hay otros usuarios administradores para mostrar.</p>
+              : <div className="admin-grid">
         {users.map((user) => { const label = user.nombre || user.email || user.username || "Administrador"; const current = user.id === portalAdmin.id; return <article className="panel" key={user.id}><i className={user.avatar_url ? "has-photo" : ""}>{user.avatar_url ? <img src={user.avatar_url} alt="" /> : label.slice(0, 2).toUpperCase()}</i><div><h3>{label}</h3><p>{user.email || "Administrador"} · {user.username || "sin usuario"}{user.display_id ? ` · ${user.display_id}` : ""}{current ? " · Usuario actual" : ""}</p></div><Badge variant="outline">Activo</Badge>{current ? <span /> : <button type="button" className="remove-admin" aria-label={`Eliminar ${label}`} onClick={() => void removeUser(user)}><Trash2 /></button>}</article>; })}
+              </div>}
       </section>
     </div>
   );
