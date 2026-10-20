@@ -58,36 +58,37 @@ const robinPlanWordmark = /(^|\.)project-robin\.com$/i.test(window.location.host
   ? "/admin/robin-wordmark.png"
   : "/robin-wordmark.png";
 import { DashboardLoader } from "@/components/dashboard-loader";
+import { allAdminTabPermissions, isProAdminEmail } from "@/lib/admin-permissions";
 
-type NavItem = [string, string, typeof LayoutDashboard];
+type NavItem = [string, string, typeof LayoutDashboard, string];
 
 const workspaceTabs = [
-  ["/", "Inicio", "home"],
-  ["https://project-robin.com/login", "Portal del Alumno", "external"],
-  ["https://project-robin.com/therobinplan/", "The Robin Plan", "subscriptions"],
-  ["/crm", "CRM", "crm"],
-  ["/analiticas/ventas", "Otras métricas", "analytics"],
+  ["/", "Inicio", "home", "home."],
+  ["https://project-robin.com/login", "Portal del Alumno", "external", "platform.student_portal"],
+  ["https://project-robin.com/therobinplan/", "The Robin Plan", "subscriptions", "platform.robin_plan"],
+  ["/crm", "CRM", "crm", "crm."],
+  ["/analiticas/ventas", "Otras métricas", "analytics", "analytics."],
 ] as const;
 
 const sideMenus: Record<string, NavItem[]> = {
   home: [
-    ["/", "Resumen", LayoutDashboard],
-    ["/bandeja-leads", "Bandeja de leads", Inbox],
-    ["/alumnos-global", "Vista de alumnos", GraduationCap],
-    ["/analitica-global", "Analíticas generales", BarChart3],
-    ["/configuracion", "Configuración", Settings],
+    ["/", "Resumen", LayoutDashboard, "home.summary"],
+    ["/bandeja-leads", "Bandeja de leads", Inbox, "home.leads"],
+    ["/alumnos-global", "Vista de alumnos", GraduationCap, "home.students"],
+    ["/analitica-global", "Analíticas generales", BarChart3, "home.analytics"],
+    ["/configuracion", "Configuración", Settings, "home.settings"],
   ],
   crm: [
-    ["/crm", "Por contactar", UserCheck],
-    ["/crm/contactados", "Contactados", Users],
-    ["/crm/clientes", "Clientes", Sparkles],
-    ["/crm/lost", "Lost", CircleX],
+    ["/crm", "Por contactar", UserCheck, "crm.to_contact"],
+    ["/crm/contactados", "Contactados", Users, "crm.contacted"],
+    ["/crm/clientes", "Clientes", Sparkles, "crm.clients"],
+    ["/crm/lost", "Lost", CircleX, "crm.lost"],
   ],
   analytics: [
-    ["/analiticas/ventas", "Ventas P", TrendingUp],
-    ["/campanas", "Campañas", BriefcaseBusiness],
-    ["/web", "Web", Globe2],
-    ["/analiticas/operaciones", "Operaciones", PieChart],
+    ["/analiticas/ventas", "Ventas P", TrendingUp, "analytics.sales"],
+    ["/campanas", "Campañas", BriefcaseBusiness, "analytics.campaigns"],
+    ["/web", "Web", Globe2, "analytics.web"],
+    ["/analiticas/operaciones", "Operaciones", PieChart, "analytics.operations"],
   ],
 };
 
@@ -123,6 +124,26 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [admins, setAdmins] = useState(["Noel", "Manuel", "María"]);
+  const isProAdmin = isProAdminEmail(authUser.email) || authUser.is_pro_admin === true;
+  const visibleTabs = isProAdmin ? allAdminTabPermissions : (authUser.visible_tabs || allAdminTabPermissions);
+  const canSee = (key: string) => visibleTabs.includes(key);
+  const routePermission = path === "/" || path.startsWith("/informes/inicio") ? "home.summary"
+    : path === "/bandeja-leads" ? "home.leads"
+      : path === "/alumnos-global" || path.startsWith("/alumnos-global/") ? "home.students"
+        : path === "/analitica-global" || path === "/pagos" ? "home.analytics"
+          : path === "/configuracion" ? "home.settings"
+            : path.startsWith("/crm/contactados") ? "crm.contacted"
+              : path.startsWith("/crm/clientes") ? "crm.clients"
+                : path.startsWith("/crm/lost") ? "crm.lost"
+                  : path.startsWith("/crm") ? "crm.to_contact"
+                    : path.startsWith("/alumnos") ? "platform.student_portal"
+                      : path.startsWith("/the-robin-plan") ? "platform.robin_plan"
+                        : path.startsWith("/campanas") ? "analytics.campaigns"
+                          : path.startsWith("/web") ? "analytics.web"
+                            : path.startsWith("/analiticas/operaciones") ? "analytics.operations"
+                              : path.startsWith("/analiticas") ? "analytics.sales" : null;
+  const accessDenied = !isProAdmin && !!routePermission && !canSee(routePermission);
+  const firstAllowedHref = Object.values(sideMenus).flat().find(([, , , permission]) => canSee(permission))?.[0];
   const [currentUser] = useState(() => advisorName(authUser));
   const [crmContacts, setCrmContacts] = useState<Contact[]>([]);
   const [leadOwners, setLeadOwners] = useState<Record<string, string>>({});
@@ -301,7 +322,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
           {area !== "home" && <span>Vista de {currentUser}</span>}
         </div>
         <nav>
-          {sideMenus[area].map(([href, label, Icon]) => (
+          {sideMenus[area].filter(([, , , permission]) => canSee(permission)).map(([href, label, Icon]) => (
             <a href={adminPath(href)} key={href} className={isSideItemActive(path, href) ? "active" : ""} onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -321,7 +342,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
         <header className="top">
           <button className="menub" onClick={() => setOpen(true)} aria-label="Abrir menú"><Menu /></button>
           <nav className="workspace-tabs" aria-label="Áreas del gestor">
-            {workspaceTabs.map(([href, label, tabArea]) => {
+            {workspaceTabs.filter(([, , , permission]) => permission.endsWith(".") ? visibleTabs.some((key) => key.startsWith(permission)) : canSee(permission)).map(([href, label, tabArea]) => {
               const external = href.startsWith("https://");
               const destination = external ? href : adminPath(href);
               return <a href={destination} key={href} className={area === tabArea ? "active" : ""} rel={external ? "noreferrer" : undefined} onClick={external ? undefined : (event) => { event.preventDefault(); event.stopPropagation(); window.location.assign(destination); }}>{label}</a>;
@@ -334,7 +355,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
         </header>
 
         <main>
-          {dashboardLoading || ((path === "/" || path.startsWith("/informes/inicio")) && holdedLoading) ? <div className="page"><DashboardLoader /></div> : path === "/" ? <Dashboard snapshot={portalSnapshot} contacts={crmContacts} leadStages={leadStages} currentUser={currentUser} holded={holdedSnapshot} /> : path.startsWith("/informes/inicio") ? <DashboardReport snapshot={portalSnapshot} contacts={crmContacts} leadStages={leadStages} holded={holdedSnapshot} /> : (
+          {accessDenied ? <div className="page"><div className="empty"><ShieldCheck /><h2>Sección no disponible</h2><p>Tu perfil no tiene acceso a esta sección. Pide a un administrador Pro que ajuste tus pestañas.</p>{firstAllowedHref && <a className="portal-link-button" href={adminPath(firstAllowedHref)}>Ir a una sección disponible</a>}</div></div> : dashboardLoading || ((path === "/" || path.startsWith("/informes/inicio")) && holdedLoading) ? <div className="page"><DashboardLoader /></div> : path === "/" ? <Dashboard snapshot={portalSnapshot} contacts={crmContacts} leadStages={leadStages} currentUser={currentUser} holded={holdedSnapshot} /> : path.startsWith("/informes/inicio") ? <DashboardReport snapshot={portalSnapshot} contacts={crmContacts} leadStages={leadStages} holded={holdedSnapshot} /> : (
             <FeatureModule
               path={path}
               notify={setNotice}
@@ -363,6 +384,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
               portalSnapshot={portalSnapshot}
               portalConnected={true}
               portalAdmin={authUser}
+              isProAdmin={isProAdmin}
               onPortalRefresh={refreshPortalSnapshot}
               onAddAdmin={addAdmin}
               onRemoveAdmin={removeAdmin}

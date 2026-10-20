@@ -4,6 +4,7 @@ const { isApplicationAdmin } = require('../../lib/authorization');
 const { json, methodNotAllowed, serverError } = require('../../lib/http');
 const { applicationPlanForUser } = require('../../shared/financial-config.cjs');
 const { signedUrl } = require('../../lib/storage');
+const { isProAdmin, normalizeVisibleTabs } = require('../../lib/admin-profiles');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') return methodNotAllowed(['GET']);
@@ -24,6 +25,8 @@ exports.handler = async (event) => {
       email: u.email,
       role: u.role,
       is_application_admin: isApplicationAdmin(u),
+      is_pro_admin: isProAdmin(u),
+      visible_tabs: normalizeVisibleTabs(u.visible_tabs),
       requires_onboarding: !!u.requires_onboarding,
       dni_completed: !!u.dni_completed,
       profile_completed: !!u.profile_completed,

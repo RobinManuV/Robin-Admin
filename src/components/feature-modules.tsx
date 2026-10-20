@@ -28,6 +28,7 @@ import {
   Plus,
   PlayCircle,
   Search,
+  Settings,
   ShieldCheck,
   StopCircle,
   TrendingUp,
@@ -48,6 +49,7 @@ import { portalClient } from "@/services/portal";
 import type { PortalAccessUser, PortalAdmin, PortalClient, PortalSnapshot, SalesTestStatus } from "@/services/portal";
 import { ExternalAppRedirect } from "@/components/external-app-redirect";
 import { DashboardLoader } from "@/components/dashboard-loader";
+import { adminTabPermissions, allAdminTabPermissions } from "@/lib/admin-permissions";
 import {
   Area,
   AreaChart,
@@ -101,6 +103,7 @@ type FeatureModuleProps = {
   onPortalRefresh: () => Promise<void>;
   onAddAdmin: (name: string) => void;
   onRemoveAdmin: (name: string) => void;
+  isProAdmin: boolean;
 };
 
 export function FeatureModule(props: FeatureModuleProps) {
@@ -954,6 +957,8 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
   const [users, setUsers] = useState<PortalAccessUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersError, setUsersError] = useState("");
+  const [editingPermissions, setEditingPermissions] = useState<PortalAccessUser | null>(null);
+  const [selectedTabs, setSelectedTabs] = useState<string[]>([]);
   const [avatarUrl, setAvatarUrl] = useState(portalAdmin.avatar_url || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -1002,16 +1007,34 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
     try { await portalClient.deleteAdmin(user.id); setUsers((items) => items.filter((item) => item.id !== user.id)); onRemoveAdmin(user.nombre || user.email || ""); notify("Acceso eliminado"); }
     catch (error) { notify(error instanceof Error ? error.message : "No se pudo eliminar el usuario"); }
   }
+  function prepareSantiProfile() {
+    setName("Santi");
+    setEmail("santiago.martin.ab@gmail.com");
+    setUsername("santiago.martin.ab");
+    setAdding(true);
+  }
+  async function savePermissions() {
+    if (!editingPermissions) return;
+    setBusy(true);
+    try {
+      const result = await portalClient.setAdminPermissions(editingPermissions.id, selectedTabs);
+      setUsers((items) => items.map((item) => item.id === editingPermissions.id ? { ...item, visible_tabs: result.visible_tabs } : item));
+      setEditingPermissions(null);
+      notify("Pestañas del perfil actualizadas");
+    } catch (error) { notify(error instanceof Error ? error.message : "No se pudieron guardar las pestañas"); }
+    finally { setBusy(false); }
+  }
   return (
     <div className="page">
-      <Title name="Configuración" sub="Gestiona los usuarios con acceso al portal." eyebrow="INICIO · VISTA GLOBAL"><Button onClick={() => setAdding(true)}><UserPlus />Añadir usuario</Button></Title>
+      <Title name="Configuración" sub="Gestiona los usuarios con acceso al portal." eyebrow="INICIO · VISTA GLOBAL">{isProAdmin && <><Button variant="outline" onClick={prepareSantiProfile}><UserPlus />Preparar perfil de Santi</Button><Button onClick={() => setAdding(true)}><UserPlus />Añadir usuario</Button></>}</Title>
+      {!isProAdmin && <div className="sync-status"><ShieldCheck /><span>Tu perfil puede consultar los administradores y gestionar su propia cuenta. Solo los perfiles Pro pueden añadir usuarios, eliminarlos o configurar sus pestañas.</span></div>}
       {adding && (
         <form className="panel add-user-form" onSubmit={createUser}>
           <div><h2>Nuevo usuario administrador</h2><p>Añade un usuario con acceso al panel.</p></div>
           <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nombre" autoFocus required />
           <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" required />
           <input value={username} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))} placeholder="Usuario para iniciar sesión" minLength={3} maxLength={50} pattern="[a-z0-9._-]{3,50}" autoComplete="username" required />
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Contraseña inicial" minLength={10} required />
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Contraseña inicial" minLength={10} autoComplete="new-password" required />
           <Button type="submit" disabled={busy}>{busy ? "Creando…" : "Añadir"}</Button><Button type="button" variant="outline" onClick={() => setAdding(false)}>Cancelar</Button>
         </form>
       )}
@@ -1032,9 +1055,10 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
           : usersError ? <p role="alert">{usersError}</p>
             : users.length === 0 ? <p>No hay otros usuarios administradores para mostrar.</p>
               : <div className="admin-grid">
-        {users.map((user) => { const label = user.nombre || user.email || user.username || "Administrador"; const current = user.id === portalAdmin.id; return <article className="panel" key={user.id}><i className={user.avatar_url ? "has-photo" : ""}>{user.avatar_url ? <img src={user.avatar_url} alt="" /> : label.slice(0, 2).toUpperCase()}</i><div><h3>{label}</h3><p>{user.email || "Administrador"} · {user.username || "sin usuario"}{user.display_id ? ` · ${user.display_id}` : ""}{current ? " · Usuario actual" : ""}</p></div><Badge variant="outline">Activo</Badge>{current ? <span /> : <button type="button" className="remove-admin" aria-label={`Eliminar ${label}`} onClick={() => void removeUser(user)}><Trash2 /></button>}</article>; })}
+        {users.map((user) => { const label = user.nombre || user.email || user.username || "Administrador"; const current = user.id === portalAdmin.id; return <article className="panel" key={user.id}><i className={user.avatar_url ? "has-photo" : ""}>{user.avatar_url ? <img src={user.avatar_url} alt="" /> : label.slice(0, 2).toUpperCase()}</i><div><h3>{label}</h3><p>{user.email || "Administrador"} · {user.username || "sin usuario"}{user.display_id ? ` · ${user.display_id}` : ""}{current ? " · Usuario actual" : ""}</p></div><Badge variant="outline">{user.is_pro ? "Pro" : "Activo"}</Badge>{isProAdmin && !user.is_pro && <button type="button" className="ui-button outline" aria-label={`Configurar pestañas de ${label}`} title="Configurar pestañas" onClick={() => { setEditingPermissions(user); setSelectedTabs(user.visible_tabs || [...allAdminTabPermissions]); }}><Settings /></button>}{isProAdmin && !user.is_pro && !current ? <button type="button" className="remove-admin" aria-label={`Eliminar ${label}`} onClick={() => void removeUser(user)}><Trash2 /></button> : <span />}</article>; })}
               </div>}
       </section>
+      {editingPermissions && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditingPermissions(null); }}><section className="panel" role="dialog" aria-modal="true" aria-labelledby="admin-permissions-title"><div className="panel-heading"><div><h2 id="admin-permissions-title">Pestañas visibles · {editingPermissions.nombre || editingPermissions.email}</h2><p>Elige qué áreas y secciones puede abrir este perfil.</p></div><button type="button" aria-label="Cerrar" onClick={() => setEditingPermissions(null)}><X /></button></div><div className="permission-checklist">{adminTabPermissions.map((item) => <label key={item.key}><input type="checkbox" checked={selectedTabs.includes(item.key)} onChange={(event) => setSelectedTabs((current) => event.target.checked ? [...current, item.key] : current.filter((key) => key !== item.key))} /><span><small>{item.group}</small>{item.label}</span></label>)}</div><div className="team-surprise-actions"><Button variant="outline" type="button" onClick={() => setSelectedTabs([...allAdminTabPermissions])}>Marcar todas</Button><Button variant="outline" type="button" onClick={() => setSelectedTabs([])}>Quitar todas</Button><Button type="button" onClick={() => void savePermissions()} disabled={busy}>{busy ? "Guardando…" : "Guardar cambios"}</Button></div></section></div>}
     </div>
   );
 }

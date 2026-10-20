@@ -1,5 +1,5 @@
-export type PortalAdmin = { id: string; email: string; username?: string; nombre?: string; apellidos?: string; avatar_url?: string | null };
-export type PortalAccessUser = { id: string; display_id?: string; email?: string; username?: string; nombre?: string; apellidos?: string; role?: string; avatar_url?: string | null };
+export type PortalAdmin = { id: string; email: string; username?: string; nombre?: string; apellidos?: string; avatar_url?: string | null; is_pro_admin?: boolean; visible_tabs?: string[] };
+export type PortalAccessUser = { id: string; display_id?: string; email?: string; username?: string; nombre?: string; apellidos?: string; role?: string; avatar_url?: string | null; is_pro?: boolean; visible_tabs?: string[] };
 export type PortalClient = { id: string; display_id?: string; email?: string; username?: string; nombre?: string; apellidos?: string; tipo?: string; origin?: string; assigned_to?: string; application_phase?: number; application_level?: string; requires_onboarding?: boolean; dni_completed?: boolean; profile_completed?: boolean; contract_signed?: boolean; pago_completed?: boolean; pais?: string; telefono_alumno?: string; intereses?: string[]; created_at?: string; updated_at?: string };
 export type PortalPayment = { id: string; user_id: string; installment: number; amount: number; currency: string; status: string; invoice_number?: string; concept?: string };
 export type PortalSnapshot = { admin: PortalAdmin; clients: PortalClient[]; payments: PortalPayment[]; connections: { stripe: boolean; holded: boolean; email: boolean }; portalUrl: string };
@@ -62,9 +62,10 @@ export const portalClient = {
   logout,
   snapshot: () => api.get<PortalSnapshot>("/api/admin/integration-snapshot"),
   downloadClientDatabase,
-  adminUsers: () => api.get<{ users: PortalAccessUser[] }>("/api/admin/users"),
+  adminUsers: () => api.get<{ users: PortalAccessUser[]; current_is_pro: boolean }>("/api/admin/users"),
   createAdmin: (payload: { name: string; email: string; username: string; password: string }) => api.post<{ user: PortalAccessUser }>("/api/admin/users", { action: "create", ...payload }),
   deleteAdmin: (id: string) => api.post<{ ok: boolean }>("/api/admin/users", { action: "delete", id }),
+  setAdminPermissions: (id: string, visibleTabs: string[]) => api.post<{ ok: boolean; visible_tabs: string[] }>("/api/admin/users", { action: "permissions", id, visible_tabs: visibleTabs }),
   changePassword: (currentPassword: string, newPassword: string) => api.post<{ ok: boolean }>("/api/auth/change-password", { current_password: currentPassword, new_password: newPassword }),
   salesTestStatus: () => api.get<SalesTestStatus>("/api/admin/sales/test"),
   launchSalesTest: () => api.post<SalesTestStatus>("/api/admin/sales/test", { action: "launch" }),
