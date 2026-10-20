@@ -1,6 +1,6 @@
 "use client";
 
-import { DeveloperLeadsTable } from "@/components/developer-leads-table";
+import { DeveloperRecordsTable } from "@/components/developer-leads-table";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -114,14 +114,26 @@ export function FeatureModule(props: FeatureModuleProps) {
   if (path === "/alumnos-global" || path.startsWith("/alumnos-global/")) return <GlobalStudents path={path} snapshot={props.portalSnapshot} connected={props.portalConnected} contacts={props.contacts} />;
   if (path === "/analitica-global" || path === "/pagos") return <GlobalAnalytics contacts={props.contacts} leadStages={props.leadStages} snapshot={props.portalSnapshot} connected={props.portalConnected} />;
   if (path === "/configuracion") return <Configuration {...props} />;
+  if (path === "/base-datos" || path === "/crm/base-datos") return props.isDeveloperAdmin ? <DeveloperDatabasePage /> : <div className="page"><div className="empty"><ShieldCheck /><h2>Acceso restringido</h2></div></div>;
   if (path === "/alumnos" || path.startsWith("/alumnos/")) return <ExternalAppRedirect href="https://project-robin.com/login" name="Portal del Alumno" />;
   if (path === "/the-robin-plan" || path.startsWith("/the-robin-plan/")) return <ExternalAppRedirect href="https://project-robin.com/therobinplan/" name="The Robin Plan" />;
-  if (path === "/crm/base-datos") return props.isDeveloperAdmin ? <div className="page"><Title name="Base de datos de leads" sub="Todos los registros y columnas de Supabase, con edición directa." eyebrow="CRM · DESARROLLADOR" /><DeveloperLeadsTable /></div> : <div className="page"><div className="empty"><ShieldCheck /><h2>Acceso restringido</h2></div></div>;
   if (path.startsWith("/crm")) return <Crm {...props} />;
   if (path.startsWith("/analiticas")) return <PersonalAnalytics path={path} currentUser={props.currentUser} contacts={props.contacts} leadStages={props.leadStages} snapshot={props.portalSnapshot} isDeveloperAdmin={props.isDeveloperAdmin} />;
   if (path.startsWith("/campanas")) return <Campaigns currentUser={props.currentUser} notify={props.notify} />;
   if (path.startsWith("/web")) return <WebAnalytics notify={props.notify} />;
   return <div className="page"><div className="empty"><AlertTriangle /><h2>Vista no disponible</h2><p>Esta sección ya no forma parte de la nueva navegación.</p></div></div>;
+}
+
+function DeveloperDatabasePage() {
+  const [kind, setKind] = useState<"leads" | "clients">("leads");
+  return <div className="page">
+    <Title name="Base de datos" sub="Consulta y edita todos los leads y clientes desde tu perfil de desarrollador." eyebrow="DESARROLLADOR" />
+    <div className="developer-records-tabs" role="tablist" aria-label="Base de datos">
+      <button type="button" role="tab" aria-selected={kind === "leads"} onClick={() => setKind("leads")}>Leads · crm_leads</button>
+      <button type="button" role="tab" aria-selected={kind === "clients"} onClick={() => setKind("clients")}>Clientes · users</button>
+    </div>
+    <DeveloperRecordsTable key={kind} kind={kind} />
+  </div>;
 }
 
 function Title({ name, sub, eyebrow = "ROBIN ADMIN PLATFORM", children }: { name: string; sub: string; eyebrow?: string; children?: React.ReactNode }) {
@@ -1058,7 +1070,7 @@ function Configuration({ onAddAdmin, onRemoveAdmin, currentUser, portalAdmin, no
               </div>}
       </section>
       {isDeveloperAdmin && <section className="panel developer-database-console">
-        <div className="panel-heading"><div><h2><Database /> Consola de base de datos</h2><p>Acceso de desarrollador a los tres proyectos Supabase. Cada envío ejecuta una sola instrucción.</p></div><Badge variant="outline">DESARROLLADOR</Badge></div>
+        <div className="panel-heading"><div><h2><Database /> Consola de base de datos</h2><p>Acceso de desarrollador a los tres proyectos Supabase. Cada envío ejecuta una sola instrucción.</p></div><a className="ui-button outline" href={`${window.location.pathname.startsWith("/admin") ? "/admin" : ""}/base-datos`}>Abrir tablas de leads y clientes</a></div>
         <form onSubmit={(event) => void runDeveloperSql(event)}>
           <label>Proyecto<select value={databaseTarget} onChange={(event) => setDatabaseTarget(event.target.value as typeof databaseTarget)}><option value="portal">Portal del alumno</option><option value="admin">CRM / Admin</option><option value="robinplan">The Robin Plan</option></select></label>
           <label>SQL<textarea value={sqlStatement} onChange={(event) => setSqlStatement(event.target.value)} rows={8} spellCheck={false} placeholder="SELECT * FROM public.users LIMIT 20;" /></label>
@@ -1457,7 +1469,7 @@ function Crm({ path, currentUser, admins, contacts, leadOwners, onAssignLead, le
   return (
     <div className="page">
       <Title name={title} sub={isDeveloperAdmin ? "Acceso global de desarrollo · todos los leads." : `Cartera comercial de ${currentUser}.`} eyebrow="CRM PERSONAL"><Badge variant="outline">{owned.length} REGISTROS</Badge></Title>
-      <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label>{path === "/crm" && <><Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{activeCrmFilters > 0 && <span className="filter-count">{activeCrmFilters}</span>}</Button><Button variant="outline" aria-pressed={leadView === "table"} onClick={() => setLeadView((view) => view === "cards" ? "table" : "cards")}>{leadView === "cards" ? <List /> : <LayoutGrid />}{leadView === "cards" ? "Vista tabla" : "Vista tarjetas"}</Button><Button className="crm-email-button" variant="outline" onClick={() => setEmailComposerOpen(true)}><Mail />Correo electrónico</Button></>}{isDeveloperAdmin && <a className="ui-button outline" href={`${window.location.pathname.startsWith("/admin") ? "/admin" : ""}/crm/base-datos`}><Database />Base de datos</a>}{path === "/crm/clientes" && <Button variant="outline" disabled={exportingClients} onClick={() => void exportClientDatabase()}><Download />{exportingClients ? "Preparando…" : "Descargar base de datos"}</Button>}</div>
+      <div className="module-toolbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en mi cartera…" /></label>{path === "/crm" && <><Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}><Filter />Filtros{activeCrmFilters > 0 && <span className="filter-count">{activeCrmFilters}</span>}</Button><Button variant="outline" aria-pressed={leadView === "table"} onClick={() => setLeadView((view) => view === "cards" ? "table" : "cards")}>{leadView === "cards" ? <List /> : <LayoutGrid />}{leadView === "cards" ? "Vista tabla" : "Vista tarjetas"}</Button><Button className="crm-email-button" variant="outline" onClick={() => setEmailComposerOpen(true)}><Mail />Correo electrónico</Button></>}{isDeveloperAdmin && <a className="ui-button outline" href={`${window.location.pathname.startsWith("/admin") ? "/admin" : ""}/base-datos`}><Database />Base de datos</a>}{path === "/crm/clientes" && <Button variant="outline" disabled={exportingClients} onClick={() => void exportClientDatabase()}><Download />{exportingClients ? "Preparando…" : "Descargar base de datos"}</Button>}</div>
 
       {path === "/crm" && (
         <>

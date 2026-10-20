@@ -12,6 +12,7 @@ import {
   ChevronDown,
   CircleDollarSign,
   CreditCard,
+  Database,
   FileText,
   ExternalLink,
   GraduationCap,
@@ -78,6 +79,7 @@ const sideMenus: Record<string, NavItem[]> = {
     ["/alumnos-global", "Vista de alumnos", GraduationCap, "home.students"],
     ["/analitica-global", "Analíticas generales", BarChart3, "home.analytics"],
     ["/configuracion", "Configuración", Settings, "home.settings"],
+    ["/base-datos", "Base de datos", Database, "developer.database"],
   ],
   crm: [
     ["/crm", "Por contactar", UserCheck, "crm.to_contact"],
@@ -136,14 +138,15 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
   const [notice, setNotice] = useState("");
   const [admins, setAdmins] = useState(() => ["Noel", "Manuel", "María", ...(isDeveloperAdminEmail(authUser.email) ? ["Santi"] : [])]);
   const isProAdmin = isProAdminEmail(permissionProfile.email) || permissionProfile.is_pro_admin === true;
-  const isDeveloperAdmin = isDeveloperAdminEmail(authUser.email);
+  const isDeveloperAdmin = isDeveloperAdminEmail(permissionProfile.email);
   const visibleTabs = isProAdmin ? allAdminTabPermissions : (permissionProfile.visible_tabs || []);
-  const canSee = (key: string) => visibleTabs.includes(key);
+  const canSee = (key: string) => key === "developer.database" ? isDeveloperAdmin : visibleTabs.includes(key);
   const routePermission = path === "/" || path.startsWith("/informes/inicio") ? "home.summary"
     : path === "/bandeja-leads" ? "home.leads"
       : path === "/alumnos-global" || path.startsWith("/alumnos-global/") ? "home.students"
         : path === "/analitica-global" || path === "/pagos" ? "home.analytics"
           : path === "/configuracion" ? "home.settings"
+            : path === "/base-datos" ? "developer.database"
             : path.startsWith("/crm/contactados") ? "crm.contacted"
               : path.startsWith("/crm/clientes") ? "crm.clients"
                 : path.startsWith("/crm/lost") ? "crm.lost"

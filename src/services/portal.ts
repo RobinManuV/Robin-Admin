@@ -68,6 +68,8 @@ export const portalClient = {
   runDeveloperSql: (database: "portal" | "admin" | "robinplan", statement: string) => api.post<{ database: string; result: unknown }>("/api/admin/database", { database, statement }),
   developerLeads: (page: number) => api.get<{ rows: Array<Record<string, unknown>>; total: number; page: number; pageSize: number }>(`/api/admin/developer-leads?page=${page}`),
   updateDeveloperLeadCell: (id: string, column: string, value: unknown) => api.post<{ row: Record<string, unknown> }>("/api/admin/developer-leads", { id, column, value }),
+  developerClients: (page: number) => api.get<{ rows: Array<Record<string, unknown>>; total: number; page: number; pageSize: number }>(`/api/admin/developer-clients?page=${page}`),
+  updateDeveloperClientCell: (id: string, column: string, value: unknown) => api.post<{ row: Record<string, unknown> }>("/api/admin/developer-clients", { id, column, value }),
   changePassword: (currentPassword: string, newPassword: string) => api.post<{ ok: boolean }>("/api/auth/change-password", { current_password: currentPassword, new_password: newPassword }),
   async uploadAvatar(file: File) {
     const ticket = await api.post<{ upload?: { signed_url?: string; path?: string } }>("/api/profile/avatar", { action: "upload_ticket", file_filename: file.name, file_mime: file.type, file_size: file.size });
