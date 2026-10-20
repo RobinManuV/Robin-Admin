@@ -5,8 +5,45 @@ export type PortalPayment = { id: string; user_id: string; installment: number; 
 export type PortalSnapshot = { admin: PortalAdmin; clients: PortalClient[]; payments: PortalPayment[]; connections: { stripe: boolean; holded: boolean; email: boolean }; portalUrl: string };
 export type SalesTestStatus = { active: boolean; test_run?: string; launched_at?: string; leads?: number; clients?: number; removed?: { leads: number; users: number } };
 
-import { api, login, logout, me } from "@/robin-platform/portal-source/src/api.js";
 import { apiPath } from "@/lib/api-path";
+
+async function request<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+  const response = await fetch(apiPath(path), {
+    method,
+    credentials: "same-origin",
+    headers: body === undefined ? {} : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = payload?.error
+      ? `${payload.error}${payload.detail ? `: ${payload.detail}` : ""}`
+      : `HTTP ${response.status}`;
+    throw Object.assign(new Error(message), { status: response.status, data: payload });
+  }
+  return payload as T;
+}
+
+const api = {
+  get: <T>(path: string) => request<T>("GET", path),
+  post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
+};
+
+async function login(username: string, password: string) {
+  return api.post<{ user?: PortalAdmin }>("/api/auth/login", { username, password });
+}
+
+async function logout() {
+  try {
+    await api.post("/api/auth/logout");
+  } catch (error) {
+    console.warn("[api] optional logout failed", error instanceof Error ? error.message : error);
+  }
+}
+
+async function me() {
+  return api.get<PortalAdmin>("/api/me");
+}
 
 async function downloadClientDatabase() {
   const response = await fetch(apiPath("/api/admin/clients/export"), { credentials: "same-origin" });
@@ -23,21 +60,21 @@ export const portalClient = {
   login,
   me: me as () => Promise<PortalAdmin>,
   logout,
-  snapshot: () => api.get("/api/admin/integration-snapshot") as Promise<PortalSnapshot>,
+  snapshot: () => api.get<PortalSnapshot>("/api/admin/integration-snapshot"),
   downloadClientDatabase,
-  adminUsers: () => api.get("/api/admin/users") as Promise<{ users: PortalAccessUser[] }>,
-  createAdmin: (payload: { name: string; email: string; username: string; password: string }) => api.post("/api/admin/users", { action: "create", ...payload }) as Promise<{ user: PortalAccessUser }>,
-  deleteAdmin: (id: string) => api.post("/api/admin/users", { action: "delete", id }) as Promise<{ ok: boolean }>,
-  changePassword: (currentPassword: string, newPassword: string) => api.post("/api/auth/change-password", { current_password: currentPassword, new_password: newPassword }) as Promise<{ ok: boolean }>,
-  salesTestStatus: () => api.get("/api/admin/sales/test") as Promise<SalesTestStatus>,
-  launchSalesTest: () => api.post("/api/admin/sales/test", { action: "launch" }) as Promise<SalesTestStatus>,
-  stopSalesTest: () => api.post("/api/admin/sales/test", { action: "stop" }) as Promise<SalesTestStatus>,
+  adminUsers: () => api.get<{ users: PortalAccessUser[] }>("/api/admin/users"),
+  createAdmin: (payload: { name: string; email: string; username: string; password: string }) => api.post<{ user: PortalAccessUser }>("/api/admin/users", { action: "create", ...payload }),
+  deleteAdmin: (id: string) => api.post<{ ok: boolean }>("/api/admin/users", { action: "delete", id }),
+  changePassword: (currentPassword: string, newPassword: string) => api.post<{ ok: boolean }>("/api/auth/change-password", { current_password: currentPassword, new_password: newPassword }),
+  salesTestStatus: () => api.get<SalesTestStatus>("/api/admin/sales/test"),
+  launchSalesTest: () => api.post<SalesTestStatus>("/api/admin/sales/test", { action: "launch" }),
+  stopSalesTest: () => api.post<SalesTestStatus>("/api/admin/sales/test", { action: "stop" }),
   async uploadAvatar(file: File) {
-    const ticket = await api.post("/api/profile/avatar", { action: "upload_ticket", file_filename: file.name, file_mime: file.type, file_size: file.size });
+    const ticket = await api.post<{ upload?: { signed_url?: string; path?: string } }>("/api/profile/avatar", { action: "upload_ticket", file_filename: file.name, file_mime: file.type, file_size: file.size });
     const upload = ticket?.upload;
     if (!upload?.signed_url || !upload?.path) throw new Error("No se pudo preparar la subida de la foto");
     const response = await fetch(upload.signed_url, { method: "PUT", headers: { "Content-Type": file.type, "cache-control": "no-store", "x-upsert": "false" }, body: file });
     if (!response.ok) throw new Error("No se pudo subir la foto");
-    return api.post("/api/profile/avatar", { action: "commit", file_path: upload.path, file_filename: file.name, file_mime: file.type, file_size: file.size }) as Promise<{ ok: boolean; avatar_url: string }>;
+    return api.post<{ ok: boolean; avatar_url: string }>("/api/profile/avatar", { action: "commit", file_path: upload.path, file_filename: file.name, file_mime: file.type, file_size: file.size });
   },
 };
