@@ -199,9 +199,9 @@ export function ContactDrawer({ contact, admins = [], onClose, heat = contact.he
   );
 }
 
-export const contactRoleOptions = Object.keys(contactRoleLabels) as LeadContactRole[];
-
 export const contactRoleLabels: Record<LeadContactRole, string> = { madre: "Madre", padre: "Padre", hijo: "Hijo", hija: "Hija" };
+
+export const contactRoleOptions = Object.keys(contactRoleLabels) as LeadContactRole[];
 
 export function DeveloperDatabasePage() {
   const [kind, setKind] = useState<"leads" | "clients">("leads");
