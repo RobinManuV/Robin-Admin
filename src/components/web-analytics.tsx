@@ -783,6 +783,8 @@ function HeatmapsTab({ from, to }: { from: string; to: string }) {
   const [boxW, setBoxW] = useState(900);
   const frame = useRef<HTMLIFrameElement>(null);
   const box = useRef<HTMLDivElement>(null);
+  const siteOrigin = useRef("");
+  siteOrigin.current = siteUrl ? new URL(siteUrl).origin : "";
 
   useEffect(() => {
     webAnalyticsClient
@@ -798,6 +800,7 @@ function HeatmapsTab({ from, to }: { from: string; to: string }) {
   }, [from, to]);
 
   useEffect(() => {
+    setErr("");
     setHeat(null);
     webAnalyticsClient
       .heatmap(path, device, from, to)
@@ -808,15 +811,17 @@ function HeatmapsTab({ from, to }: { from: string; to: string }) {
       .catch((e) => setErr(e.message));
   }, [path, device, from, to]);
 
-  // Tamaño real de la página que informa la web desde dentro del iframe
+  // Escucha desde el montaje: la página del iframe puede informar su altura
+  // antes de que termine el efecto que actualiza siteUrl.
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      if (!siteUrl || new URL(siteUrl).origin !== e.origin) return;
-      if (e.data?.type === "robin-heatmap-size" && e.data.h) setFrameH(Math.min(40000, Number(e.data.h)));
+      if (!siteOrigin.current || siteOrigin.current !== e.origin) return;
+      const height = Number(e.data?.h);
+      if (e.data?.type === "robin-heatmap-size" && Number.isFinite(height) && height > 0) setFrameH(Math.min(40000, height));
     };
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
-  }, [siteUrl]);
+  }, []);
 
   useEffect(() => {
     const el = box.current;
@@ -840,7 +845,10 @@ function HeatmapsTab({ from, to }: { from: string; to: string }) {
 
   const width = FRAME_WIDTH[device];
   const scale = Math.min(1, (boxW - 2) / width);
-  const src = siteUrl ? `${siteUrl}${path}${path.includes("?") ? "&" : "?"}robin_heatmap=1` : "";
+  const pageUrl = siteUrl ? new URL(path, `${siteUrl}/`) : null;
+  pageUrl?.searchParams.set("robin_heatmap", "1");
+  const src = pageUrl?.toString() || "";
+  const openPageUrl = siteUrl ? new URL(path, `${siteUrl}/`).toString() : "";
 
   return (
     <div className="wa-heat">
@@ -892,7 +900,7 @@ function HeatmapsTab({ from, to }: { from: string; to: string }) {
           ))}
         </ol>
         {src && (
-          <a className="wa-open" href={`${siteUrl}${path}`} target="_blank" rel="noreferrer">
+          <a className="wa-open" href={openPageUrl} target="_blank" rel="noreferrer">
             <Globe /> Abrir la página
           </a>
         )}

@@ -24,9 +24,18 @@ function sourceFor(row: Record<string, any>): string {
   const source = String(row.source_payload?.source || "").trim().toLowerCase();
   if (source === "website") {
     const utmSource = String(row.source_payload?.utm_source || "").trim().toLowerCase();
-    return /(^|\W)(meta|facebook|instagram|fb|ig)(\W|$)/.test(utmSource) ? "Meta Ads" : "Página web";
+    if (/(^|\W)(meta|facebook|instagram|fb|ig)(\W|$)/.test(utmSource)) return "Meta Ads";
+    if (/(^|\W)(google|adwords)(\W|$)/.test(utmSource)) return "Google Ads";
+    if (/(^|\W)(tiktok|tik_tok)(\W|$)/.test(utmSource)) return "TikTok Ads";
+    if (/(^|\W)(email|newsletter|mail)(\W|$)/.test(utmSource)) return "Email";
+    if (utmSource && !["website", "web", "direct", "(direct)"].includes(utmSource)) return `Web · ${utmSource}`;
+    return "Página web";
   }
   if (source === "meta") return "Meta Ads";
+  if (["google", "google_ads", "adwords"].includes(source)) return "Google Ads";
+  if (["tiktok", "tiktok_ads", "tik_tok"].includes(source)) return "TikTok Ads";
+  if (["email", "newsletter", "email_fallback"].includes(source)) return "Email";
+  if (["event", "events", "webinar"].includes(source)) return "Eventos";
   if (["organic", "organico"].includes(source)) return "Orgánico";
   if (["organic_social", "organico_rrss", "rrss"].includes(source)) return "Orgánico RRSS";
   if (["referral", "referido", "referidos"].includes(source)) return "Referidos";
@@ -72,6 +81,17 @@ function humanizeLeadField(value: unknown) {
   return text.replace(/_+/g, " ").trim();
 }
 
+function countryFromComment(comment: unknown) {
+  const text = String(comment || "");
+  const inlineMatch = text.match(/(?:^|[\n·;|])\s*(?:pa[ií]s|country)\s*:\s*([^\n·;|]+)/i);
+  const value = inlineMatch?.[1]?.trim() || labeledCommentValue(text, /(^|_)(pais|country)($|_)/);
+  if (!value) return "Otros";
+  const normalized = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  if (["es", "espana", "spain"].includes(normalized) || /^(espana|spain)\b/.test(normalized)) return "España";
+  if (["pt", "portugal"].includes(normalized) || /^portugal\b/.test(normalized)) return "Portugal";
+  return "Otros";
+}
+
 function databaseFieldValues(row: Record<string, any>): Record<string, string> {
   return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, value == null ? "" : Array.isArray(value) ? value.join(", ") : typeof value === "object" ? JSON.stringify(value) : String(value)]));
 }
@@ -110,7 +130,9 @@ function toContact(row: Record<string, any>): Contact {
   const isNotionUrl = (value: string) => /^https?:\/\/(?:www\.)?notion\.(?:so|site|com)\//i.test(value);
   const campaign = [payloadCampaign, storedCampaign].find((value) => value && !value.startsWith("meta-ad:") && !isNotionUrl(value)) || "Pendiente de identificar";
   const comment = row.comment || row.body_text || row.summary || formNotes || remainingFormDetails || "";
-  return { id: row.id, displayId: row.display_id || undefined, name, initials: name.split(/\s+/).slice(0, 2).map((part: string) => part[0] || "").join("").toUpperCase(), email: row.email || fieldValue(fields, /^e?mail$/, /^correo/) || "", phone: row.phone || fieldValue(fields, /phone/, /telefono/, /movil/) || "", country: "", university: row.school_name || "", course, interest, comment, contactAt: row.contact_at || undefined, contactRole: row.contact_role || undefined, product: "Aplicación", status: statusFor(stage), source: sourceFor(row), campaign, owner: row.owner_names?.[0] || "", probability: Number(row.heat || 0), nextAction: "", lastContact: row.contact_at || "—", value: 0, tags: [], databaseFields: databaseFieldValues(row), formName, category: category as LeadCategory | undefined, heat: Number(row.heat ?? 50), notes: comment, stage, lostAt: row.lost_at || undefined, lostReason: row.source_payload?.lost_reason || undefined, lostReasonDetail: row.source_payload?.lost_reason_detail || undefined, createdAt: row.source_created_at || row.created_at || undefined, clientAt: row.inside_at || undefined };
+  const countryField = fieldValue(fields, /(^|_)(pais|country)($|_)/);
+  const country = countryFromComment(sourceComment) === "Otros" ? countryFromComment(`País: ${countryField}`) : countryFromComment(sourceComment);
+  return { id: row.id, displayId: row.display_id || undefined, name, initials: name.split(/\s+/).slice(0, 2).map((part: string) => part[0] || "").join("").toUpperCase(), email: row.email || fieldValue(fields, /^e?mail$/, /^correo/) || "", phone: row.phone || fieldValue(fields, /phone/, /telefono/, /movil/) || "", country, university: row.school_name || "", course, interest, comment, contactAt: row.contact_at || undefined, contactRole: row.contact_role || undefined, product: "Aplicación", status: statusFor(stage), source: sourceFor(row), campaign, owner: row.owner_names?.[0] || "", probability: Number(row.heat || 0), nextAction: "", lastContact: row.contact_at || "—", value: 0, tags: [], databaseFields: databaseFieldValues(row), formName, category: category as LeadCategory | undefined, heat: Number(row.heat ?? 50), notes: comment, stage, lostAt: row.lost_at || undefined, lostReason: row.source_payload?.lost_reason || undefined, lostReasonDetail: row.source_payload?.lost_reason_detail || undefined, createdAt: row.source_created_at || row.created_at || undefined, clientAt: row.inside_at || undefined };
 }
 
 export const adminDataClient = {
