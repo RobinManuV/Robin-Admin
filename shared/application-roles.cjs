@@ -1,3 +1,4 @@
+// Shared application roles values or helpers used across this runtime.
 const APPLICATION_ADMIN_ROLES = Object.freeze(['admin', 'supervisor']);
 
 function normalizeApplicationRole(value) {

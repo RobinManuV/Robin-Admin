@@ -1,3 +1,4 @@
+-- SQL change for 202608260001 add user avatar path; apply it only to the Supabase project that owns this migration.
 alter table public.users
   add column if not exists avatar_path text;
 

@@ -1,3 +1,4 @@
+// Maintenance utility for import historical crm metrics; it is run explicitly by developers or CI.
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import process from 'node:process';

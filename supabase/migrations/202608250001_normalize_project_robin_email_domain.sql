@@ -1,3 +1,4 @@
+-- SQL change for 202608250001 normalize project robin email domain; apply it only to the Supabase project that owns this migration.
 begin;
 
 -- The retired domain cannot receive mail. Normalize every operational email

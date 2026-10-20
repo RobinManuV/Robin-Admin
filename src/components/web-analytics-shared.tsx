@@ -1,3 +1,4 @@
+// Admin interface component for web analytics shared; composed by the shell or a feature module.
 import type { ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
 

@@ -1,3 +1,4 @@
+// Browser API client for web analytics; keeps endpoint and fetch details out of the screens.
 import { apiPath } from "@/lib/api-path";
 
 // Cliente de la pestaña "Web": habla con las funciones /api/admin/web/* del propio gestor.

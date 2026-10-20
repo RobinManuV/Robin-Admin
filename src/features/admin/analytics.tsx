@@ -1,3 +1,4 @@
+// Admin feature module for analytics; the feature registry connects it to the authenticated shell.
 import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import type { Contact, CrmStage } from "@/types/domain";

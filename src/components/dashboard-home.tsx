@@ -1,3 +1,4 @@
+// Admin interface component for dashboard home; composed by the shell or a feature module.
 import { useEffect, useState } from "react";
 import {
   CalendarDays, ChevronDown, CircleDollarSign, ExternalLink, GraduationCap,

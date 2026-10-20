@@ -1,3 +1,4 @@
+// Admin interface component for web analytics; composed by the shell or a feature module.
 "use client";
 
 // ============================================================

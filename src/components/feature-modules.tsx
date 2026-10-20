@@ -1,3 +1,4 @@
+// Admin interface component for feature modules; composed by the shell or a feature module.
 import { lazy, Suspense } from "react";
 import { AlertTriangle, ShieldCheck } from "lucide-react";
 import type { FeatureModuleProps } from "@/features/admin/feature-shared";

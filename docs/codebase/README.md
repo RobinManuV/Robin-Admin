@@ -22,7 +22,6 @@ Robin Admin source tree, grouped by runtime responsibility.
 |---|---|
 | [`.env.example`](../../.env.example) | Repository file: .env.example. |
 | [`.gitignore`](../../.gitignore) | Repository file: .gitignore. |
-| [`FRONTEND_STRUCTURE.md`](../../FRONTEND_STRUCTURE.md) | Repository file: FRONTEND_STRUCTURE.md. |
 | [`README.md`](../../README.md) | Project entry point and quick-start guide. |
 | [`READMELONG.md`](../../READMELONG.md) | Extended technical project and runtime overview. |
 | [`USERGUIDE.md`](../../USERGUIDE.md) | Navigable technical guide to source modules and cross-repository flows. |

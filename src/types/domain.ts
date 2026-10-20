@@ -1,3 +1,4 @@
+// Shared TypeScript shapes for data passed between admin views and API clients.
 export type LeadStatus="Nuevo"|"Contactado"|"Reunión"|"Propuesta"|"Cliente";
 export type LeadCategory="delft"|"Llegada"|"Mentoría"|"General"|"LATAM"|"ESPECIAL";
 export type CrmStage="Por contactar"|"Contactado"|"Propuesta enviada"|"Llamada programada"|"Llamada tenida"|"En espera"|"Cliente"|"Lost";

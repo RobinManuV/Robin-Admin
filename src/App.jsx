@@ -1,3 +1,4 @@
+// Session gate and login screen; the authenticated shell mounts after identity is resolved.
 import { useEffect, useState } from "react";
 import { AdminApp } from "./components/admin-app";
 import { portalClient } from "./services/portal";

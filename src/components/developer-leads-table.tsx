@@ -1,3 +1,4 @@
+// Admin interface component for developer leads table; composed by the shell or a feature module.
 "use client";
 
 import { useCallback, useEffect, useState } from "react";

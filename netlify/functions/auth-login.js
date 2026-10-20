@@ -1,3 +1,4 @@
+// Netlify handler for /api/auth/login; it owns the HTTP boundary and hands reusable work to server modules.
 const { getSupabase } = require('../../lib/supabase');
 const { verifyPassword, signSession, buildSessionCookie } = require('../../lib/auth');
 const { json, methodNotAllowed, parseJsonBody, serverError, verifyOrigin } = require('../../lib/http');

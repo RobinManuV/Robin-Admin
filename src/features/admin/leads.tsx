@@ -1,3 +1,4 @@
+// Admin feature module for leads; the feature registry connects it to the authenticated shell.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ChevronDown, ChevronRight, Database, Download, Filter, Flame, GraduationCap, LayoutGrid, List, Mail, PhoneCall, Search, UserCheck, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

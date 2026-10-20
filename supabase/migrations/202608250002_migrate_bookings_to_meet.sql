@@ -1,3 +1,4 @@
+-- SQL change for 202608250002 migrate bookings to meet; apply it only to the Supabase project that owns this migration.
 begin;
 
 -- The production table is empty at migration time. Replace the retired Zoom

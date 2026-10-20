@@ -1,3 +1,4 @@
+// Admin feature module for lead shared; the feature registry connects it to the authenticated shell.
 import type { Contact } from "@/types/domain";
 
 export type LeadGroupRow = { name: string; email: string; phone: string; schoolName: string; area: string; leadType: string; lifecycle: string; taskStatus: string; heat: string; source: string; campaign: string; notes: string; owner: string };

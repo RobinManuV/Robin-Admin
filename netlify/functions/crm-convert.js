@@ -1,3 +1,4 @@
+// Netlify handler for /api/internal/crm/convert; it owns the HTTP boundary and hands reusable work to server modules.
 const { getSupabase } = require('../../lib/supabase');
 const { getAdminSupabase } = require('../../lib/admin-supabase');
 const { readSessionFromEvent, hashPassword } = require('../../lib/auth');

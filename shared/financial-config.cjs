@@ -1,3 +1,4 @@
+// Shared financial config values or helpers used across this runtime.
 const CURRENCY = 'EUR';
 const DELFT_PRICE_VERSION = 'delft-2999-v1';
 

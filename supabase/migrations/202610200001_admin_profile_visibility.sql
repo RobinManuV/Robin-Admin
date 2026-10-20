@@ -1,3 +1,4 @@
+-- SQL change for 202610200001 admin profile visibility; apply it only to the Supabase project that owns this migration.
 alter table public.users
   add column if not exists visible_tabs text[] not null default array[
     'home.summary', 'home.leads', 'home.students', 'home.analytics', 'home.settings',

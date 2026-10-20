@@ -1,3 +1,4 @@
+// Admin feature module for settings; the feature registry connects it to the authenticated shell.
 import { useEffect, useState } from "react";
 import { Camera, Database, KeyRound, Settings, ShieldCheck, Trash2, UserPlus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

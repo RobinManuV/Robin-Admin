@@ -1,3 +1,4 @@
+// Reusable interface primitive: button.
 import type { ButtonHTMLAttributes } from "react";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string };

@@ -1,3 +1,4 @@
+// Reusable interface primitive: badge.
 import type { HTMLAttributes } from "react";
 
 type Props = HTMLAttributes<HTMLSpanElement> & { variant?: string };

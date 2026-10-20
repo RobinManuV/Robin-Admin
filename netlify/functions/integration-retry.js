@@ -1,3 +1,4 @@
+// Netlify handler for its internal or scheduled entry; it owns the HTTP boundary and hands reusable work to server modules.
 const { getSupabase } = require('../../lib/supabase');
 const { json } = require('../../lib/http');
 const { createOperationLogger, errorCode } = require('../../lib/observability');

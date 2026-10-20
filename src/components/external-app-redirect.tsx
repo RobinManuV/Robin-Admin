@@ -1,3 +1,4 @@
+// Admin interface component for external app redirect; composed by the shell or a feature module.
 import { useEffect } from "react";
 import { ExternalLink } from "lucide-react";
 

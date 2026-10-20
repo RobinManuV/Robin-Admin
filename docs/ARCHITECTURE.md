@@ -29,6 +29,13 @@ flowchart LR
 | Dominio/adaptadores | `lib/` | Reglas reutilizables, Supabase, proveedores, PDF y observabilidad. |
 | Estructura SQL | `supabase/*/` | Migraciones separadas por proyecto/esquema de destino. |
 
+### Invariantes de la interfaz
+
+- `src/main.jsx` instala `BrowserRouter`; `AdminApp` conserva una shell compartida para navegación y vistas administrativas.
+- Las estadísticas y los registros visibles proceden de APIs y bases conectadas; no presentar fixtures o valores de demostración como información real.
+- Componentes de navegación, sidebar y topbar se comparten desde el shell. Las pantallas de dominio deben entrar por el registro de features, no montar shells alternativos.
+- Los gráficos sin observaciones usan un estado vacío explícito y neutro, no datos inventados.
+
 El detalle de navegación está en [USERGUIDE](../USERGUIDE.md); [FILE_MAP](FILE_MAP.md) describe a mano módulos, contratos y recorridos. El [índice generado](FILE_INDEX.generated.md) y el árbol enlazan los archivos fuente.
 
 ## Mapa de carpetas

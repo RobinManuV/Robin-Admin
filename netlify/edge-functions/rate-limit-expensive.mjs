@@ -1,3 +1,4 @@
+// Edge middleware for rate limit expensive; it runs before the matching Netlify Function.
 export default async function rateLimitExpensive(_request, context) {
   return context.next();
 }

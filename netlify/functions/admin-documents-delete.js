@@ -1,3 +1,4 @@
+// Netlify handler for /api/admin/documents/delete; it owns the HTTP boundary and hands reusable work to server modules.
 const { getSupabase } = require('../../lib/supabase');
 const storage = require('../../lib/storage');
 const { readSessionFromEvent } = require('../../lib/auth');

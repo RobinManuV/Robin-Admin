@@ -1,3 +1,4 @@
+// Admin feature module for analytics finance; the feature registry connects it to the authenticated shell.
 import { useEffect, useState } from "react";
 import { AlertTriangle, BarChart3, CircleDollarSign, FileText, GraduationCap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

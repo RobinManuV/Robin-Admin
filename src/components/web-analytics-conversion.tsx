@@ -1,3 +1,4 @@
+// Admin interface component for web analytics conversion; composed by the shell or a feature module.
 import { ArrowRight, MousePointerClick, Target, TrendingUp } from "lucide-react";
 import type { WebAnalytics as WebData } from "@/services/web-analytics";
 import { Empty, int, pct, ratio, Panel, Unavailable, Table } from "./web-analytics-shared";

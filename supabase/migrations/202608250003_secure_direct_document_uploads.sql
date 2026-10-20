@@ -1,3 +1,4 @@
+-- SQL change for 202608250003 secure direct document uploads; apply it only to the Supabase project that owns this migration.
 begin;
 
 -- Los 17 documentos de producción tienen ambos campos legacy a NULL. Los

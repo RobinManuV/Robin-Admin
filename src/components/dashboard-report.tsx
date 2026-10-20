@@ -1,3 +1,4 @@
+// Admin interface component for dashboard report; composed by the shell or a feature module.
 "use client";
 
 import { useEffect, useState } from "react";

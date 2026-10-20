@@ -1,3 +1,4 @@
+// Edge middleware for rate limit identity; it runs before the matching Netlify Function.
 export default async function rateLimitIdentity(_request, context) {
   return context.next();
 }

@@ -1,3 +1,4 @@
+// Browser-side admin permissions helpers; keep server credentials and provider access out of this layer.
 export const adminTabPermissions = [
   { key: "home.summary", label: "Inicio · Resumen", group: "Inicio" },
   { key: "home.leads", label: "Inicio · Bandeja de leads", group: "Inicio" },

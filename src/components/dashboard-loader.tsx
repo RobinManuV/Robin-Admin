@@ -1,3 +1,4 @@
+// Admin interface component for dashboard loader; composed by the shell or a feature module.
 import { Loader2 } from "lucide-react";
 
 export function DashboardLoader() {

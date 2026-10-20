@@ -1,3 +1,4 @@
+// Netlify handler for /api/onboarding/dni/extract; it owns the HTTP boundary and hands reusable work to server modules.
 const { getSupabase } = require('../../lib/supabase');
 const { readSessionFromEvent } = require('../../lib/auth');
 const { extractDniFields } = require('../../lib/ocr');

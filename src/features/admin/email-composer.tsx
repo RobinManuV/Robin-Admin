@@ -1,3 +1,4 @@
+// Admin feature module for email composer; the feature registry connects it to the authenticated shell.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Mail, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

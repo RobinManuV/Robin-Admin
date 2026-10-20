@@ -1,3 +1,4 @@
+// Admin interface component for web analytics traffic; composed by the shell or a feature module.
 import { useMemo } from "react";
 import { Clock, Eye, Monitor, Search, Smartphone, Users } from "lucide-react";
 import { Area, Bar, CartesianGrid, ComposedChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";

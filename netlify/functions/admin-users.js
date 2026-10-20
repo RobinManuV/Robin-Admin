@@ -1,3 +1,4 @@
+// Netlify handler for /api/admin/users; it owns the HTTP boundary and hands reusable work to server modules.
 const { getSupabase } = require('../../lib/supabase');
 const { hashPassword, readSessionFromEvent } = require('../../lib/auth');
 const { findAdminForSession } = require('../../lib/admin-auth');

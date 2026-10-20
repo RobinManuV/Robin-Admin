@@ -1,3 +1,4 @@
+// Maintenance utility for generate docs; it is run explicitly by developers or CI.
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");

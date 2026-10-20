@@ -1,3 +1,4 @@
+// Netlify handler for /api/admin/payment-analytics; it owns the HTTP boundary and hands reusable work to server modules.
 const { getSupabase } = require('../../lib/supabase');
 const { getSubscriptionsSupabase } = require('../../lib/subscriptions-supabase');
 const { readSessionFromEvent } = require('../../lib/auth');

@@ -1,3 +1,4 @@
+// Admin feature module for analytics personal; the feature registry connects it to the authenticated shell.
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

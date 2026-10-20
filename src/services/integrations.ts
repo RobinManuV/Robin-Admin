@@ -1,3 +1,4 @@
+// Browser API client for integrations; keeps endpoint and fetch details out of the screens.
 import { apiPath } from "@/lib/api-path";
 
 const apiFetch = (input: RequestInfo | URL, init?: RequestInit) =>

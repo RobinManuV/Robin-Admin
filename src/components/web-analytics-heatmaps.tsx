@@ -1,3 +1,4 @@
+// Admin interface component for web analytics heatmaps; composed by the shell or a feature module.
 import { useEffect, useRef, useState } from "react";
 import { Flame, Gauge, Globe, Monitor, Smartphone } from "lucide-react";
 import { webAnalyticsClient } from "@/services/web-analytics";

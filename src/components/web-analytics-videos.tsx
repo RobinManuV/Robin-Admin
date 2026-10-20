@@ -1,3 +1,4 @@
+// Admin interface component for web analytics videos; composed by the shell or a feature module.
 import { PlayCircle } from "lucide-react";
 import type { WebAnalytics as WebData } from "@/services/web-analytics";
 import { Empty, int, Panel } from "./web-analytics-shared";

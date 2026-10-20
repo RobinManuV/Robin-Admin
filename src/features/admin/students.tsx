@@ -1,3 +1,4 @@
+// Admin feature module for students; the feature registry connects it to the authenticated shell.
 import { useState } from "react";
 import { AlertTriangle, ChevronRight, ExternalLink, GraduationCap, Plus, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

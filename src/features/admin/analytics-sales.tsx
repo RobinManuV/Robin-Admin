@@ -1,3 +1,4 @@
+// Admin feature module for analytics sales; the feature registry connects it to the authenticated shell.
 import { useEffect, useState } from "react";
 import { AlertTriangle, BarChart3, Megaphone, TrendingUp, UserCheck } from "lucide-react";
 import { integrationClient } from "@/services/integrations";

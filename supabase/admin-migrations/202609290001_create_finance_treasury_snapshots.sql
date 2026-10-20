@@ -1,3 +1,4 @@
+-- SQL change for 202609290001 create finance treasury snapshots; apply it only to the Supabase project that owns this migration.
 create table if not exists public.finance_treasury_snapshots (
   snapshot_date date primary key,
   total_eur numeric(18, 2) not null,

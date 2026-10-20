@@ -1,3 +1,4 @@
+// Admin interface component for web analytics blog; composed by the shell or a feature module.
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, FileText, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";

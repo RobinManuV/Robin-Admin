@@ -1,3 +1,4 @@
+// Admin feature module for lead inbox; the feature registry connects it to the authenticated shell.
 import { useMemo, useState } from "react";
 import { Download, Filter, Plus, Search, UserCheck, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

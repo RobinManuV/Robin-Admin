@@ -1,3 +1,4 @@
+// Netlify handler for /api/leads/website; it owns the HTTP boundary and hands reusable work to server modules.
 const { ingestCrmLead } = require('../../lib/crm-lead-ingest');
 const { json, methodNotAllowed, parseJsonBody, safeEqual, serverError } = require('../../lib/http');
 

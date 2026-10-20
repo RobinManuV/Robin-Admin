@@ -1,3 +1,4 @@
+// Netlify handler for /api/auth/change-password; it owns the HTTP boundary and hands reusable work to server modules.
 const { getSupabase } = require('../../lib/supabase');
 const {
   hashPassword,

@@ -1,3 +1,4 @@
+// Browser API client for admin data; keeps endpoint and fetch details out of the screens.
 import type { Contact, CrmStage, LeadCategory, LeadContactRole, LostReason } from "@/types/domain";
 import { apiPath } from "@/lib/api-path";
 

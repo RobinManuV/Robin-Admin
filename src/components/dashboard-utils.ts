@@ -1,3 +1,4 @@
+// Admin interface component for dashboard utils; composed by the shell or a feature module.
 import type { AnalyticsDateRange } from "@/services/integrations";
 
 function localDateKey(date: Date) {

@@ -1,3 +1,4 @@
+// Admin interface component for web analytics tech; composed by the shell or a feature module.
 import type { WebAnalytics as WebData } from "@/services/web-analytics";
 import { Empty, int, shortPath, Panel, Table } from "./web-analytics-shared";
 

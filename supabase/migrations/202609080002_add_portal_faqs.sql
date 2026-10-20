@@ -1,3 +1,4 @@
+-- SQL change for 202609080002 add portal faqs; apply it only to the Supabase project that owns this migration.
 create table if not exists public.portal_faqs (
   id uuid primary key default gen_random_uuid(),
   question text not null check (char_length(trim(question)) between 1 and 300),

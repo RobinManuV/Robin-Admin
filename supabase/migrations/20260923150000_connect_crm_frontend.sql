@@ -1,3 +1,4 @@
+-- SQL change for 20260923150000 connect crm frontend; apply it only to the Supabase project that owns this migration.
 alter table public.crm_leads
   add column if not exists crm_stage text not null default 'Por contactar'
     check (crm_stage in ('Por contactar','Contactado','Propuesta enviada','Llamada programada','Llamada tenida','En espera','Cliente','Lost')),

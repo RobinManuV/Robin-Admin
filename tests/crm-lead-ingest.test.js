@@ -1,3 +1,4 @@
+// Automated checks for crm lead ingest test; external services should remain outside this test boundary.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { detectedCourse, isFirstBachillerato } = require('../lib/crm-lead-ingest');

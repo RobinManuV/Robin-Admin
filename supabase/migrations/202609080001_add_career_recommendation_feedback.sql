@@ -1,3 +1,4 @@
+-- SQL change for 202609080001 add career recommendation feedback; apply it only to the Supabase project that owns this migration.
 begin;
 
 create table if not exists public.career_recommendation_feedback (

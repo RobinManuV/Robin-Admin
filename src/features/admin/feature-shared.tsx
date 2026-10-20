@@ -1,3 +1,4 @@
+// Admin feature module for feature shared; the feature registry connects it to the authenticated shell.
 import { DeveloperRecordsTable } from "@/components/developer-leads-table";
 import { useEffect, useState } from "react";
 import { Check, Copy, Flame, MessageCircle, PhoneCall, Plus, Trash2 } from "lucide-react";

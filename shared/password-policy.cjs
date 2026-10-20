@@ -1,3 +1,4 @@
+// Shared password policy values or helpers used across this runtime.
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_BYTES = 72;
 
