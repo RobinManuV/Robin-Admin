@@ -1,5 +1,6 @@
 const { getSupabase } = require('../../lib/supabase');
 const { readSessionFromEvent } = require('../../lib/auth');
+const { findAdminForSession } = require('../../lib/admin-auth');
 const { isApplicationAdmin } = require('../../lib/authorization');
 const { json, methodNotAllowed, serverError } = require('../../lib/http');
 const holded = require('../../lib/holded');
@@ -18,8 +19,7 @@ const PERIODS = new Set(['30d', 'month', 'last_month', '3m', '365d', 'ytd', 'cus
 async function requireAdmin(event) {
   const session = readSessionFromEvent(event);
   if (!session) return null;
-  const { data: user } = await getSupabase().from('users').select('id,email,username,role').eq('id', session.uid).single();
-  return user && isApplicationAdmin(user) ? user : null;
+  return findAdminForSession(getSupabase(), session);
 }
 
 async function loadPortalFinanceRows() {

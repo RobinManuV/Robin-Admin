@@ -1,6 +1,7 @@
 const { getSupabase } = require('../../lib/supabase');
 const { getAdminSupabase } = require('../../lib/admin-supabase');
 const { readSessionFromEvent } = require('../../lib/auth');
+const { findAdminForSession } = require('../../lib/admin-auth');
 const { isApplicationAdmin } = require('../../lib/authorization');
 const { json, methodNotAllowed, serverError } = require('../../lib/http');
 const { loadExpenseEntries, periodBounds, summarizeExpenses } = require('../../lib/finance-dashboard');
@@ -29,8 +30,7 @@ function actionValue(items, preferredTypes) {
 async function requireAdmin(event) {
   const session = readSessionFromEvent(event);
   if (!session) return null;
-  const { data: user } = await getSupabase().from('users').select('id,email,username,nombre,role').eq('id', session.uid).single();
-  return user && isApplicationAdmin(user) ? user : null;
+  return findAdminForSession(getSupabase(), session, 'id,email,username,nombre,role');
 }
 
 async function metaGraph(path, params = {}) {
