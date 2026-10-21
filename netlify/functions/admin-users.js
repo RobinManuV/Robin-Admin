@@ -6,6 +6,7 @@ const { json, methodNotAllowed, parseJsonBody, serverError, verifyOrigin } = req
 const { passwordPolicy } = require('../../shared/password-policy.cjs');
 const { signedUrl } = require('../../lib/storage');
 const { identityExists } = require('../../lib/identity');
+const { isApplicationAdmin } = require('../../lib/authorization');
 const { isProAdmin, normalizeVisibleTabs } = require('../../lib/admin-profiles');
 
 async function requireAdmin(sb, event) {
