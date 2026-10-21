@@ -34,3 +34,22 @@ Los repos se despliegan de forma independiente; no hay paquete fuente común ni 
 4. desplegar y comprobar cada dominio/ruta afectada.
 
 No usar rutas relativas de archivos entre repos: los links externos apuntan a `main` y la URL concreta del archivo en GitHub.
+
+
+## Recorrido del login compartidoRecorrido del login compartido
+
+Admin y Platform son dos origins Netlify detrás del mismo dominio público. Al entrar en Admin, la página usa su propio shell; para operaciones de identidad, `src/lib/api-path.ts` puede dirigir las llamadas a `/portal/api/*`, que el Worker entrega a Platform. Las rutas de administración de este producto siguen en Admin. La sesión de aplicación y la autorización se resuelven en el backend correspondiente; la cookie visible en el navegador no concede permiso por sí sola.
+
+Antes de cambiar el flujo:
+
+1. Dibuja la URL exacta del navegador, su rewrite y el origin final.
+2. Confirma qué repo es proveedor y cuál consumidor de cada endpoint y campo.
+3. Mantén compatibles roles, capabilities, IDs, shape JSON, status y semántica de logout.
+4. Revisa los links de navegación y los tres capítulos SSO/Cloudflare.
+5. Despliega el proveedor antes de depender de un campo nuevo, o usa una migración compatible en ambos lados.
+
+Continúa en [Platform · sesión y routing](https://github.com/RobinManuV/Robin-platform-cliente/blob/main/docs/userguide/01-runtime-and-identity.md) y [Subscriptions · SSO](https://github.com/saantimartinn/robin-subscriptions/blob/main/docs/userguide/01-app-session-and-sso.md). Para paths exactos, el documento de referencia es [CLOUDFLARE_ROUTING](../CLOUDFLARE_ROUTING.md).
+
+---
+
+**USERGUIDE:** [Índice](../../USERGUIDE.md) · [← Anterior](./05-data-integrations-security.md) · [Siguiente documento de lectura →](./07-source-file-reference.md) · [READMELONG](../../READMELONG.md)

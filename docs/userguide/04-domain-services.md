@@ -24,3 +24,22 @@ Los handlers de [netlify/functions](../codebase/netlify/functions/README.md) deb
 Ejemplo: dashboard financiero → `src/services/integrations.ts` → `/api/admin/finance/dashboard` → `netlify/functions/admin-finance-dashboard.js` → `lib/finance-dashboard.js` → `lib/finance/dashboard.js` / `lib/holded/*` → Holded o Supabase. La consulta usa el guard de Admin y formatea la respuesta con el tipo `FinanceDashboard`.
 
 Ejemplo: mutar lead → `leads.tsx` → `adminDataClient` (`src/services/admin-data.ts`) → `/api/admin/crm/leads` → `admin-crm-leads.js` → `lib/crm-*`/Supabase; el cliente actualiza el estado y aplica `toContact()` para normalizar el row a `Contact`.
+
+
+## Cómo decidir dónde colocar lógicaCómo decidir dónde colocar lógica
+
+La Function es la frontera para HTTP; `lib/` es la capa de dominio y adaptadores. Si el código decide reglas de elegibilidad, deduplica, reconcilia registros, calcula una métrica o coordina varios proveedores, comprueba si encaja en un servicio con contrato explícito. Mantén los detalles de transporte fuera de la regla de negocio y evita que una UI acceda directamente a credenciales o proveedores.
+
+Antes de dividir una fachada existente (en particular `finance-dashboard.js` o `holded.js`):
+
+- Busca todos los imports, incluidas Functions, scripts y pruebas.
+- Conserva nombre de export, argumentos, defaults, forma de retorno y semántica de errores.
+- Mantén el módulo fachada mientras haya consumidores antiguos; cambia consumidores en pasos verificables.
+- Conserva orden, paginación, zona horaria, redondeo e idempotencia si afectan a cálculos o escrituras.
+- Evita duplicar normalizadores de identidad y permisos entre módulos cercanos.
+
+Para trazar un resultado, empieza en el handler del [inventario API](../API_INVENTORY.md), sigue imports a la función concreta y comprueba al final el adaptador y fuente de datos.
+
+---
+
+**USERGUIDE:** [Índice](../../USERGUIDE.md) · [← Anterior](./03-api-and-functions.md) · [Siguiente documento de lectura →](./05-data-integrations-security.md) · [READMELONG](../../READMELONG.md)

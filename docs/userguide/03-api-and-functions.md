@@ -30,3 +30,19 @@ React component → src/services/* → public /api path → netlify.toml redirec
 - La respuesta suele ser JSON; PDF y eventos streaming son excepciones. Las APIs usan `Cache-Control: no-store` según config de hosting.
 
 Para reglas y tablas estáticas revisa la fuente del handler: [inventario](../API_INVENTORY.md) detecta métodos por regex y no reemplaza revisión manual del contrato.
+
+
+## Receta para una ruta nuevaReceta para una ruta nueva
+
+1. Define método, ruta pública, parámetros, esquema de entrada, respuesta y política de error.
+2. Añade o actualiza el redirect de `netlify.toml`; usa nombres de Function que se puedan resolver sin ambigüedad.
+3. Implementa el límite HTTP en `netlify/functions/`: rechaza métodos no admitidos, verifica origen cuando corresponde, autentica, autoriza y valida antes de mutar.
+4. Mueve lógica reutilizable a `lib/` si hay regla de dominio o más de un consumidor; el handler debe permanecer como adaptador de transporte.
+5. Añade el consumidor al cliente de `src/services/` y mapea respuesta a tipos UI sin elevar privilegios.
+6. Actualiza contratos/inventario si corresponde y rastrea referencias de las rutas antiguas.
+
+En webhooks, valida la firma sobre el cuerpo en la forma exigida por el proveedor antes de parsear o escribir. En jobs, revisa schedule, timeout, concurrencia y efectos de reintento en `netlify.toml`.
+
+---
+
+**USERGUIDE:** [Índice](../../USERGUIDE.md) · [← Anterior](./02-frontend-features.md) · [Siguiente documento de lectura →](./04-domain-services.md) · [READMELONG](../../READMELONG.md)

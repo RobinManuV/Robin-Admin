@@ -26,3 +26,20 @@ index.html → src/main.jsx → src/App.jsx
 ```
 
 El Admin usa pathname propio, mientras Cloudflare expone el mismo SPA bajo `/admin/`. Ver [enrutamiento](../CLOUDFLARE_ROUTING.md), [arquitectura](../ARCHITECTURE.md) y [mapa de frontend](02-frontend-features.md).
+
+
+## Diagnóstico paso a pasoDiagnóstico paso a paso
+
+Cuando Admin no llega al shell, separa la resolución de identidad del render:
+
+1. Comprueba que el documento y los bundles se hayan servido; si el HTML carga pero el JS no, investiga primero el path de asset bajo `/admin` y la regla del Worker.
+2. En la pestaña de red localiza `/api/me` o la llamada de sesión equivalente. El host y pathname determinan si `src/lib/api-path.ts` la transforma a `/portal/api/*`.
+3. Si la ruta va a Platform, sigue la respuesta allí; si va a Admin, comprueba redirects y Function local.
+4. Distingue 401 (no hay sesión válida), 403 (identidad válida sin permiso), error de red (proxy/origin) y error de parseo/respuesta.
+5. Tras validar sesión, sigue el pathname a `admin-app.tsx`; confirma que el prefijo de despliegue no se interprete como nombre de feature.
+
+Al cambiar login, comprueba al menos la entrada desde dominio común y desde host directo de Netlify, junto con logout y expiración. No copies cookies reales ni tokens a incidencias o documentación.
+
+---
+
+**USERGUIDE:** [Índice](../../USERGUIDE.md) · [Siguiente documento de lectura →](./02-frontend-features.md) · [READMELONG](../../READMELONG.md)

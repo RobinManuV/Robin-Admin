@@ -35,3 +35,20 @@
 - `src/lib/admin-permissions.ts` es el catálogo frontend de claves de visibilidad; mantener sus claves compatibles con la validación de backend.
 
 Índice de todas las rutas de importación y archivos: [FILE_MAP](../FILE_MAP.md) y [árbol `src/`](../codebase/src/README.md).
+
+
+## Añadir o modificar una vistaAñadir o modificar una vista
+
+Antes de crear un componente decide si la vista pertenece al shell común, a dashboard/reporting o a un dominio de `src/features/admin/`. Para una feature del panel revisa el conjunto completo:
+
+- Registro lazy y fallback en `src/components/feature-modules.tsx`.
+- URL/path que la selecciona, entrada de navegación y permiso visible en `admin-app.tsx`.
+- Propiedades y callbacks del módulo compartido; evitar que una pantalla fabrique por su cuenta una segunda shell.
+- Cliente de servicio llamado y estados de cargando, vacío, error y éxito.
+- Enlaces generados bajo `/admin`, query string y comportamiento al refrescar la ruta directamente.
+
+Una pantalla puede ocultarse en el menú por UX, pero el endpoint debe proteger la operación por sí mismo. Si cambias una capability, busca el nombre completo en frontend y backend antes de renombrarlo.
+
+---
+
+**USERGUIDE:** [Índice](../../USERGUIDE.md) · [← Anterior](./01-runtime-and-session.md) · [Siguiente documento de lectura →](./03-api-and-functions.md) · [READMELONG](../../READMELONG.md)

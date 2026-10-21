@@ -1,5 +1,9 @@
 # Robin Admin — guía técnica extendida
 
+> **¿Primera vez en el código?** Empieza por la [USERGUIDE](USERGUIDE.md): contiene el itinerario de incorporación y enlaza los capítulos de runtime, frontend, API, servicios, seguridad y flujos entre repositorios.
+>
+> Para seguir los datos desde la pantalla hasta el handler, almacenamiento o proveedor, consulta [DATAFLOW](docs/DATAFLOW.md).
+
 ## Propósito y límites
 
 Este repositorio mantiene el panel interno de administración que se publica en `https://project-robin.com/admin/`. Incluye su frontend, handlers serverless, adaptadores a proveedores y funciones administrativas de negocio. Comparte el punto de entrada de identidad con Robin Platform; The Robin Plan está desplegado como un servicio hermano independiente.
