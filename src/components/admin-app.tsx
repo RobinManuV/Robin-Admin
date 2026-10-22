@@ -69,10 +69,11 @@ import { allAdminTabPermissions, isDeveloperAdminEmail, isProAdminEmail } from "
 
 type NavItem = [string, string, typeof LayoutDashboard, string];
 
-const workspaceTabs = [
-  ["/", "Inicio", "home", "home."],
-  ["https://project-robin.com/login", "Portal del Alumno", "external", "platform.student_portal"],
-  ["https://project-robin.com/therobinplan/", "The Robin Plan", "subscriptions", "platform.robin_plan"],
+const workspaceTabs: readonly (readonly [string, string, string, string | null])[] = [
+  ["https://project-robin.com/admin", "Inicio", "home", null],
+  ["https://robinjr.netlify.app/portal/", "RobinJr", "robinjr", null],
+  ["https://project-robin.com/portal/", "Portal del Alumno", "external", null],
+  ["https://project-robin.com/therobinplan/", "Robin Community", "subscriptions", null],
   ["/crm", "CRM", "crm", "crm."],
   ["/analiticas/ventas", "Otras métricas", "analytics", "analytics."],
 ] as const;
@@ -140,7 +141,7 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
   const [admins, setAdmins] = useState(() => ["Noel", "Manuel", "María", ...(isDeveloperAdminEmail(authUser.email) ? ["Santi"] : [])]);
   const isProAdmin = isProAdminEmail(permissionProfile.email) || permissionProfile.is_pro_admin === true;
   const isDeveloperAdmin = isDeveloperAdminEmail(permissionProfile.email);
-  const visibleTabs = isProAdmin ? allAdminTabPermissions : (permissionProfile.visible_tabs || []);
+  const visibleTabs = allAdminTabPermissions;
   const canSee = (key: string) => key === "developer.database" ? isDeveloperAdmin : visibleTabs.includes(key);
   const routePermission = path === "/" || path.startsWith("/informes/inicio") ? "home.summary"
     : path === "/bandeja-leads" ? "home.leads"
@@ -362,10 +363,37 @@ export function AdminApp({ authUser, onLogout }: { authUser: PortalAdmin; onLogo
         <header className="top">
           <button className="menub" onClick={() => setOpen(true)} aria-label="Abrir menú"><Menu /></button>
           <nav className="workspace-tabs" aria-label="Áreas del gestor">
-            {workspaceTabs.filter(([, , , permission]) => permission.endsWith(".") ? visibleTabs.some((key) => key.startsWith(permission)) : canSee(permission)).map(([href, label, tabArea]) => {
+            {workspaceTabs.map(([href, label, tabArea]) => {
               const external = href.startsWith("https://");
               const destination = external ? href : adminPath(href);
-              return <a href={destination} key={href} className={area === tabArea ? "active" : ""} rel={external ? "noreferrer" : undefined} onClick={external ? undefined : (event) => { event.preventDefault(); event.stopPropagation(); window.location.assign(destination); }}>{label}</a>;
+              const onClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+                if (tabArea === "robinjr") {
+                  event.preventDefault();
+                  void (async () => {
+                    try {
+                      const response = await fetch("/portal/api/auth/sso-ticket", {
+                        method: "POST",
+                        credentials: "same-origin",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ target: "robinjr" }),
+                        cache: "no-store",
+                      });
+                      const result = await response.json().catch(() => ({}));
+                      if (!response.ok || !result.ticket) throw new Error("No se pudo validar la sesión.");
+                      window.location.assign(href + "?sso_ticket=" + encodeURIComponent(result.ticket));
+                    } catch (_) {
+                      setNotice("No se ha podido validar tu acceso a RobinJr.");
+                    }
+                  })();
+                  return;
+                }
+                if (!external) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  window.location.assign(destination);
+                }
+              };
+              return <a href={destination} key={href} className={area === tabArea ? "active" : ""} rel={external ? "noreferrer" : undefined} onClick={onClick}>{label}</a>;
             })}
           </nav>
           <div className="top-actions">

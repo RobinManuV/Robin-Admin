@@ -1,42 +1,44 @@
-// Session gate and login screen; the authenticated shell mounts after identity is resolved.
+// Admin shares the public Robin login and only mounts for an authenticated admin identity.
 import { useEffect, useState } from "react";
 import { AdminApp } from "./components/admin-app";
 import { portalClient } from "./services/portal";
-const robinLogo = /(^|\.)project-robin\.com$/i.test(window.location.hostname)
-  ? "/admin/robin-wordmark.png"
-  : "/robin-wordmark.png";
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
-    portalClient.me().then((sessionUser) => { if (active) setUser(sessionUser); }).catch(() => undefined).finally(() => { if (active) setReady(true); });
+    portalClient.me()
+      .then((sessionUser) => {
+        if (!active) return;
+        if (sessionUser.is_application_admin !== true) {
+          window.location.replace("https://project-robin.com/portal/");
+          return;
+        }
+        setUser(sessionUser);
+      })
+      .catch(() => {
+        window.location.replace("https://project-robin.com/login?next=%2Fadmin");
+      })
+      .finally(() => { if (active) setReady(true); });
     return () => { active = false; };
   }, []);
 
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      await portalClient.login(username, password);
-      setUser(await portalClient.me());
-    } catch (loginError) {
-      setError(loginError?.message || "No se pudo iniciar sesión.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // La comprobación de sesión es silenciosa para evitar un flash intermedio.
-  if (!ready) return null;
-  if (!user) return <div className="auth-shell"><form className="auth-card" onSubmit={submit}><span className="auth-mark"><img src={robinLogo} alt="Robin" /></span><small>ROBIN ADMIN PLATFORM</small><h1>Acceso administrativo</h1><p>Usa tus credenciales de administrador de Robin Platform.</p><label>Usuario o email<input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} required /></label><label>Contraseña<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>{error && <div className="auth-error">{error}</div>}<button className="ui-button" type="submit" disabled={busy}>{busy ? "Entrando…" : "Entrar"}</button></form></div>;
-
-  return <AdminApp authUser={user} onLogout={async () => { await portalClient.logout(); setUser(null); }} />;
+  if (!ready || !user) return null;
+  return (
+    <AdminApp
+      authUser={user}
+      onLogout={async () => {
+        await portalClient.logout();
+        try {
+          await fetch("/therobinplan/api/auth/logout", {
+            method: "POST",
+            credentials: "same-origin",
+          });
+        } catch (_) {}
+        window.location.replace("https://project-robin.com/login");
+      }}
+    />
+  );
 }

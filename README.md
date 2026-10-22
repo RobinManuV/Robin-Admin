@@ -16,6 +16,8 @@ Configura solo variables necesarias para el flujo local. Las claves de servicio 
 
 ## Documentación
 
+- [Referencia de datos y métricas](docs/REFERENCIA_DATOS_METRICAS.md): fuentes, campos, fórmulas, ejemplos y límites conocidos de las estadísticas de Robin.
+
 - [READMELONG](READMELONG.md): descripción extensa del producto y sus límites técnicos.
 - [USERGUIDE](USERGUIDE.md): árbol de navegación para entender el repositorio y seguir flujos entre repos.
 - [Arquitectura](docs/ARCHITECTURE.md): capas, dependencias y datos.
